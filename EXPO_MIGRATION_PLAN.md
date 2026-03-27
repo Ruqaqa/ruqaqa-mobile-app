@@ -118,18 +118,23 @@ Since video watermarking has no reliable client-side solution in React Native, c
 - Success feedback: play a sound on successful submission
 - Multipart upload of receipts during submission
 
-**Transaction History:**
-- Paginated list of transactions (20 per page)
-- Search by: statement text, transaction number, client, project, amount, date
+**Transaction History — DONE:**
+- Paginated list of transactions (20 per page) with infinite scroll and pull-to-refresh
+- Search by: statement text, transaction number, partner employee, other party, client, project, amount range (min/max with +/- sign toggle), date range, tax quarter/year
 - Filter by approval status (Pending, Approved, Rejected)
 - Toggle between "my transactions" and "all transactions" (permission-dependent)
-- Each transaction card shows key info; tapping opens a detail modal with all fields and receipts
-- Receipt viewing: tap to view full-size, option to download
+- Each transaction card shows: statement, amount with color coding, status chip, client, project, partner, date, receipt indicator
+- Tapping opens a detail bottom sheet with all fields, transaction flow visualization, receipt thumbnails, and notes
+- Skeleton shimmer loading, empty state with animation, error state with retry
+- Reusable components created: SegmentedControl, SkeletonCard, EmptyState, ErrorState, DatePickerField (with clear), SelectField (with Android modal picker)
+- Security: input sanitization (trim, length cap, regex escaping), error code mapping (never raw API errors), hardcoded PAGE_SIZE, defensive own/all toggle
+- Backend enhancements: regex escaping on all `contains` queries, limit capped at 100, page clamped to ≥1
 
-**Approval Workflow:**
+**Approval Workflow — DONE:**
 - Users with update permission can approve or reject transactions
 - Approval status chips (visual indicators)
-- Approve/Reject action buttons on transaction details
+- Approve/Reject/Set to Pending action buttons on transaction details with confirmation dialogs
+- No optimistic updates — waits for server confirmation, then refreshes the full transaction in-place
 
 **Adding Receipts to Submitted Transactions:**
 - Special permission-gated feature

@@ -332,4 +332,9 @@ export default {
   errorApprovalFailed: '\u0641\u0634\u0644 \u062a\u062d\u062f\u064a\u062b \u062d\u0627\u0644\u0629 \u0627\u0644\u0645\u0648\u0627\u0641\u0642\u0629',
   loadingTransactions: '\u062c\u0627\u0631\u064a \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0645\u0639\u0627\u0645\u0644\u0627\u062a...',
   loadingMore: '\u062c\u0627\u0631\u064a \u062a\u062d\u0645\u064a\u0644 \u0627\u0644\u0645\u0632\u064a\u062f...',
+
+  // Language restart
+  restartRequired: 'إعادة تشغيل مطلوبة',
+  restartRequiredMessage: 'يحتاج التطبيق إلى إعادة التشغيل لتطبيق اتجاه العرض الجديد.',
+  restartNow: 'إعادة التشغيل الآن',
 } as const;

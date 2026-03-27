@@ -332,4 +332,9 @@ export default {
   errorApprovalFailed: 'Failed to update approval status',
   loadingTransactions: 'Loading transactions...',
   loadingMore: 'Loading more...',
+
+  // Language restart
+  restartRequired: 'Restart Required',
+  restartRequiredMessage: 'The app needs to restart to apply the new layout direction.',
+  restartNow: 'Restart Now',
 } as const;

@@ -2,7 +2,8 @@ import i18next from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import { getLocales } from 'expo-localization';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { I18nManager } from 'react-native';
+import { I18nManager, Alert } from 'react-native';
+import * as Updates from 'expo-updates';
 import en from './en';
 import ar from './ar';
 
@@ -49,9 +50,25 @@ export async function initI18n(): Promise<void> {
 }
 
 export async function changeLanguage(lang: Language): Promise<void> {
+  const directionWillChange = I18nManager.isRTL !== (lang === 'ar');
+
   await i18next.changeLanguage(lang);
   await saveLanguage(lang);
   applyRTL(lang);
+
+  if (directionWillChange) {
+    // I18nManager.forceRTL only takes effect after a native restart
+    Alert.alert(
+      i18next.t('restartRequired'),
+      i18next.t('restartRequiredMessage'),
+      [
+        {
+          text: i18next.t('restartNow'),
+          onPress: () => Updates.reloadAsync(),
+        },
+      ],
+    );
+  }
 }
 
 function applyRTL(lang: Language) {
