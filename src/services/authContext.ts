@@ -37,9 +37,11 @@ interface AuthContextValue {
   employee: Employee | null;
   permissions: UserPermissions | null;
   logoutMessage: string | null;
+  sessionExpired: boolean;
   login: (req: LoginRequest) => Promise<CredentialLoginResult>;
   logout: (message?: string) => Promise<void>;
   clearLogoutMessage: () => void;
+  acknowledgeSessionExpired: () => void;
 }
 
 export const AuthContext = createContext<AuthContextValue>({
@@ -48,9 +50,11 @@ export const AuthContext = createContext<AuthContextValue>({
   employee: null,
   permissions: null,
   logoutMessage: null,
+  sessionExpired: false,
   login: async () => ({ status: CredentialLoginStatus.UnknownError }),
   logout: async () => {},
   clearLogoutMessage: () => {},
+  acknowledgeSessionExpired: () => {},
 });
 
 export function useAuth() {
@@ -78,6 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [permissions, setPermissions] = useState<UserPermissions | null>(null);
   const [logoutMessage, setLogoutMessage] = useState<string | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -125,12 +130,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // -----------------------------------------------------------------------
   const handleSessionExpired = useCallback(async () => {
     clearRefreshTimer();
+    // Show the modal first — auth state cleared when user acknowledges
+    setSessionExpired(true);
+  }, [clearRefreshTimer]);
+
+  const acknowledgeSessionExpired = useCallback(async () => {
+    setSessionExpired(false);
     await tokenStorage.clearAll();
+    WebBrowser.dismissBrowser();
     setEmployee(null);
     setPermissions(null);
     setIsAuthenticated(false);
     setLogoutMessage('sessionExpired');
-  }, [clearRefreshTimer]);
+  }, []);
 
   // -----------------------------------------------------------------------
   // Login
@@ -377,9 +389,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       employee,
       permissions,
       logoutMessage,
+      sessionExpired,
       login,
       logout,
       clearLogoutMessage,
+      acknowledgeSessionExpired,
     }),
     [
       isAuthenticated,
@@ -387,9 +401,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       employee,
       permissions,
       logoutMessage,
+      sessionExpired,
       login,
       logout,
       clearLogoutMessage,
+      acknowledgeSessionExpired,
     ],
   );
 

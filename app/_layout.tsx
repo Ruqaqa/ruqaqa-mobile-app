@@ -3,8 +3,9 @@ import { Slot, SplashScreen } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ThemeProvider } from '../src/theme';
 import { initI18n } from '../src/i18n';
-import { AuthProvider } from '../src/services/authContext';
+import { AuthProvider, useAuth } from '../src/services/authContext';
 import { VersionGate } from '../src/components/version/VersionGate';
+import { SessionExpiredModal } from '../src/components/auth/SessionExpiredModal';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -29,7 +30,18 @@ export default function RootLayout() {
           <StatusBar style="auto" />
           <Slot />
         </VersionGate>
+        <SessionExpiredOverlay />
       </AuthProvider>
     </ThemeProvider>
+  );
+}
+
+function SessionExpiredOverlay() {
+  const { sessionExpired, acknowledgeSessionExpired } = useAuth();
+  return (
+    <SessionExpiredModal
+      visible={sessionExpired}
+      onSignIn={acknowledgeSessionExpired}
+    />
   );
 }
