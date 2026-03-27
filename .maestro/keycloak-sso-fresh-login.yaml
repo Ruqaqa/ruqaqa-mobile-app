@@ -1,0 +1,58 @@
+appId: sa.ruqaqa.finance
+env:
+  TEST_USERNAME: ${TEST_USERNAME}
+  TEST_PASSWORD: ${TEST_PASSWORD}
+tags:
+  - auth
+---
+# Full clean login: clears browser + app, logs in from scratch
+
+# Clear Brave cookies (kills Keycloak browser session)
+- clearState: com.brave.browser
+# Clear app data
+- clearState: sa.ruqaqa.finance
+
+- launchApp
+
+# Wait for app to load
+- extendedWaitUntil:
+    visible: "Sign in with SSO|Update now"
+    timeout: 10000
+
+# Version gate → skip if present
+- tapOn:
+    id: "dev-skip-update"
+    optional: true
+
+# Tap Keycloak SSO
+- tapOn:
+    id: "sso-keycloak-button"
+
+# Brave first-run screens after clearState — dismiss
+- tapOn:
+    text: "Maybe Later"
+    optional: true
+- tapOn:
+    text: "Continue"
+    optional: true
+
+# Keycloak login form MUST appear (browser session was killed)
+- extendedWaitUntil:
+    visible: "Username or email"
+    timeout: 10000
+- tapOn: "Username or email"
+- inputText: "${TEST_USERNAME}"
+- tapOn: "Password"
+- inputText: "${TEST_PASSWORD}"
+
+# Dismiss keyboard so Sign In button is visible
+- pressKey: back
+- scrollUntilVisible:
+    element: "Sign In"
+    direction: DOWN
+- tapOn: "Sign In"
+
+# Back in app — authenticated
+- extendedWaitUntil:
+    visible: "Operations|Reconciliation|Payroll"
+    timeout: 10000

@@ -2,13 +2,12 @@ appId: sa.ruqaqa.finance
 ---
 # Verify app launches and loads correctly
 - launchApp
-# Skip version gate if it appears (may not show if app version is current)
+- extendedWaitUntil:
+    visible: "Sign in with SSO|Update now"
+    timeout: 10000
+# Skip version gate if present
 - tapOn:
     id: "dev-skip-update"
     optional: true
-# Should now see the login screen
-- extendedWaitUntil:
-    visible: "Ruqaqa App"
-    timeout: 15000
 - assertVisible: "Sign in with Microsoft"
 - assertVisible: "Sign in with SSO"

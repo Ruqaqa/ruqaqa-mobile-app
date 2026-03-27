@@ -4,4 +4,4 @@ appId: sa.ruqaqa.finance
 - launchApp
 - extendedWaitUntil:
     visible: "Ruqaqa App|Update now"
-    timeout: 60000
+    timeout: 10000

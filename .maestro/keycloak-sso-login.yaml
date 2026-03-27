@@ -5,32 +5,41 @@ env:
 ---
 - launchApp
 
-# Version gate → skip immediately
+# Wait for app to load
+- extendedWaitUntil:
+    visible: "Sign in with SSO|Update now"
+    timeout: 10000
+
+# Version gate → skip if present
 - tapOn:
     id: "dev-skip-update"
     optional: true
 
-# Hit Keycloak SSO immediately
+# Hit Keycloak SSO
 - tapOn:
     id: "sso-keycloak-button"
 
-# Keycloak login form
+# Keycloak login form — may not appear if browser has active session
 - extendedWaitUntil:
-    visible: "Username or email"
-    timeout: 30000
-- tapOn: "Username or email"
-- inputText: "${TEST_USERNAME}"
-- tapOn: "Password"
-- inputText: "${TEST_PASSWORD}"
+    visible: "Username or email|Operations|Reconciliation|Payroll"
+    timeout: 10000
 
-# Dismiss keyboard so Sign In button is visible
-- pressKey: back
-- scrollUntilVisible:
-    element: "Sign In"
-    direction: DOWN
-- tapOn: "Sign In"
+# Fill credentials only if Keycloak form appeared
+- runFlow:
+    when:
+      visible: "Username or email"
+    commands:
+      - tapOn: "Username or email"
+      - inputText: "${TEST_USERNAME}"
+      - tapOn: "Password"
+      - inputText: "${TEST_PASSWORD}"
+      - pressKey: back
+      - scrollUntilVisible:
+          element: "Sign In"
+          direction: DOWN
+      - tapOn: "Sign In"
 
-# Back in app — authenticated
+# Should land in authenticated shell
 - extendedWaitUntil:
     visible: "Operations|Reconciliation|Payroll"
-    timeout: 30000
+    timeout: 10000

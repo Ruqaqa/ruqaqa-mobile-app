@@ -2,12 +2,12 @@ appId: sa.ruqaqa.finance
 ---
 # Verify all login screen elements are present
 - launchApp
+- extendedWaitUntil:
+    visible: "Sign in with SSO|Update now"
+    timeout: 10000
 - tapOn:
     id: "dev-skip-update"
     optional: true
-- extendedWaitUntil:
-    visible: "Ruqaqa App"
-    timeout: 15000
 
 # Verify branding
 - assertVisible: "Ruqaqa Limited Company App"
