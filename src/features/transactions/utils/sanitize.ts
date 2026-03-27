@@ -11,7 +11,7 @@ import {
 
 /** Trim and cap a string input */
 export function sanitizeText(value: string): string {
-  return value.trim().slice(0, FILTER_MAX_LENGTH);
+  return (value ?? '').trim().slice(0, FILTER_MAX_LENGTH);
 }
 
 /** Validate that a string is a valid numeric amount (or empty) */
