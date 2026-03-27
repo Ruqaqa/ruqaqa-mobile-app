@@ -19,6 +19,10 @@ export const light = {
   border: '#d1ddf7',
   input: '#e2e8f0',
   muted: '#f1f5f9',
+  // On-color text
+  onPrimary: '#ffffff',
+  onSecondary: '#ffffff',
+  onError: '#ffffff',
   // Semantic
   success: '#208f5a',
   warning: '#f59e0b',
@@ -46,6 +50,10 @@ export const dark = {
   border: '#334155',
   input: '#475569',
   muted: '#1e293b',
+  // On-color text
+  onPrimary: '#ffffff',
+  onSecondary: '#ffffff',
+  onError: '#ffffff',
   // Semantic
   success: '#29b974',
   warning: '#fbbf24',

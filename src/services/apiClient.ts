@@ -6,8 +6,8 @@ import axios, {
 import { config } from './config';
 import { tokenStorage } from './tokenStorage';
 import { refreshTokens } from './authService';
+import { createDeduplicatedRefresh } from '../utils/deduplicatedRefresh';
 
-let refreshPromise: Promise<boolean> | null = null;
 let onSessionExpired: (() => void) | null = null;
 
 /**
@@ -24,27 +24,17 @@ export function setSessionExpiredHandler(handler: () => void) {
  * De-duplicated: concurrent calls share a single refresh request.
  * Only signals session expiration on auth rejection, NOT network errors.
  */
-async function refreshAccessToken(): Promise<boolean> {
-  if (refreshPromise) return refreshPromise;
+const refreshAccessToken = createDeduplicatedRefresh(async (): Promise<boolean> => {
+  const result = await refreshTokens();
+  if (result.success) return true;
 
-  refreshPromise = (async () => {
-    try {
-      const result = await refreshTokens();
-      if (result.success) return true;
-
-      // Only signal session expired on auth rejection, not network errors.
-      // On network errors, let the original request fail naturally.
-      if (!result.isNetworkError) {
-        onSessionExpired?.();
-      }
-      return false;
-    } finally {
-      refreshPromise = null;
-    }
-  })();
-
-  return refreshPromise;
-}
+  // Only signal session expired on auth rejection, not network errors.
+  // On network errors, let the original request fail naturally.
+  if (!result.isNetworkError) {
+    onSessionExpired?.();
+  }
+  return false;
+});
 
 /**
  * Attach the Bearer token and proactively refresh if expiring soon.

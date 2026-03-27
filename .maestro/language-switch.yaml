@@ -2,14 +2,12 @@ appId: sa.ruqaqa.finance
 ---
 # Test language switching between English and Arabic
 - launchApp
-- extendedWaitUntil:
-    visible: "Update now"
-    timeout: 60000
 - tapOn:
     id: "dev-skip-update"
+    optional: true
 - extendedWaitUntil:
     visible: "Ruqaqa App"
-    timeout: 10000
+    timeout: 15000
 
 # Verify English content
 - assertVisible: "Sign in with Microsoft"

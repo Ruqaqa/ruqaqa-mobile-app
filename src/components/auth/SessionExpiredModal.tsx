@@ -1,7 +1,9 @@
 import React from 'react';
 import { View, Text, Modal, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { Lock } from 'lucide-react-native';
 import { useTheme } from '../../theme';
+import { withAlpha } from '../../utils/colorUtils';
 import { Button } from '../ui/Button';
 
 interface SessionExpiredModalProps {
@@ -18,7 +20,7 @@ export function SessionExpiredModal({
 
   return (
     <Modal transparent visible={visible} animationType="fade">
-      <View style={styles.backdrop}>
+      <View style={[styles.backdrop, { padding: spacing.xl }]}>
         <View
           accessibilityViewIsModal
           style={[
@@ -36,12 +38,12 @@ export function SessionExpiredModal({
             style={[
               styles.iconCircle,
               {
-                backgroundColor: `${colors.error}1A`,
+                backgroundColor: withAlpha(colors.error, 0.1),
                 borderRadius: radius.full,
               },
             ]}
           >
-            <Text style={{ fontSize: 32 }}>{'🔒'}</Text>
+            <Lock size={48} color={colors.error} />
           </View>
 
           <Text
@@ -93,7 +95,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
   },
   card: {
     width: '100%',

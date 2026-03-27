@@ -1,10 +1,7 @@
 import axios from 'axios';
 import Constants from 'expo-constants';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { VersionCheckResult } from '../types/auth';
+import { VersionCheckResult } from '../types/version';
 import { config } from './config';
-
-const HAS_LAUNCHED_KEY = 'has_launched_before';
 
 /**
  * Check app version against the backend.
@@ -43,7 +40,7 @@ function normalizeVersionResult(data: any): VersionCheckResult {
  * Handle backend returning localized Map objects instead of strings.
  * Extracts 'ar' value as default, falls back to first value or raw string.
  */
-function stringOrNull(value: unknown): string | null {
+export function stringOrNull(value: unknown): string | null {
   if (!value) return null;
   if (typeof value === 'string') return value;
   if (typeof value === 'object') {
@@ -53,10 +50,23 @@ function stringOrNull(value: unknown): string | null {
   return String(value);
 }
 
+const TRUSTED_DOMAINS = ['ruqaqa.sa', 'play.google.com', 'apps.apple.com'];
+
+/**
+ * Check if a hostname belongs to a trusted domain.
+ * Matches exact domain or subdomains (e.g. "www.ruqaqa.sa" matches "ruqaqa.sa").
+ */
+function isTrustedDomain(hostname: string): boolean {
+  return TRUSTED_DOMAINS.some(
+    (domain) => hostname === domain || hostname.endsWith(`.${domain}`),
+  );
+}
+
 /**
  * Normalize download URLs — handle malformed URLs from the backend.
+ * Only allows URLs on trusted domains. Returns undefined for untrusted domains.
  */
-function normalizeDownloadUrl(url: unknown): string | undefined {
+export function normalizeDownloadUrl(url: unknown): string | undefined {
   if (!url || typeof url !== 'string') return undefined;
   let normalized = url.trim();
   if (!normalized) return undefined;
@@ -64,20 +74,15 @@ function normalizeDownloadUrl(url: unknown): string | undefined {
   if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
     normalized = `https://${normalized}`;
   }
+  // Validate domain
+  try {
+    const parsed = new URL(normalized);
+    if (!isTrustedDomain(parsed.hostname)) {
+      return undefined;
+    }
+  } catch {
+    return undefined;
+  }
   return normalized;
 }
 
-/**
- * Check if this is the first app launch.
- */
-export async function isFirstLaunch(): Promise<boolean> {
-  const launched = await AsyncStorage.getItem(HAS_LAUNCHED_KEY);
-  return launched !== 'true';
-}
-
-/**
- * Mark that the app has been launched before.
- */
-export async function markLaunched(): Promise<void> {
-  await AsyncStorage.setItem(HAS_LAUNCHED_KEY, 'true');
-}

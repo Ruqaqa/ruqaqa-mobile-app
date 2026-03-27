@@ -1,7 +1,7 @@
 appId: sa.ruqaqa.finance
 ---
-# Verify app bootstrap: splash -> version check
+# Verify app bootstrap: splash -> version check or login
 - launchApp
 - extendedWaitUntil:
-    visible: "Update now"
+    visible: "Ruqaqa App|Update now"
     timeout: 60000

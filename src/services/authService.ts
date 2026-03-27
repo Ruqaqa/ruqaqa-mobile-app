@@ -1,51 +1,11 @@
-import axios, { AxiosError } from 'axios';
-import {
-  CredentialLoginStatus,
-  CredentialLoginResult,
-  TokenResponse,
-  ValidateResponse,
-} from '../types/auth';
+import axios from 'axios';
+import { TokenResponse } from '../types/auth';
 import { Employee, UserPermissions } from '../types/permissions';
 import { keycloakEndpoints, keycloakConfig } from './keycloakDiscovery';
 import { tokenStorage } from './tokenStorage';
 import { extractPermissions } from './permissionService';
-import { config } from './config';
-
-// ---------------------------------------------------------------------------
-// Retry utility
-// ---------------------------------------------------------------------------
-
-interface RetryOptions {
-  maxAttempts: number;
-  baseDelayMs: number;
-  shouldRetry: (error: unknown) => boolean;
-}
-
-async function withRetry<T>(
-  fn: () => Promise<T>,
-  opts: RetryOptions,
-): Promise<T> {
-  let lastError: unknown;
-  for (let attempt = 1; attempt <= opts.maxAttempts; attempt++) {
-    try {
-      return await fn();
-    } catch (err) {
-      lastError = err;
-      if (attempt === opts.maxAttempts || !opts.shouldRetry(err)) throw err;
-      const delay = opts.baseDelayMs * Math.pow(2, attempt - 1);
-      await new Promise((r) => setTimeout(r, delay));
-    }
-  }
-  throw lastError;
-}
-
-function isRetryableError(err: unknown): boolean {
-  if (!axios.isAxiosError(err)) return false;
-  const e = err as AxiosError;
-  // Retry on network errors and 5xx
-  if (!e.response) return true;
-  return e.response.status >= 500;
-}
+import { withRetry, isRetryableError } from '../utils/retry';
+import { validateEmployee } from './employeeService';
 
 // ---------------------------------------------------------------------------
 // Token exchange — Authorization Code Grant
@@ -75,88 +35,6 @@ export async function exchangeCodeForTokens(
 }
 
 // ---------------------------------------------------------------------------
-// Token exchange — Password Grant (Direct Login)
-// ---------------------------------------------------------------------------
-
-export async function loginWithCredentials(
-  username: string,
-  password: string,
-  totp?: string,
-): Promise<{ status: CredentialLoginStatus; tokens?: TokenResponse }> {
-  const params: Record<string, string> = {
-    grant_type: 'password',
-    client_id: keycloakConfig.clientId,
-    username,
-    password,
-    scope: keycloakConfig.scopes.join(' '),
-  };
-  if (totp) params.totp = totp;
-
-  try {
-    const res = await axios.post<TokenResponse>(
-      keycloakEndpoints.token,
-      new URLSearchParams(params).toString(),
-      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
-    );
-    return { status: CredentialLoginStatus.Success, tokens: res.data };
-  } catch (err) {
-    return { status: classifyPasswordGrantError(err) };
-  }
-}
-
-/**
- * Classify Keycloak password grant errors.
- * Preserves the exact error patterns from the Flutter implementation.
- */
-function classifyPasswordGrantError(err: unknown): CredentialLoginStatus {
-  if (!axios.isAxiosError(err) || !err.response?.data) {
-    return isRetryableError(err)
-      ? CredentialLoginStatus.NetworkError
-      : CredentialLoginStatus.UnknownError;
-  }
-
-  const data = err.response.data as { error?: string; error_description?: string };
-  const desc = (data.error_description ?? '').toLowerCase();
-
-  // TOTP/OTP checks
-  if (desc.includes('otp') || desc.includes('totp')) {
-    if (desc.includes('invalid')) return CredentialLoginStatus.TotpInvalid;
-    return CredentialLoginStatus.TotpRequired;
-  }
-
-  // Account disabled
-  if (desc.includes('account disabled') || desc.includes('user disabled')) {
-    return CredentialLoginStatus.AccountDisabled;
-  }
-
-  // Temporary lockout
-  if (desc.includes('temporarily disabled') || desc.includes('too many failed')) {
-    return CredentialLoginStatus.AccountTemporarilyDisabled;
-  }
-
-  // Required action (MFA setup, etc.)
-  if (
-    desc.includes('required action') ||
-    desc.includes('action required') ||
-    desc.includes('configure totp') ||
-    desc.includes('configure otp') ||
-    desc.includes('set up totp') ||
-    desc.includes('setup totp') ||
-    desc.includes('two-factor') ||
-    desc.includes('not fully set up')
-  ) {
-    return CredentialLoginStatus.RequiredAction;
-  }
-
-  // Invalid credentials
-  if (desc.includes('invalid user credentials') || data.error === 'invalid_grant') {
-    return CredentialLoginStatus.InvalidCredentials;
-  }
-
-  return CredentialLoginStatus.UnknownError;
-}
-
-// ---------------------------------------------------------------------------
 // Mobile signin role check
 // ---------------------------------------------------------------------------
 
@@ -178,39 +56,6 @@ export function hasMobileSigninRole(
     realmRoles.includes('mobile_signin') ||
     clientRoles.includes('mobile_signin')
   );
-}
-
-// ---------------------------------------------------------------------------
-// Employee validation
-// ---------------------------------------------------------------------------
-
-export async function validateEmployee(
-  accessToken: string,
-): Promise<Employee | null> {
-  try {
-    const res = await withRetry(
-      () =>
-        axios.post<ValidateResponse>(
-          `${config.apiBaseUrl}/api/mobile/auth/validate`,
-          {},
-          {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              'Content-Type': 'application/json',
-            },
-            timeout: 10_000,
-          },
-        ),
-      { maxAttempts: 2, baseDelayMs: 1000, shouldRetry: isRetryableError },
-    );
-
-    if (res.data.success && res.data.employee) {
-      return res.data.employee;
-    }
-    return null;
-  } catch {
-    return null;
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -254,39 +99,39 @@ export async function refreshTokens(): Promise<{
 }
 
 // ---------------------------------------------------------------------------
-// Permissions extraction
-// ---------------------------------------------------------------------------
-
-export async function getPermissionsFromToken(): Promise<UserPermissions | null> {
-  const payload = await tokenStorage.getAccessTokenPayload();
-  if (!payload) return null;
-  return extractPermissions(payload as Record<string, any>);
-}
-
-// ---------------------------------------------------------------------------
 // Server-side logout
 // ---------------------------------------------------------------------------
 
 /**
  * Revoke the session on Keycloak and clear all local tokens.
+ * Awaits the revocation and retries once on failure.
+ * Local tokens are always cleared regardless of server result.
  */
 export async function logoutServer(): Promise<void> {
   const refreshToken = await tokenStorage.getRefreshToken();
 
-  // Best-effort server revocation (non-blocking)
   if (refreshToken) {
-    axios
-      .post(
+    const revokeOnce = () =>
+      axios.post(
         keycloakEndpoints.endSession,
         new URLSearchParams({
           client_id: keycloakConfig.clientId,
           refresh_token: refreshToken,
         }).toString(),
         { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
-      )
-      .catch(() => {
-        // Server logout failed — local cleanup still proceeds
-      });
+      );
+
+    try {
+      await revokeOnce();
+    } catch {
+      // Retry once
+      try {
+        await revokeOnce();
+      } catch {
+        // Revocation definitively failed — log warning but don't block logout
+        console.warn('Server token revocation failed after retry');
+      }
+    }
   }
 
   await tokenStorage.clearAll();
@@ -327,8 +172,7 @@ export async function postLoginValidation(): Promise<PostLoginResult> {
 
   const permissions = extractPermissions(payload as Record<string, any>);
 
-  const accessToken = await tokenStorage.getAccessToken();
-  const employee = accessToken ? await validateEmployee(accessToken) : null;
+  const employee = await validateEmployee();
 
   if (!employee) {
     await tokenStorage.clearAll();

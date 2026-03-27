@@ -57,15 +57,17 @@ async function setSecureValue(key: string, value: string): Promise<void> {
     throw new Error(`Value too large: ${chunks} chunks exceeds max ${MAX_CHUNKS}`);
   }
 
+  // Write all chunks first, then write the count as the "commit" operation.
+  // This way a crash mid-write leaves the old count valid.
+  for (let i = 0; i < chunks; i++) {
+    const chunk = value.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+    await SecureStore.setItemAsync(`${key}_${i}`, chunk, SECURE_OPTIONS);
+  }
   await SecureStore.setItemAsync(
     `${key}${CHUNK_COUNT_SUFFIX}`,
     String(chunks),
     SECURE_OPTIONS,
   );
-  for (let i = 0; i < chunks; i++) {
-    const chunk = value.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
-    await SecureStore.setItemAsync(`${key}_${i}`, chunk, SECURE_OPTIONS);
-  }
 }
 
 async function getSecureValue(key: string): Promise<string | null> {

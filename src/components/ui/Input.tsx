@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useState } from 'react';
 import {
   TextInput,
   View,
@@ -14,9 +14,17 @@ interface InputProps extends TextInputProps {
 }
 
 export const Input = forwardRef<TextInput, InputProps>(
-  ({ label, error, style, ...rest }, ref) => {
+  ({ label, error, style, onFocus, onBlur, ...rest }, ref) => {
     const { colors, typography, spacing, radius } = useTheme();
     const hasError = !!error;
+    const [isFocused, setIsFocused] = useState(false);
+
+    const borderColor = hasError
+      ? colors.error
+      : isFocused
+        ? colors.primary
+        : colors.input;
+    const borderWidth = isFocused ? 2 : 1;
 
     return (
       <View style={styles.wrapper}>
@@ -28,11 +36,20 @@ export const Input = forwardRef<TextInput, InputProps>(
         <TextInput
           ref={ref}
           placeholderTextColor={colors.foregroundSecondary}
+          onFocus={(e) => {
+            setIsFocused(true);
+            onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setIsFocused(false);
+            onBlur?.(e);
+          }}
           style={[
             styles.input,
             {
               backgroundColor: colors.surface,
-              borderColor: hasError ? colors.error : colors.input,
+              borderColor,
+              borderWidth,
               borderRadius: radius.md,
               color: colors.foreground,
               fontSize: typography.bodyMedium.fontSize,
@@ -58,6 +75,5 @@ const styles = StyleSheet.create({
   wrapper: { marginBottom: 16 },
   input: {
     height: 44,
-    borderWidth: 1,
   },
 });

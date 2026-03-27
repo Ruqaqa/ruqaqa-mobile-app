@@ -1,13 +1,13 @@
 export default {
   // App
-  appTitle: 'Ruqaqa App',
+  appTitle: 'تطبيق رقاقة',
   financialManagementApp: '\u062a\u0637\u0628\u064a\u0642 \u0634\u0631\u0643\u0629 \u0631\u0642\u0627\u0642\u0629 \u0627\u0644\u0645\u062d\u062f\u0648\u062f\u0629',
 
   // Auth
   login: 'تسجيل الدخول',
   signIn: 'تسجيل الدخول',
   signInWithMicrosoft: 'تسجيل الدخول بـ Microsoft',
-  signInWithKeycloak: 'تسجيل الدخول بـ Keycloak',
+  signInWithKeycloak: 'تسجيل الدخول',
   signingIn: 'يجري تسجيل الدخول...',
   logout: 'تسجيل الخروج',
   loginFailed: 'فشل تسجيل الدخول. الرجاء المحاولة مرة أخرى',
@@ -17,25 +17,14 @@ export default {
   loadingLoginPage: 'يجري تحميل صفحة تسجيل الدخول...',
   restoringSession: 'جاري استعادة الجلسة...',
   secureAndProtected: 'آمن ومحمي',
-  loginSecurityNote: 'تسجيل الدخول آمن ومحمي بواسطة Microsoft Azure و Keycloak',
+  loginSecurityNote: 'تسجيل الدخول آمن ومحمي',
   serviceConfigurationError: 'حدث خطأ في تكوين الخدمة. يرجى الاتصال بالمسؤول',
-  passwordError: 'مشكلة في كلمة المرور. يرجى المحاولة مرة أخرى أو الاتصال بالمسؤول',
   notAuthorized: 'غير مصرح لك باستخدام التطبيق',
   or: 'أو',
-  username: 'اسم المستخدم',
-  password: 'كلمة المرور',
-  showPassword: 'إظهار كلمة المرور',
-  hidePassword: 'إخفاء كلمة المرور',
-  enterVerificationCode: 'أدخل رمز التحقق',
-  totpInstructions: 'أدخل الرمز المكون من 6 أرقام من تطبيق المصادقة',
-  invalidCode: 'رمز غير صالح. يرجى المحاولة مرة أخرى.',
-  codeExpired: 'انتهت صلاحية الرمز. يرجى إدخال رمز جديد.',
-  accountDisabled: 'تم تعطيل حسابك. يرجى الاتصال بالمسؤول.',
-  accountTemporarilyDisabled: 'محاولات فاشلة كثيرة. يرجى المحاولة لاحقاً.',
-  requiredAction: 'إعداد إضافي مطلوب. يرجى تسجيل الدخول عبر المتصفح.',
   switchToArabic: 'التبديل إلى العربية',
   switchToEnglish: 'التبديل إلى الإنجليزية',
   networkError: 'تعذر الاتصال. يرجى التحقق من اتصالك بالإنترنت.',
+  noModuleAccess: 'ليس لديك صلاحية الوصول إلى أي وحدة. يرجى الاتصال بالمسؤول.',
 
   // Version check
   updateRequired: 'تحديث مطلوب',

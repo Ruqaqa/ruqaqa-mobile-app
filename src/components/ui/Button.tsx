@@ -43,12 +43,12 @@ function getVariantStyles(
           backgroundColor: colors.primary,
           ...shadows.gradient,
         },
-        text: { color: '#ffffff' },
+        text: { color: colors.onPrimary },
       };
     case 'secondary':
       return {
         container: { backgroundColor: colors.secondary },
-        text: { color: '#ffffff' },
+        text: { color: colors.onSecondary },
       };
     case 'outline':
       return {
@@ -67,12 +67,12 @@ function getVariantStyles(
     case 'destructive':
       return {
         container: { backgroundColor: colors.error },
-        text: { color: '#ffffff' },
+        text: { color: colors.onError },
       };
     default:
       return {
         container: { backgroundColor: colors.primary },
-        text: { color: '#ffffff' },
+        text: { color: colors.onPrimary },
       };
   }
 }

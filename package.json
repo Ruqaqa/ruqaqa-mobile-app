@@ -9,6 +9,7 @@
     "ios": "expo run:ios --port 5173",
     "ios:build": "expo run:ios --port 5173",
     "web": "expo start --web --port 5173",
+    "test": "jest",
     "test:e2e": "adb shell pm clear sa.ruqaqa.finance && adb reverse tcp:5173 tcp:5173 && maestro test .maestro/",
     "test:e2e:flow": "maestro test"
   },
@@ -27,6 +28,7 @@
     "expo-status-bar": "~55.0.4",
     "expo-web-browser": "^55.0.10",
     "i18next": "^25.10.10",
+    "lucide-react-native": "^1.7.0",
     "react": "19.2.0",
     "react-dom": "^19.2.4",
     "react-i18next": "^16.6.6",
@@ -35,11 +37,16 @@
     "react-native-reanimated": "4.2.1",
     "react-native-safe-area-context": "~5.6.2",
     "react-native-screens": "~4.23.0",
+    "react-native-svg": "^15.15.4",
     "react-native-web": "^0.21.2",
     "react-native-worklets": "0.7.1"
   },
   "devDependencies": {
+    "@types/jest": "^29.5.14",
     "@types/react": "~19.2.2",
+    "axios-mock-adapter": "^2.1.0",
+    "jest": "^29.7.0",
+    "jest-expo": "^55.0.11",
     "typescript": "~5.9.2"
   },
   "private": true

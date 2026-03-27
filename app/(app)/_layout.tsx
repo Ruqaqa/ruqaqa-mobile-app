@@ -10,6 +10,7 @@ import { FinanceShell } from '../../src/navigation/FinanceShell';
 import { GalleryShell } from '../../src/navigation/GalleryShell';
 import { ModuleSwitcherSheet } from '../../src/components/layout/ModuleSwitcherSheet';
 import { NoAccessScreen } from '../../src/components/layout/NoAccessScreen';
+import { ErrorBoundary } from '../../src/components/layout/ErrorBoundary';
 import { useTheme } from '../../src/theme';
 
 /**
@@ -93,12 +94,16 @@ export default function AppLayout() {
           <View
             style={[styles.shell, { display: activeModule === 'finance' ? 'flex' : 'none' }]}
           >
-            <FinanceShell />
+            <ErrorBoundary>
+              <FinanceShell />
+            </ErrorBoundary>
           </View>
           <View
             style={[styles.shell, { display: activeModule === 'gallery' ? 'flex' : 'none' }]}
           >
-            <GalleryShell />
+            <ErrorBoundary>
+              <GalleryShell />
+            </ErrorBoundary>
           </View>
 
           <ModuleSwitcherSheet

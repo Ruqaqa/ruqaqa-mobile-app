@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '../../theme';
+import { withAlpha } from '../../utils/colorUtils';
 
 type BadgeVariant = 'primary' | 'secondary' | 'muted' | 'success' | 'warning' | 'error';
 
@@ -13,12 +14,12 @@ export function Badge({ label, variant = 'muted' }: BadgeProps) {
   const { colors, typography, radius, spacing } = useTheme();
 
   const variantColors: Record<BadgeVariant, { bg: string; text: string }> = {
-    primary: { bg: colors.primary + '20', text: colors.primary },
-    secondary: { bg: colors.secondary + '20', text: colors.secondary },
+    primary: { bg: withAlpha(colors.primary, 0.13), text: colors.primary },
+    secondary: { bg: withAlpha(colors.secondary, 0.13), text: colors.secondary },
     muted: { bg: colors.muted, text: colors.foregroundSecondary },
-    success: { bg: colors.success + '20', text: colors.success },
-    warning: { bg: colors.warning + '20', text: colors.warning },
-    error: { bg: colors.error + '20', text: colors.error },
+    success: { bg: withAlpha(colors.success, 0.13), text: colors.success },
+    warning: { bg: withAlpha(colors.warning, 0.13), text: colors.warning },
+    error: { bg: withAlpha(colors.error, 0.13), text: colors.error },
   };
 
   const vc = variantColors[variant];

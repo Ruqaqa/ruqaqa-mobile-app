@@ -59,7 +59,7 @@ Since video watermarking has no reliable client-side solution in React Native, c
 
 ---
 
-### Phase 1: Authentication & User Session
+### Phase 1: Authentication & User Session — DONE
 
 **Goal:** Users can log in, stay logged in across app restarts, and be logged out when sessions expire.
 

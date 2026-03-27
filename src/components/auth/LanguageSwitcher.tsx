@@ -5,8 +5,7 @@ import { useTheme } from '../../theme';
 import { changeLanguage, type Language } from '../../i18n';
 
 export function LanguageSwitcher() {
-  const { i18n } = useTranslation();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { colors, typography, spacing, radius, shadows } = useTheme();
 
   const currentLang = i18n.language as Language;
@@ -28,6 +27,8 @@ export function LanguageSwitcher() {
           borderRadius: radius.full,
           paddingHorizontal: spacing.md,
           paddingVertical: spacing.xs,
+          minHeight: 44,
+          justifyContent: 'center',
           opacity: pressed ? 0.8 : 1,
           ...shadows.sm,
         },

@@ -13,19 +13,19 @@ import * as WebBrowser from 'expo-web-browser';
 import { UserPermissions, Employee } from '../types/permissions';
 import {
   LoginRequest,
-  CredentialLoginStatus,
-  CredentialLoginResult,
+  LoginStatus,
+  LoginResult,
 } from '../types/auth';
 import { tokenStorage } from './tokenStorage';
 import { setSessionExpiredHandler } from './apiClient';
 import { keycloakEndpoints, keycloakConfig } from './keycloakDiscovery';
 import {
   exchangeCodeForTokens,
-  loginWithCredentials,
   logoutServer,
   postLoginValidation,
   refreshTokens,
 } from './authService';
+import { createDeduplicatedRefresh } from '../utils/deduplicatedRefresh';
 
 // ---------------------------------------------------------------------------
 // Context shape
@@ -38,7 +38,7 @@ interface AuthContextValue {
   permissions: UserPermissions | null;
   logoutMessage: string | null;
   sessionExpired: boolean;
-  login: (req: LoginRequest) => Promise<CredentialLoginResult>;
+  login: (req: LoginRequest) => Promise<LoginResult>;
   logout: (message?: string) => Promise<void>;
   clearLogoutMessage: () => void;
   acknowledgeSessionExpired: () => void;
@@ -51,7 +51,7 @@ export const AuthContext = createContext<AuthContextValue>({
   permissions: null,
   logoutMessage: null,
   sessionExpired: false,
-  login: async () => ({ status: CredentialLoginStatus.UnknownError }),
+  login: async () => ({ status: LoginStatus.UnknownError }),
   logout: async () => {},
   clearLogoutMessage: () => {},
   acknowledgeSessionExpired: () => {},
@@ -85,6 +85,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [sessionExpired, setSessionExpired] = useState(false);
 
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleRefreshRef = useRef<() => Promise<void>>(async () => {});
+
+  // Shared deduplicated refresh — ensures the timer and foreground handler
+  // cannot trigger concurrent refresh requests.
+  const deduplicatedRefresh = useMemo(
+    () => createDeduplicatedRefresh(refreshTokens),
+    [],
+  );
 
   // -----------------------------------------------------------------------
   // Cleanup helper
@@ -107,7 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const msUntilRefresh = expiry - Date.now() - 60_000;
     if (msUntilRefresh <= 0) {
       // Already needs refresh
-      const result = await refreshTokens();
+      const result = await deduplicatedRefresh();
       if (result.success) {
         scheduleRefresh();
       }
@@ -115,7 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     refreshTimerRef.current = setTimeout(async () => {
-      const result = await refreshTokens();
+      const result = await deduplicatedRefresh();
       if (result.success) {
         scheduleRefresh();
       } else if (!result.isNetworkError) {
@@ -123,7 +131,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         handleSessionExpired();
       }
     }, msUntilRefresh);
-  }, [clearRefreshTimer]);
+  }, [clearRefreshTimer, deduplicatedRefresh]);
+
+  // Keep ref in sync so non-hook code (handleSSOLogin) always reads latest
+  scheduleRefreshRef.current = scheduleRefresh;
 
   // -----------------------------------------------------------------------
   // Session expired handler
@@ -147,137 +158,93 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // -----------------------------------------------------------------------
   // Login
   // -----------------------------------------------------------------------
-  const login = useCallback(
-    async (req: LoginRequest): Promise<CredentialLoginResult> => {
-      setIsLoading(true);
-
+  const handleSSOLogin = useCallback(
+    async (idpHint?: string): Promise<LoginResult> => {
       try {
-        if (req.method === 'sso') {
-          return await handleSSOLogin(req.idpHint);
-        } else {
-          return await handleCredentialLogin(
-            req.username,
-            req.password,
-            req.totp,
-          );
+        if (__DEV__) console.log('[Auth] Redirect URI:', redirectUri);
+
+        // Build the auth request with PKCE
+        const request = new AuthSession.AuthRequest({
+          clientId: keycloakConfig.clientId,
+          redirectUri,
+          scopes: [...keycloakConfig.scopes],
+          usePKCE: true,
+          extraParams: {
+            ...(idpHint ? { kc_idp_hint: idpHint } : {}),
+          },
+        });
+
+        // Open the system browser for Keycloak login
+        const result = await request.promptAsync({
+          authorizationEndpoint: keycloakEndpoints.authorization,
+        });
+
+        if (__DEV__) console.log('[Auth] SSO result:', result.type, JSON.stringify(result.type === 'success' ? { code: !!result.params?.code } : result));
+
+        if (result.type !== 'success' || !result.params?.code) {
+          return {
+            status:
+              result.type === 'cancel' || result.type === 'dismiss'
+                ? LoginStatus.UnknownError
+                : LoginStatus.NetworkError,
+            message: result.type === 'cancel' || result.type === 'dismiss' ? undefined : 'loginFailed',
+          };
         }
-      } finally {
-        setIsLoading(false);
+
+        // Exchange code for tokens
+        const tokens = await exchangeCodeForTokens(
+          result.params.code,
+          request.codeVerifier!,
+          redirectUri,
+        );
+
+        await tokenStorage.saveTokens({
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token,
+          idToken: tokens.id_token,
+          expiresIn: tokens.expires_in,
+        });
+
+        // Post-login validation
+        const validation = await postLoginValidation();
+        if (!validation.success) {
+          return {
+            status: LoginStatus.UnknownError,
+            message:
+              validation.error === 'no_mobile_signin'
+                ? 'notAuthorized'
+                : 'loginFailed',
+          };
+        }
+
+        setEmployee(validation.employee);
+        setPermissions(validation.permissions);
+        setIsAuthenticated(true);
+        scheduleRefreshRef.current();
+
+        return { status: LoginStatus.Success };
+      } catch {
+        return {
+          status: LoginStatus.NetworkError,
+          message: 'loginError',
+        };
       }
     },
     [],
   );
 
-  const handleSSOLogin = async (
-    idpHint?: string,
-  ): Promise<CredentialLoginResult> => {
-    try {
-      if (__DEV__) console.log('[Auth] Redirect URI:', redirectUri);
+  const login = useCallback(
+    async (req: LoginRequest): Promise<LoginResult> => {
+      setIsLoading(true);
 
-      // Build the auth request with PKCE
-      const request = new AuthSession.AuthRequest({
-        clientId: keycloakConfig.clientId,
-        redirectUri,
-        scopes: [...keycloakConfig.scopes],
-        usePKCE: true,
-        extraParams: {
-          ...(idpHint ? { kc_idp_hint: idpHint } : {}),
-        },
-      });
-
-      // Open the system browser for Keycloak login
-      const result = await request.promptAsync({
-        authorizationEndpoint: keycloakEndpoints.authorization,
-      });
-
-      if (__DEV__) console.log('[Auth] SSO result:', result.type, JSON.stringify(result.type === 'success' ? { code: !!result.params?.code } : result));
-
-      if (result.type !== 'success' || !result.params?.code) {
-        return {
-          status:
-            result.type === 'cancel' || result.type === 'dismiss'
-              ? CredentialLoginStatus.UnknownError
-              : CredentialLoginStatus.NetworkError,
-          message: result.type === 'cancel' || result.type === 'dismiss' ? undefined : 'loginFailed',
-        };
+      try {
+        return await handleSSOLogin(req.idpHint);
+      } finally {
+        setIsLoading(false);
       }
-
-      // Exchange code for tokens
-      const tokens = await exchangeCodeForTokens(
-        result.params.code,
-        request.codeVerifier!,
-        redirectUri,
-      );
-
-      await tokenStorage.saveTokens({
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token,
-        idToken: tokens.id_token,
-        expiresIn: tokens.expires_in,
-      });
-
-      // Post-login validation
-      const validation = await postLoginValidation();
-      if (!validation.success) {
-        return {
-          status: CredentialLoginStatus.UnknownError,
-          message:
-            validation.error === 'no_mobile_signin'
-              ? 'notAuthorized'
-              : 'loginFailed',
-        };
-      }
-
-      setEmployee(validation.employee);
-      setPermissions(validation.permissions);
-      setIsAuthenticated(true);
-      scheduleRefresh();
-
-      return { status: CredentialLoginStatus.Success };
-    } catch {
-      return {
-        status: CredentialLoginStatus.NetworkError,
-        message: 'loginError',
-      };
-    }
-  };
-
-  const handleCredentialLogin = async (
-    username: string,
-    password: string,
-    totp?: string,
-  ): Promise<CredentialLoginResult> => {
-    const result = await loginWithCredentials(username, password, totp);
-
-    if (result.status !== CredentialLoginStatus.Success || !result.tokens) {
-      return { status: result.status };
-    }
-
-    await tokenStorage.saveTokens({
-      accessToken: result.tokens.access_token,
-      refreshToken: result.tokens.refresh_token,
-      idToken: result.tokens.id_token,
-      expiresIn: result.tokens.expires_in,
-    });
-
-    const validation = await postLoginValidation();
-    if (!validation.success) {
-      return {
-        status: CredentialLoginStatus.UnknownError,
-        message:
-          validation.error === 'no_mobile_signin'
-            ? 'notAuthorized'
-            : 'loginFailed',
-      };
-    }
-
-    setEmployee(validation.employee);
-    setPermissions(validation.permissions);
-    setIsAuthenticated(true);
-    scheduleRefresh();
-
-    return { status: CredentialLoginStatus.Success };
-  };
+    },
+    [handleSSOLogin],
+  );
 
   // -----------------------------------------------------------------------
   // Logout
@@ -363,7 +330,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (state === 'active' && isAuthenticated) {
         tokenStorage.isTokenExpiringSoon().then((expiring) => {
           if (expiring) {
-            refreshTokens().then((result) => {
+            deduplicatedRefresh().then((result) => {
               if (result.success) {
                 scheduleRefresh();
               } else if (!result.isNetworkError) {
@@ -377,7 +344,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const sub = AppState.addEventListener('change', handleAppState);
     return () => sub.remove();
-  }, [isAuthenticated, scheduleRefresh, handleSessionExpired]);
+  }, [isAuthenticated, scheduleRefresh, handleSessionExpired, deduplicatedRefresh]);
 
   // -----------------------------------------------------------------------
   // Context value

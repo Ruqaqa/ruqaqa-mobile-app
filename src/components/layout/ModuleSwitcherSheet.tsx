@@ -3,6 +3,7 @@ import { View, Text, Pressable, Modal, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../theme';
 import { AppModule } from '../../types/permissions';
+import { withAlpha } from '../../utils/colorUtils';
 
 interface Props {
   visible: boolean;
@@ -48,11 +49,13 @@ export function ModuleSwitcherSheet({
             backgroundColor: colors.surface,
             borderTopLeftRadius: radius.xl,
             borderTopRightRadius: radius.xl,
+            padding: spacing.xl,
+            paddingBottom: spacing.xxxl,
             ...shadows.lg,
           },
         ]}
       >
-        <View style={[styles.handle, { backgroundColor: colors.border }]} />
+        <View style={[styles.handle, { backgroundColor: colors.border, marginBottom: spacing.lg }]} />
 
         <Text
           style={[
@@ -72,10 +75,13 @@ export function ModuleSwitcherSheet({
               style={[
                 styles.option,
                 {
-                  backgroundColor: isActive ? colors.primary + '15' : 'transparent',
+                  backgroundColor: isActive ? withAlpha(colors.primary, 0.08) : 'transparent',
                   borderRadius: radius.lg,
                   borderWidth: isActive ? 1 : 0,
-                  borderColor: isActive ? colors.primary + '30' : 'transparent',
+                  borderColor: isActive ? withAlpha(colors.primary, 0.19) : 'transparent',
+                  paddingHorizontal: spacing.base,
+                  paddingVertical: spacing.base,
+                  marginBottom: spacing.sm,
                 },
               ]}
             >
@@ -109,22 +115,16 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 24,
-    paddingBottom: 40,
   },
   handle: {
     width: 40,
     height: 4,
     borderRadius: 2,
     alignSelf: 'center',
-    marginBottom: 20,
   },
   option: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    marginBottom: 8,
   },
 });

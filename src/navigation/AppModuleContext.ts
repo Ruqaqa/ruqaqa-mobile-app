@@ -9,10 +9,14 @@ interface AppModuleContextValue {
   openSwitcher: () => void;
 }
 
-export const AppModuleContext = createContext<AppModuleContextValue>(
-  null as any,
+export const AppModuleContext = createContext<AppModuleContextValue | null>(
+  null,
 );
 
 export function useAppModuleContext() {
-  return useContext(AppModuleContext);
+  const context = useContext(AppModuleContext);
+  if (context === null) {
+    throw new Error('useAppModuleContext must be used within AppModuleContext.Provider');
+  }
+  return context;
 }

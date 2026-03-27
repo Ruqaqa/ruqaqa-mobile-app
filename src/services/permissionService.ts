@@ -1,4 +1,5 @@
 import { UserPermissions, AppModule } from '../types/permissions';
+import { keycloakConfig } from './keycloakDiscovery';
 
 /**
  * Parse a Keycloak JWT payload and extract user permissions.
@@ -10,7 +11,7 @@ export function extractPermissions(
 ): UserPermissions {
   const realmRoles: string[] = jwtPayload?.realm_access?.roles ?? [];
   const clientRoles: string[] =
-    jwtPayload?.resource_access?.['ruqaqa-mobile-app']?.roles ?? [];
+    jwtPayload?.resource_access?.[keycloakConfig.clientId]?.roles ?? [];
   const allRoles = new Set([...realmRoles, ...clientRoles]);
 
   const has = (role: string) => allRoles.has(role);

@@ -2,21 +2,19 @@ appId: sa.ruqaqa.finance
 ---
 # Verify all login screen elements are present
 - launchApp
-- extendedWaitUntil:
-    visible: "Update now"
-    timeout: 60000
 - tapOn:
     id: "dev-skip-update"
+    optional: true
 - extendedWaitUntil:
     visible: "Ruqaqa App"
-    timeout: 10000
+    timeout: 15000
 
 # Verify branding
 - assertVisible: "Ruqaqa Limited Company App"
 
 # Verify SSO buttons
 - assertVisible: "Sign in with Microsoft"
-- assertVisible: "Sign in with Keycloak"
+- assertVisible: "Sign in with SSO"
 
 # Verify security note
 - assertVisible: "Login is secure and protected.*"

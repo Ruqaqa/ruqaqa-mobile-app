@@ -27,7 +27,7 @@ export function NoAccessScreen() {
           },
         ]}
       >
-        You don't have access to any modules. Please contact your administrator.
+        {t('noModuleAccess')}
       </Text>
     </SafeAreaView>
   );

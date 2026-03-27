@@ -9,14 +9,12 @@ import {
   Linking,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { Wrench, Download } from 'lucide-react-native';
 import { useTheme } from '../../theme';
 import { Button } from '../ui/Button';
-import { VersionCheckResult } from '../../types/auth';
-import {
-  checkAppVersion,
-  isFirstLaunch,
-  markLaunched,
-} from '../../services/versionCheckService';
+import { VersionCheckResult } from '../../types/version';
+import { checkAppVersion } from '../../services/versionCheckService';
+import { isFirstLaunch, markLaunched } from '../../services/appLifecycle';
 
 interface VersionGateProps {
   children: React.ReactNode;
@@ -78,7 +76,7 @@ export function VersionGate({ children }: VersionGateProps) {
       {showMaintenance && (
         <View style={[styles.blocker, { backgroundColor: colors.background }]}>
           <View style={[styles.blockerContent, { paddingHorizontal: spacing.xl }]}>
-            <Text style={{ fontSize: 48 }}>{'🔧'}</Text>
+            <Wrench size={48} color={colors.warning} />
             <Text
               style={[
                 typography.displayMedium,
@@ -123,7 +121,7 @@ export function VersionGate({ children }: VersionGateProps) {
       {showForceUpdate && (
         <View style={[styles.blocker, { backgroundColor: colors.background }]}>
           <View style={[styles.blockerContent, { paddingHorizontal: spacing.xl }]}>
-            <Text style={{ fontSize: 48 }}>{'⬇️'}</Text>
+            <Download size={48} color={colors.primary} />
             <Text
               style={[
                 typography.displayMedium,
@@ -275,10 +273,10 @@ export function VersionGate({ children }: VersionGateProps) {
                 {result.releaseNotes}
               </Text>
             )}
-            <View style={[styles.sheetButtons, { marginTop: spacing.lg }]}>
+            <View style={[styles.sheetButtons, { marginTop: spacing.lg, gap: spacing.md }]}>
               <Pressable
                 onPress={() => setDismissed(true)}
-                style={styles.sheetButtonLeft}
+                style={{ paddingVertical: spacing.md, paddingHorizontal: spacing.base }}
               >
                 <Text style={[typography.bodyMedium, { color: colors.foregroundSecondary }]}>
                   {t('later')}
@@ -335,10 +333,5 @@ const styles = StyleSheet.create({
   sheetButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-  },
-  sheetButtonLeft: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
   },
 });
