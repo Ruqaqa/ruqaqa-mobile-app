@@ -3,6 +3,7 @@ import { Slot, SplashScreen } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ThemeProvider } from '../src/theme';
 import { initI18n } from '../src/i18n';
+import { DirectionProvider } from '../src/i18n/DirectionProvider';
 import { AuthProvider, useAuth } from '../src/services/authContext';
 import { VersionGate } from '../src/components/version/VersionGate';
 import { SessionExpiredModal } from '../src/components/auth/SessionExpiredModal';
@@ -24,15 +25,17 @@ export default function RootLayout() {
   if (!ready) return null;
 
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <VersionGate>
-          <StatusBar style="auto" />
-          <Slot />
-        </VersionGate>
-        <SessionExpiredOverlay />
-      </AuthProvider>
-    </ThemeProvider>
+    <DirectionProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <VersionGate>
+            <StatusBar style="auto" />
+            <Slot />
+          </VersionGate>
+          <SessionExpiredOverlay />
+        </AuthProvider>
+      </ThemeProvider>
+    </DirectionProvider>
   );
 }
 
