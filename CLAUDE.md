@@ -17,7 +17,7 @@ pnpm android:build      # Build + install native APK on connected device
 pnpm ios:build          # Build + install on iOS device/sim
 pnpm android            # Start Metro for Android
 pnpm ios                # Start Metro for iOS
-pnpm test               # Jest unit tests (108 tests, 10 suites)
+pnpm test               # Jest unit tests (224 tests, 15 suites)
 pnpm test:e2e           # Clear app data, forward port, run all Maestro E2E tests
 pnpm test:e2e:flow      # Run a specific Maestro flow file
 ```
@@ -42,6 +42,11 @@ pnpm android:build              # Build + install APK (requires prebuild)
 ```
 
 Rebuild is needed after changing `app.json`, adding native plugins, or updating Expo SDK.
+
+**Important:** `expo prebuild --clean` wipes `android/local.properties`. Restore it before building:
+```bash
+echo "sdk.dir=/Users/bassel/Library/Android/sdk" > android/local.properties
+```
 
 ### Maestro E2E tests
 
@@ -86,10 +91,25 @@ Key points:
 
 `app/(app)/_layout.tsx` uses an IndexedStack pattern — both `FinanceShell` and `GalleryShell` are always mounted (preserves state). Only the active module is displayed via `display: flex/none`.
 
-- **FinanceShell**: tabs for Operations, Reconciliation, Payroll
+- **FinanceShell**: tabs for Operations (Transaction History), Reconciliation, Payroll
 - **GalleryShell**: tabs for Albums, Upload
 - Tabs are permission-gated via `getAvailableFinanceTabs()`
 - Module switching via `ModuleSwitcherSheet` bottom sheet
+
+### Transaction History (Phase 3 — Operations tab)
+
+Feature-driven structure under `src/features/transactions/`:
+- `types.ts` — `Transaction`, `TransactionFilters`, `ApprovalStatus`, `TaxQuarter`, `TaxYear` types + constants (`PAGE_SIZE=20`, `EMPTY_FILTERS`)
+- `services/transactionService.ts` — `fetchTransactions()`, `fetchTransactionById()`, `updateApprovalStatus()` + `TransactionError` class with error code mapping
+- `utils/sanitize.ts` — Input sanitization: `sanitizeText()` (trim + 200 char cap), `sanitizeFilters()`, `hasActiveFilters()`, enum validators
+- `utils/formatters.ts` — Date, amount, partner display formatting
+- `hooks/useTransactionList.ts` — Pagination, filters, own/all toggle, refresh, in-place updates
+- `hooks/useApprovalAction.ts` — Approval status change with loading state (no optimistic updates)
+- `components/` — TransactionHistoryScreen (orchestrator), FilterBar, TransactionCard, TransactionList, SearchModal, TransactionDetailSheet, ApprovalActions, ApprovalStatusChips, TransactionFlowWidget, ReceiptThumbnails
+
+**Search fields:** statement, transaction number, partner employee, other party, client, project, amount range (min/max with +/- sign toggle), tax quarter/year, approval status, date range
+
+**Security patterns:** All filter inputs sanitized before API calls. Error codes mapped to i18n strings (never raw API messages). `PAGE_SIZE` hardcoded. Defensive own/all toggle. Backend: regex escaping on all `contains` queries, limit capped at 100, page clamped ≥1.
 
 ### Services
 
@@ -104,6 +124,7 @@ Key points:
 | `versionCheckService.ts` | `/api/mobile/version-check` → forced update, optional update, maintenance mode. Download URL validated against trusted domains |
 | `appLifecycle.ts` | First-launch tracking via AsyncStorage |
 | `config.ts` | Dev/prod URLs keyed on `releaseChannel` from `app.json` |
+| `transactionService.ts` | Transaction CRUD: list (paginated + filters), get by ID, update approval status. Throws typed `TransactionError` |
 
 ### Utilities
 
@@ -136,7 +157,7 @@ pnpm test                                    # Run all tests
 pnpm test -- src/services/__tests__/foo.test.ts  # Run single file
 ```
 
-Test files live next to source: `src/services/__tests__/`, `src/utils/__tests__/`. Mock `expo-secure-store` with in-memory Map, mock `axios` for service tests, use `jest.useFakeTimers()` for timing tests.
+Test files live next to source: `src/services/__tests__/`, `src/utils/__tests__/`, `src/features/transactions/__tests__/`. Mock `expo-secure-store` with in-memory Map, mock `axios` with `axios-mock-adapter` for service tests, use `jest.useFakeTimers()` for timing tests, `renderHook` from `@testing-library/react-native` for hook tests.
 
 ## Key references
 
