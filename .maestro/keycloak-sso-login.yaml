@@ -1,0 +1,36 @@
+appId: sa.ruqaqa.finance
+env:
+  TEST_USERNAME: ${TEST_USERNAME}
+  TEST_PASSWORD: ${TEST_PASSWORD}
+---
+- launchApp
+
+# Version gate → skip immediately
+- tapOn:
+    id: "dev-skip-update"
+    optional: true
+
+# Hit Keycloak SSO immediately
+- tapOn:
+    id: "sso-keycloak-button"
+
+# Keycloak login form
+- extendedWaitUntil:
+    visible: "Username or email"
+    timeout: 30000
+- tapOn: "Username or email"
+- inputText: "${TEST_USERNAME}"
+- tapOn: "Password"
+- inputText: "${TEST_PASSWORD}"
+
+# Dismiss keyboard so Sign In button is visible
+- pressKey: back
+- scrollUntilVisible:
+    element: "Sign In"
+    direction: DOWN
+- tapOn: "Sign In"
+
+# Back in app — authenticated
+- extendedWaitUntil:
+    visible: "Operations|Reconciliation|Payroll"
+    timeout: 30000

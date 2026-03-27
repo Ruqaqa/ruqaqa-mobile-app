@@ -33,6 +33,9 @@ yarn-error.*
 # local env files
 .env*.local
 
+# Maestro test credentials (never commit)
+.maestro/.env
+
 # typescript
 *.tsbuildinfo
 
