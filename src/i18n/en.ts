@@ -307,4 +307,29 @@ export default {
   filesReceivedBanner_one: '1 file received. Will be attached after login.',
   filesReceivedBanner_other: '{{count}} files received. Will be attached after login.',
   receiptsAttached: 'Receipts attached to statement',
+
+  // Search enhancements
+  partnerEmployee: 'Partner',
+  searchPartnerEmployee: 'Search by partner name',
+  searchOtherParty: 'Search by other party name',
+  minAmount: 'Min Amount',
+  maxAmount: 'Max Amount',
+  min: 'Min',
+  max: 'Max',
+  taxQuarter: 'Tax Quarter',
+  taxYear: 'Tax Year',
+  q1: 'Q1',
+  q2: 'Q2',
+  q3: 'Q3',
+  q4: 'Q4',
+
+  // Transaction history errors
+  errorForbidden: 'You do not have permission to view these transactions',
+  errorNotFound: 'Transaction not found',
+  errorNetwork: 'Unable to connect. Check your internet connection.',
+  errorServer: 'Server error. Please try again later.',
+  errorUnknown: 'An unexpected error occurred',
+  errorApprovalFailed: 'Failed to update approval status',
+  loadingTransactions: 'Loading transactions...',
+  loadingMore: 'Loading more...',
 } as const;

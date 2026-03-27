@@ -9,6 +9,7 @@ import {
   FinanceTab,
 } from '../services/permissionService';
 import { AppBar } from '../components/layout/AppBar';
+import { TransactionHistoryScreen } from '../features/transactions/components/TransactionHistoryScreen';
 
 // Placeholder tab content — replaced per-feature in later phases
 function PlaceholderTab({ label }: { label: string }) {
@@ -79,7 +80,11 @@ export function FinanceShell() {
               { display: activeTab === tab ? 'flex' : 'none' },
             ]}
           >
-            <PlaceholderTab label={tabLabels[tab]} />
+            {tab === 'operations' ? (
+              <TransactionHistoryScreen permissions={permissions} />
+            ) : (
+              <PlaceholderTab label={tabLabels[tab]} />
+            )}
           </View>
         ))}
       </View>
