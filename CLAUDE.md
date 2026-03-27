@@ -17,6 +17,7 @@ pnpm android:build      # Build + install native APK on connected device
 pnpm ios:build          # Build + install on iOS device/sim
 pnpm android            # Start Metro for Android
 pnpm ios                # Start Metro for iOS
+pnpm test               # Jest unit tests (108 tests, 10 suites)
 pnpm test:e2e           # Clear app data, forward port, run all Maestro E2E tests
 pnpm test:e2e:flow      # Run a specific Maestro flow file
 ```
@@ -44,7 +45,7 @@ Rebuild is needed after changing `app.json`, adding native plugins, or updating 
 
 ### Maestro E2E tests
 
-Tests live in `.maestro/`. Env vars for login tests are in `.maestro/.env` (gitignored).
+Tests live in `.maestro/`. Env vars for login tests are in `.maestro/.env` (gitignored). See `/maestro-test` skill for conventions.
 
 ```bash
 # Run a single flow with credentials
@@ -56,9 +57,11 @@ pnpm test:e2e
 
 Key points:
 - Use `- launchApp` without `clearState` or `clearKeychain` — both break Metro on dev builds
-- Clear app data once before the suite via `adb shell pm clear sa.ruqaqa.finance`
-- Use `optional: true` on `tapOn` for elements that may not appear (e.g., version gate)
+- Use standalone `- clearState: sa.ruqaqa.finance` before `- launchApp` when needed
+- All `extendedWaitUntil` timeouts must be **10 seconds max**
+- Wait for content first, then optionally skip version gate (not the other way around)
 - Brave browser is the default on the test device (avoids Chrome's autofill/welcome issues)
+- Minimize `optional: true` taps — each failed one wastes ~3-5s
 
 ## Architecture
 
@@ -66,17 +69,18 @@ Key points:
 
 - `app/_layout.tsx` — Root: ThemeProvider → AuthProvider → VersionGate → SessionExpiredModal
 - `app/index.tsx` — Auth gate: redirects to `/login` or `/(app)` based on session
-- `app/login.tsx` — SSO login (Microsoft + Keycloak buttons)
+- `app/login.tsx` — SSO login (Microsoft + Keycloak buttons, no credential/password login)
 - `app/auth/callback.tsx` — OAuth redirect handler
-- `app/(app)/_layout.tsx` — Authenticated shell: Finance/Gallery module switcher with permission gating
+- `app/(app)/_layout.tsx` — Authenticated shell: Finance/Gallery module switcher with permission gating, ErrorBoundary around each shell
 
 ### Auth flow
 
 1. `AuthProvider` (context) wraps entire app, restores session from secure storage on mount
 2. SSO uses `expo-auth-session` with PKCE → opens Keycloak in system browser → redirect back via `ruqaqa://auth/callback`
-3. `postLoginValidation()` pipeline: decode JWT → check `mobile_signin` role → extract permissions → validate employee via `/api/mobile/auth/validate`
-4. `apiClient.ts` (Axios): attaches Bearer token, proactively refreshes 30s before expiry, retries once on 401
+3. `postLoginValidation()` pipeline: decode JWT → check `mobile_signin` role → extract permissions → validate employee via `employeeService.ts` (uses `apiClient`)
+4. `apiClient.ts` (Axios): attaches Bearer token, proactively refreshes 30s before expiry, retries once on 401, uses `deduplicatedRefresh` to prevent concurrent refresh calls
 5. Session expiration: shows `SessionExpiredModal` overlay → user acknowledges → clears state → redirects to login
+6. Server logout: awaits Keycloak token revocation with retry, always clears local tokens
 
 ### Navigation shells
 
@@ -91,23 +95,48 @@ Key points:
 
 | Service | Role |
 |---------|------|
-| `authService.ts` | Keycloak token exchange (PKCE + password grant), refresh, employee validation, server logout. Uses `withRetry()` exponential backoff |
-| `authContext.ts` | React context: session state, login/logout, AppState listener for foreground refresh |
-| `apiClient.ts` | Axios: auto Bearer, proactive refresh, 401 retry, `uploadMultipart()` helper |
-| `tokenStorage.ts` | `expo-secure-store` wrapper with chunking for large JWTs (1800-byte chunks), crash-safe write order |
-| `permissionService.ts` | Extracts 16 permission flags from JWT roles. `getAvailableModules()`, `getAvailableFinanceTabs()` |
-| `versionCheckService.ts` | `/api/mobile/version-check` → forced update, optional update, maintenance mode |
+| `authService.ts` | Keycloak token exchange (PKCE), refresh, server logout with retry. Uses `withRetry()` from `utils/retry.ts` |
+| `authContext.ts` | React context: session state, login/logout, AppState listener for foreground refresh. Uses `deduplicatedRefresh` to prevent timer/foreground race |
+| `apiClient.ts` | Axios: auto Bearer, proactive refresh, 401 retry with dedup, `uploadMultipart()` helper |
+| `employeeService.ts` | Validates employee via `apiClient` post-login |
+| `tokenStorage.ts` | `expo-secure-store` wrapper with chunking for large JWTs (1800-byte chunks), crash-safe write order (chunks first, count last) |
+| `permissionService.ts` | Extracts 16 permission flags from JWT roles using `keycloakConfig.clientId`. `getAvailableModules()`, `getAvailableFinanceTabs()` |
+| `versionCheckService.ts` | `/api/mobile/version-check` → forced update, optional update, maintenance mode. Download URL validated against trusted domains |
+| `appLifecycle.ts` | First-launch tracking via AsyncStorage |
 | `config.ts` | Dev/prod URLs keyed on `releaseChannel` from `app.json` |
+
+### Utilities
+
+| Utility | Role |
+|---------|------|
+| `utils/retry.ts` | `withRetry()` exponential backoff + `isRetryableError()` (network/5xx) |
+| `utils/deduplicatedRefresh.ts` | `createDeduplicatedRefresh()` — concurrent calls share one promise |
+| `utils/colorUtils.ts` | `withAlpha(color, alpha)` — safe hex alpha application. Use this instead of `+ '1A'` concatenation |
 
 ### Theme & design system
 
 `ThemeProvider` exposes `useTheme()` → `{ colors, typography, spacing, radius, shadows }`. Supports light/dark mode. Design derived from ruqaqa-website, documented in `docs/design-system.md`.
 
-Use theme tokens in styles, not raw values. Use `start/end` instead of `left/right` for RTL support.
+- Use theme tokens in styles, not raw values
+- Use `start/end` instead of `left/right` for RTL support
+- Use `withAlpha()` for transparent colors, not hex string concatenation
+- Use `colors.onPrimary`/`colors.onSecondary`/`colors.onError` for text on colored backgrounds
+- Accent Green (`#208f5a`) should appear as a supporting accent across all screens (not just login) to connect with the green logo
 
 ### i18n
 
 `i18next` + `react-i18next`. Arabic and English with runtime switching. RTL applied via `I18nManager.forceRTL()`. Keys are camelCase: `t('signInWithMicrosoft')`. Strings in `src/i18n/en.ts` and `src/i18n/ar.ts`.
+
+### Testing
+
+Unit tests use Jest with `jest-expo` preset. Run with `pnpm test`.
+
+```bash
+pnpm test                                    # Run all tests
+pnpm test -- src/services/__tests__/foo.test.ts  # Run single file
+```
+
+Test files live next to source: `src/services/__tests__/`, `src/utils/__tests__/`. Mock `expo-secure-store` with in-memory Map, mock `axios` for service tests, use `jest.useFakeTimers()` for timing tests.
 
 ## Key references
 
@@ -124,3 +153,4 @@ Use theme tokens in styles, not raw values. Use `start/end` instead of `left/rig
 - TypeScript strict mode. Path alias: `@/` → `src/`
 - Design system follows ruqaqa-website (not Flutter's old design)
 - i18n keys in camelCase
+- Client-side permission checks are UX-only — the backend is the security boundary

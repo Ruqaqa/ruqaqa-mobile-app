@@ -81,7 +81,7 @@ Since video watermarking has no reliable client-side solution in React Native, c
 
 ---
 
-### Phase 2: Permissions & Role-Based Access
+### Phase 2: Permissions & Role-Based Access — DONE
 
 **Goal:** The app shows or hides features based on what the user is allowed to do.
 
