@@ -1,15 +1,18 @@
-import React, { useState, useMemo } from 'react';
-import { View, StyleSheet, Pressable, Text } from 'react-native';
+import React, { useState, useMemo, useCallback } from 'react';
+import { View, StyleSheet, Pressable, Text, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Plus } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../theme';
 import { useAppModuleContext } from './AppModuleContext';
+import { useAuth } from '../services/authContext';
 import {
   getAvailableFinanceTabs,
   FinanceTab,
 } from '../services/permissionService';
 import { AppBar } from '../components/layout/AppBar';
 import { TransactionHistoryScreen } from '../features/transactions/components/TransactionHistoryScreen';
+import { TransactionFormScreen } from '../features/transactions/components/TransactionFormScreen';
 
 // Placeholder tab content — replaced per-feature in later phases
 function PlaceholderTab({ label }: { label: string }) {
@@ -30,19 +33,20 @@ function PlaceholderTab({ label }: { label: string }) {
  * Finance module shell with bottom tab navigation.
  *
  * Tabs: Operations, Reconciliation, Payroll (permission-gated).
- * Within Operations and Reconciliation, a segmented control switches
- * between "Add" and "History" sub-views.
+ * FAB on Operations tab opens the Transaction Form as a full-screen modal.
  */
 export function FinanceShell() {
   const { t } = useTranslation();
-  const { colors, typography, spacing, radius } = useTheme();
+  const { colors, typography, spacing, radius, shadows } = useTheme();
   const { permissions } = useAppModuleContext();
+  const { employee } = useAuth();
 
   const tabs = useMemo(
     () => getAvailableFinanceTabs(permissions),
     [permissions],
   );
   const [activeTab, setActiveTab] = useState<FinanceTab>(tabs[0] ?? 'operations');
+  const [formVisible, setFormVisible] = useState(false);
 
   const tabLabels: Record<FinanceTab, string> = {
     operations: t('operations'),
@@ -55,6 +59,11 @@ export function FinanceShell() {
     reconciliation: 'arrow-left-right',
     payroll: 'banknote',
   };
+
+  const openForm = useCallback(() => setFormVisible(true), []);
+  const closeForm = useCallback(() => setFormVisible(false), []);
+
+  const showFab = activeTab === 'operations' && permissions.canCreateTransactions;
 
   if (tabs.length === 0) {
     return (
@@ -88,6 +97,41 @@ export function FinanceShell() {
           </View>
         ))}
       </View>
+
+      {/* FAB — only on Operations tab with create permission */}
+      {showFab && (
+        <Pressable
+          onPress={openForm}
+          style={({ pressed }) => [
+            styles.fab,
+            {
+              backgroundColor: colors.primary,
+              borderRadius: radius.full,
+              opacity: pressed ? 0.85 : 1,
+              ...shadows.gradient,
+            },
+          ]}
+          accessibilityLabel={t('newTransaction')}
+          accessibilityRole="button"
+          testID="fab-new-transaction"
+        >
+          <Plus size={28} color={colors.onPrimary} strokeWidth={2.5} />
+        </Pressable>
+      )}
+
+      {/* Transaction Form Modal */}
+      <Modal
+        visible={formVisible}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={closeForm}
+      >
+        <TransactionFormScreen
+          permissions={permissions}
+          employee={employee}
+          onClose={closeForm}
+        />
+      </Modal>
 
       {/* Bottom tab bar — only show if more than one tab */}
       {tabs.length > 1 && (
@@ -148,6 +192,16 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 80,
+    end: 20,
+    width: 56,
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
   },
   tabBar: {
     flexDirection: 'row',

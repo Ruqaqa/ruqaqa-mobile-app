@@ -10,11 +10,37 @@ export type TaxQuarter = (typeof TAX_QUARTERS)[number];
 export const TAX_YEARS = ['2024', '2025', '2026', '2027'] as const;
 export type TaxYear = (typeof TAX_YEARS)[number];
 
+/** Currency values accepted by the API */
+export const CURRENCIES = ['ريال سعودي', 'دولار أمريكي'] as const;
+export type Currency = (typeof CURRENCIES)[number];
+
+/** Partner type values */
+export const PARTNER_TYPES = ['employee', 'wallet'] as const;
+export type PartnerType = (typeof PARTNER_TYPES)[number];
+
 /** Pagination constants */
 export const PAGE_SIZE = 20;
 
 /** Max length for text filter inputs */
 export const FILTER_MAX_LENGTH = 200;
+
+/** Max length for notes field */
+export const NOTES_MAX_LENGTH = 1000;
+
+/** Max file size for receipt uploads (10 MB) */
+export const MAX_RECEIPT_FILE_SIZE = 10 * 1024 * 1024;
+
+/** Max number of receipt files */
+export const MAX_RECEIPTS = 4;
+
+/** Allowed MIME types for receipt uploads */
+export const ALLOWED_RECEIPT_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/heic',
+  'image/webp',
+  'application/pdf',
+] as const;
 
 /** Populated employee reference from backend */
 export interface TransactionEmployee {
@@ -92,6 +118,25 @@ export interface TransactionFilters {
   dateFrom: Date | null;
   dateTo: Date | null;
   approvalStatus: ApprovalStatus | null;
+}
+
+/** Data shape for transaction creation submission */
+export interface TransactionSubmissionData {
+  statement: string;
+  totalAmount: string;
+  currency: string;
+  tax: string;
+  transactionDate: string;
+  partnerEmployee: string | null;
+  otherParty: string | null;
+  otherPartyType: string | null;
+  otherPartyId: string | null;
+  client: string | null;
+  project: string | null;
+  notes: string | null;
+  bankFees: string | null;
+  bankFeesCurrency: string | null;
+  receipts: File[];
 }
 
 /** Sentinel for empty filters */

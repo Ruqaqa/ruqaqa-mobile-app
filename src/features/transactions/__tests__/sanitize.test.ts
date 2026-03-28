@@ -1,13 +1,29 @@
 import {
   sanitizeText,
+  sanitizeNotes,
   isValidAmount,
+  isValidSubmissionAmount,
   isValidApprovalStatus,
   isValidTaxQuarter,
   isValidTaxYear,
+  isValidCurrency,
+  isValidPartnerType,
+  isValidObjectId,
+  sanitizeFilename,
+  isAllowedMimeType,
+  isWithinSizeLimit,
   sanitizeFilters,
   hasActiveFilters,
+  sanitizeSubmissionData,
 } from '../utils/sanitize';
-import { EMPTY_FILTERS, FILTER_MAX_LENGTH, TransactionFilters } from '../types';
+import { TransactionSubmissionData } from '../services/transactionSubmissionService';
+import {
+  EMPTY_FILTERS,
+  FILTER_MAX_LENGTH,
+  NOTES_MAX_LENGTH,
+  MAX_RECEIPT_FILE_SIZE,
+  TransactionFilters,
+} from '../types';
 
 describe('sanitizeText', () => {
   it('trims whitespace from both ends', () => {
@@ -39,6 +55,15 @@ describe('sanitizeText', () => {
   it('handles XSS-like strings by trimming only', () => {
     const input = '<script>alert("xss")</script>';
     expect(sanitizeText(input)).toBe(input);
+  });
+
+  it('accepts custom maxLength parameter', () => {
+    const long = 'a'.repeat(1500);
+    expect(sanitizeText(long, 1000)).toHaveLength(1000);
+  });
+
+  it('custom maxLength does not affect short strings', () => {
+    expect(sanitizeText('hello', 1000)).toBe('hello');
   });
 });
 
@@ -299,5 +324,337 @@ describe('hasActiveFilters', () => {
 
   it('returns true when taxYear is set', () => {
     expect(hasActiveFilters({ ...EMPTY_FILTERS, taxYear: '2025' })).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Security validation tests
+// ---------------------------------------------------------------------------
+
+describe('sanitizeNotes', () => {
+  it('trims and caps at NOTES_MAX_LENGTH (1000)', () => {
+    const long = '  ' + 'x'.repeat(1100) + '  ';
+    const result = sanitizeNotes(long);
+    expect(result).toHaveLength(NOTES_MAX_LENGTH);
+    expect(result.startsWith('x')).toBe(true);
+  });
+
+  it('preserves short notes', () => {
+    expect(sanitizeNotes('short note')).toBe('short note');
+  });
+});
+
+describe('isValidSubmissionAmount', () => {
+  it('returns false for empty string', () => {
+    expect(isValidSubmissionAmount('')).toBe(false);
+  });
+
+  it('returns true for positive integer', () => {
+    expect(isValidSubmissionAmount('500')).toBe(true);
+  });
+
+  it('returns true for decimal with two places', () => {
+    expect(isValidSubmissionAmount('99.50')).toBe(true);
+  });
+
+  it('returns false for negative amount', () => {
+    expect(isValidSubmissionAmount('-100')).toBe(false);
+  });
+
+  it('returns false for three decimal places', () => {
+    expect(isValidSubmissionAmount('99.501')).toBe(false);
+  });
+
+  it('returns false for non-numeric', () => {
+    expect(isValidSubmissionAmount('abc')).toBe(false);
+  });
+
+  it('returns false for eval-like string', () => {
+    expect(isValidSubmissionAmount('1+1')).toBe(false);
+  });
+
+  it('returns false for scientific notation', () => {
+    expect(isValidSubmissionAmount('1e5')).toBe(false);
+  });
+
+  it('returns false for scientific notation with decimal', () => {
+    expect(isValidSubmissionAmount('1.5e2')).toBe(false);
+  });
+});
+
+describe('isValidCurrency', () => {
+  it('returns true for Saudi Riyal', () => {
+    expect(isValidCurrency('ريال سعودي')).toBe(true);
+  });
+
+  it('returns true for US Dollar', () => {
+    expect(isValidCurrency('دولار أمريكي')).toBe(true);
+  });
+
+  it('returns false for null', () => {
+    expect(isValidCurrency(null)).toBe(false);
+  });
+
+  it('returns false for arbitrary string', () => {
+    expect(isValidCurrency('Bitcoin')).toBe(false);
+  });
+
+  it('returns false for empty string', () => {
+    expect(isValidCurrency('')).toBe(false);
+  });
+});
+
+describe('isValidPartnerType', () => {
+  it('returns true for employee', () => {
+    expect(isValidPartnerType('employee')).toBe(true);
+  });
+
+  it('returns true for wallet', () => {
+    expect(isValidPartnerType('wallet')).toBe(true);
+  });
+
+  it('returns true for null (optional)', () => {
+    expect(isValidPartnerType(null)).toBe(true);
+  });
+
+  it('returns false for arbitrary string', () => {
+    expect(isValidPartnerType('admin')).toBe(false);
+  });
+});
+
+describe('isValidObjectId', () => {
+  it('returns true for valid 24-char hex', () => {
+    expect(isValidObjectId('507f1f77bcf86cd799439011')).toBe(true);
+  });
+
+  it('returns true for uppercase hex', () => {
+    expect(isValidObjectId('507F1F77BCF86CD799439011')).toBe(true);
+  });
+
+  it('returns true for null (optional field)', () => {
+    expect(isValidObjectId(null)).toBe(true);
+  });
+
+  it('returns true for empty string (optional field)', () => {
+    expect(isValidObjectId('')).toBe(true);
+  });
+
+  it('returns false for 23-char string', () => {
+    expect(isValidObjectId('507f1f77bcf86cd79943901')).toBe(false);
+  });
+
+  it('returns false for 25-char string', () => {
+    expect(isValidObjectId('507f1f77bcf86cd7994390111')).toBe(false);
+  });
+
+  it('returns false for non-hex characters', () => {
+    expect(isValidObjectId('507f1f77bcf86cd79943901g')).toBe(false);
+  });
+
+  it('returns false for injection attempt', () => {
+    expect(isValidObjectId("'; DROP TABLE users; --")).toBe(false);
+  });
+});
+
+describe('sanitizeFilename', () => {
+  it('replaces forward slashes with underscores', () => {
+    expect(sanitizeFilename('path/to/file.jpg')).toBe('path_to_file.jpg');
+  });
+
+  it('replaces backslashes with underscores', () => {
+    expect(sanitizeFilename('path\\to\\file.jpg')).toBe('path_to_file.jpg');
+  });
+
+  it('replaces null bytes with underscores', () => {
+    expect(sanitizeFilename('file\0name.jpg')).toBe('file_name.jpg');
+  });
+
+  it('handles mixed separators', () => {
+    expect(sanitizeFilename('a/b\\c\0d.pdf')).toBe('a_b_c_d.pdf');
+  });
+
+  it('preserves clean filenames', () => {
+    expect(sanitizeFilename('receipt-2026.jpg')).toBe('receipt-2026.jpg');
+  });
+});
+
+describe('isAllowedMimeType', () => {
+  it('allows image/jpeg', () => {
+    expect(isAllowedMimeType('image/jpeg')).toBe(true);
+  });
+
+  it('allows image/png', () => {
+    expect(isAllowedMimeType('image/png')).toBe(true);
+  });
+
+  it('allows image/heic', () => {
+    expect(isAllowedMimeType('image/heic')).toBe(true);
+  });
+
+  it('allows image/webp', () => {
+    expect(isAllowedMimeType('image/webp')).toBe(true);
+  });
+
+  it('allows application/pdf', () => {
+    expect(isAllowedMimeType('application/pdf')).toBe(true);
+  });
+
+  it('rejects image/gif', () => {
+    expect(isAllowedMimeType('image/gif')).toBe(false);
+  });
+
+  it('rejects application/javascript', () => {
+    expect(isAllowedMimeType('application/javascript')).toBe(false);
+  });
+
+  it('rejects text/html', () => {
+    expect(isAllowedMimeType('text/html')).toBe(false);
+  });
+
+  it('rejects undefined', () => {
+    expect(isAllowedMimeType(undefined)).toBe(false);
+  });
+
+  it('rejects empty string', () => {
+    expect(isAllowedMimeType('')).toBe(false);
+  });
+});
+
+describe('isWithinSizeLimit', () => {
+  it('returns true for 1 byte', () => {
+    expect(isWithinSizeLimit(1)).toBe(true);
+  });
+
+  it('returns true for exactly 10MB', () => {
+    expect(isWithinSizeLimit(MAX_RECEIPT_FILE_SIZE)).toBe(true);
+  });
+
+  it('returns false for 10MB + 1 byte', () => {
+    expect(isWithinSizeLimit(MAX_RECEIPT_FILE_SIZE + 1)).toBe(false);
+  });
+
+  it('returns false for 0 bytes', () => {
+    expect(isWithinSizeLimit(0)).toBe(false);
+  });
+
+  it('returns false for negative bytes', () => {
+    expect(isWithinSizeLimit(-1)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// sanitizeSubmissionData — applies all sanitization rules to submission data
+// ---------------------------------------------------------------------------
+
+const VALID_ID = 'aabbccddeeff00112233aabb';
+
+function makeRawSubmission(
+  overrides: Partial<TransactionSubmissionData> = {},
+): TransactionSubmissionData {
+  return {
+    statement: 'Office supplies',
+    totalAmount: '500',
+    currency: 'ريال سعودي',
+    tax: 'لا',
+    transactionDate: '03/27/2026',
+    partnerEmployee: VALID_ID,
+    otherParty: 'Vendor Corp',
+    otherPartyType: 'text',
+    otherPartyId: null,
+    client: VALID_ID,
+    project: VALID_ID,
+    notes: 'Some notes',
+    bankFees: '25',
+    bankFeesCurrency: 'ريال سعودي',
+    receipts: [],
+    ...overrides,
+  };
+}
+
+describe('sanitizeSubmissionData', () => {
+  it('trims statement whitespace', () => {
+    const result = sanitizeSubmissionData(
+      makeRawSubmission({ statement: '  Office supplies  ' }),
+    );
+    expect(result.statement).toBe('Office supplies');
+  });
+
+  it('caps statement at FILTER_MAX_LENGTH (200)', () => {
+    const result = sanitizeSubmissionData(
+      makeRawSubmission({ statement: 'x'.repeat(300) }),
+    );
+    expect(result.statement).toHaveLength(FILTER_MAX_LENGTH);
+  });
+
+  it('trims and caps notes at NOTES_MAX_LENGTH (1000)', () => {
+    const result = sanitizeSubmissionData(
+      makeRawSubmission({ notes: '  ' + 'n'.repeat(1500) + '  ' }),
+    );
+    expect(result.notes).toHaveLength(NOTES_MAX_LENGTH);
+    expect(result.notes!.startsWith('n')).toBe(true);
+  });
+
+  it('trims otherParty', () => {
+    const result = sanitizeSubmissionData(
+      makeRawSubmission({ otherParty: '  Vendor Corp  ' }),
+    );
+    expect(result.otherParty).toBe('Vendor Corp');
+  });
+
+  it('preserves null otherParty', () => {
+    const result = sanitizeSubmissionData(
+      makeRawSubmission({ otherParty: null }),
+    );
+    expect(result.otherParty).toBeNull();
+  });
+
+  it('trims totalAmount', () => {
+    const result = sanitizeSubmissionData(
+      makeRawSubmission({ totalAmount: '  500.50  ' }),
+    );
+    expect(result.totalAmount).toBe('500.50');
+  });
+
+  it('keeps bankFees as string (not parsed to number)', () => {
+    const result = sanitizeSubmissionData(
+      makeRawSubmission({ bankFees: '25.50' }),
+    );
+    expect(typeof result.bankFees).toBe('string');
+    expect(result.bankFees).toBe('25.50');
+  });
+
+  it('preserves null bankFees', () => {
+    const result = sanitizeSubmissionData(
+      makeRawSubmission({ bankFees: null }),
+    );
+    expect(result.bankFees).toBeNull();
+  });
+
+  it('passes through currency unchanged (validation is separate)', () => {
+    const result = sanitizeSubmissionData(
+      makeRawSubmission({ currency: 'ريال سعودي' }),
+    );
+    expect(result.currency).toBe('ريال سعودي');
+  });
+
+  it('passes through ID fields unchanged (validation is separate)', () => {
+    const result = sanitizeSubmissionData(
+      makeRawSubmission({
+        partnerEmployee: VALID_ID,
+        client: VALID_ID,
+        project: VALID_ID,
+      }),
+    );
+    expect(result.partnerEmployee).toBe(VALID_ID);
+    expect(result.client).toBe(VALID_ID);
+    expect(result.project).toBe(VALID_ID);
+  });
+
+  it('preserves receipts array reference', () => {
+    const files = [new File(['a'], 'test.jpg', { type: 'image/jpeg' })];
+    const result = sanitizeSubmissionData(
+      makeRawSubmission({ receipts: files }),
+    );
+    expect(result.receipts).toBe(files);
   });
 });

@@ -1,24 +1,58 @@
 import {
   TransactionFilters,
   FILTER_MAX_LENGTH,
+  NOTES_MAX_LENGTH,
   APPROVAL_STATUSES,
   ApprovalStatus,
   TAX_QUARTERS,
   TaxQuarter,
   TAX_YEARS,
   TaxYear,
+  CURRENCIES,
+  Currency,
+  PARTNER_TYPES,
+  PartnerType,
+  ALLOWED_RECEIPT_MIME_TYPES,
+  MAX_RECEIPT_FILE_SIZE,
+  TransactionSubmissionData,
 } from '../types';
 
-/** Trim and cap a string input */
-export function sanitizeText(value: string): string {
-  return (value ?? '').trim().slice(0, FILTER_MAX_LENGTH);
+// ---------------------------------------------------------------------------
+// Text sanitization
+// ---------------------------------------------------------------------------
+
+/** Trim and cap a string input. Defaults to FILTER_MAX_LENGTH (200). */
+export function sanitizeText(
+  value: string,
+  maxLength: number = FILTER_MAX_LENGTH,
+): string {
+  return (value ?? '').trim().slice(0, maxLength);
 }
 
-/** Validate that a string is a valid numeric amount (or empty) */
+/** Trim and cap a notes field (1000 chars). */
+export function sanitizeNotes(value: string): string {
+  return sanitizeText(value, NOTES_MAX_LENGTH);
+}
+
+// ---------------------------------------------------------------------------
+// Amount validation
+// ---------------------------------------------------------------------------
+
+/** Validate amount for filter inputs (allows negative, 2 decimal places max). */
 export function isValidAmount(value: string): boolean {
   if (value === '') return true;
   return /^-?\d+(\.\d{1,2})?$/.test(value.trim());
 }
+
+/** Validate amount for transaction submission (positive only, 2 decimal places max). */
+export function isValidSubmissionAmount(value: string): boolean {
+  if (value === '') return false;
+  return /^\d+(\.\d{1,2})?$/.test(value.trim());
+}
+
+// ---------------------------------------------------------------------------
+// Enum validators
+// ---------------------------------------------------------------------------
 
 /** Validate approval status against the enum */
 export function isValidApprovalStatus(
@@ -39,6 +73,56 @@ export function isValidTaxYear(value: string | null): value is TaxYear {
   if (value === null) return true;
   return (TAX_YEARS as readonly string[]).includes(value);
 }
+
+/** Validate currency against the allowed list */
+export function isValidCurrency(value: string | null): value is Currency {
+  if (value === null) return false;
+  return (CURRENCIES as readonly string[]).includes(value);
+}
+
+/** Validate partner type against the allowed list */
+export function isValidPartnerType(
+  value: string | null,
+): value is PartnerType {
+  if (value === null) return true;
+  return (PARTNER_TYPES as readonly string[]).includes(value);
+}
+
+// ---------------------------------------------------------------------------
+// ID validation
+// ---------------------------------------------------------------------------
+
+const OBJECT_ID_RE = /^[a-f\d]{24}$/i;
+
+/** Validate a MongoDB ObjectId format. Null/empty is allowed (optional field). */
+export function isValidObjectId(value: string | null | undefined): boolean {
+  if (value == null || value === '') return true;
+  return OBJECT_ID_RE.test(value);
+}
+
+// ---------------------------------------------------------------------------
+// File upload validation
+// ---------------------------------------------------------------------------
+
+/** Strip path separators and null bytes from filenames */
+export function sanitizeFilename(name: string): string {
+  return name.replace(/[/\\\0]/g, '_');
+}
+
+/** Check if a MIME type is in the receipt upload whitelist */
+export function isAllowedMimeType(mimeType: string | undefined): boolean {
+  if (!mimeType) return false;
+  return (ALLOWED_RECEIPT_MIME_TYPES as readonly string[]).includes(mimeType);
+}
+
+/** Check if a file size (in bytes) is within the upload limit */
+export function isWithinSizeLimit(bytes: number): boolean {
+  return bytes > 0 && bytes <= MAX_RECEIPT_FILE_SIZE;
+}
+
+// ---------------------------------------------------------------------------
+// Filter sanitization (search/list screens)
+// ---------------------------------------------------------------------------
 
 /** Sanitize all filters before sending to API */
 export function sanitizeFilters(filters: TransactionFilters): TransactionFilters {
@@ -78,4 +162,26 @@ export function hasActiveFilters(filters: TransactionFilters): boolean {
     filters.dateTo !== null ||
     filters.approvalStatus !== null
   );
+}
+
+// ---------------------------------------------------------------------------
+// Submission data sanitization
+// ---------------------------------------------------------------------------
+
+/**
+ * Sanitize all text fields in submission data before building FormData.
+ * This applies trim + length caps to free-text fields while leaving
+ * enum/ID/file fields untouched (those are validated separately).
+ * bankFees stays as a string — it is parsed to a number only at final FormData build time.
+ */
+export function sanitizeSubmissionData(
+  data: TransactionSubmissionData,
+): TransactionSubmissionData {
+  return {
+    ...data,
+    statement: sanitizeText(data.statement),
+    totalAmount: data.totalAmount.trim(),
+    otherParty: data.otherParty ? sanitizeText(data.otherParty) : null,
+    notes: data.notes ? sanitizeNotes(data.notes) : null,
+  };
 }

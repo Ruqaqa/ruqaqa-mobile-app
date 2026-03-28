@@ -160,7 +160,8 @@ function ThumbnailItem({
       setDownloading(true);
       try {
         const url = buildReceiptUrl(receipt);
-        const filename = receipt.filename || `receipt_${receipt.id}`;
+        const rawName = receipt.filename || `receipt_${receipt.id}`;
+        const filename = rawName.replace(/[\/\\\0]/g, '_');
         const fileUri = FileSystem.cacheDirectory + filename;
 
         const downloaded = await FileSystem.downloadAsync(url, fileUri, {
