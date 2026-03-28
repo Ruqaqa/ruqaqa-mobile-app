@@ -55,5 +55,5 @@ export function StatusChip({ status }: StatusChipProps) {
 }
 
 const styles = StyleSheet.create({
-  chip: { alignSelf: 'flex-start' },
+  chip: { alignSelf: 'flex-start', flexShrink: 0 },
 });
