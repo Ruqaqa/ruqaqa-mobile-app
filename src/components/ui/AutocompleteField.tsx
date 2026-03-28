@@ -56,6 +56,7 @@ export function AutocompleteField<T extends AutocompleteItem>({
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestCounter = useRef(0);
   const inputRef = useRef<TextInput>(null);
+  const selectingRef = useRef(false);
 
   const hasError = !!error;
   const borderColor = hasError
@@ -114,11 +115,14 @@ export function AutocompleteField<T extends AutocompleteItem>({
 
   const handleSelect = useCallback(
     (item: T) => {
+      selectingRef.current = true;
       setQuery('');
       setResults([]);
       setShowDropdown(false);
       Keyboard.dismiss();
       onSelect(item);
+      // Reset after blur timeout would have fired
+      setTimeout(() => { selectingRef.current = false; }, 300);
     },
     [onSelect],
   );
@@ -134,7 +138,12 @@ export function AutocompleteField<T extends AutocompleteItem>({
   const handleBlur = useCallback(() => {
     setIsFocused(false);
     // Delay hiding dropdown so tap on option can register
-    setTimeout(() => setShowDropdown(false), 200);
+    // selectingRef prevents premature hide when user is tapping an option
+    setTimeout(() => {
+      if (!selectingRef.current) {
+        setShowDropdown(false);
+      }
+    }, 250);
   }, []);
 
   // Selected chip view
@@ -270,7 +279,7 @@ export function AutocompleteField<T extends AutocompleteItem>({
             nestedScrollEnabled
           >
             {results.map((item, index) => (
-              <React.Fragment key={item.id}>
+              <React.Fragment key={`${item.id}-${index}`}>
                 {index > 0 && (
                   <View
                     style={{
@@ -280,6 +289,7 @@ export function AutocompleteField<T extends AutocompleteItem>({
                   />
                 )}
                 <Pressable
+                  onPressIn={() => { selectingRef.current = true; }}
                   onPress={() => handleSelect(item)}
                   style={({ pressed }) => [
                     styles.dropdownItem,

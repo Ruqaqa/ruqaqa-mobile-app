@@ -115,9 +115,20 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
   }
 }
 
+// In-memory cache to avoid null during secure store write gaps
+let cachedAccessToken: string | null = null;
+
 export const tokenStorage = {
   async getAccessToken(): Promise<string | null> {
-    return getSecureValue(KEYS.accessToken);
+    const stored = await getSecureValue(KEYS.accessToken);
+    if (stored) {
+      cachedAccessToken = stored;
+      return stored;
+    }
+    // During token rotation, secure store may briefly return null
+    // while old chunks are deleted and new ones written.
+    // Return the cached value to prevent requests without auth.
+    return cachedAccessToken;
   },
 
   async getRefreshToken(): Promise<string | null> {
@@ -154,6 +165,7 @@ export const tokenStorage = {
     // Write refresh token first — if app crashes mid-write, the old refresh
     // token is still valid. Writing access token first could leave a new
     // access token paired with a rotated-away refresh token.
+    cachedAccessToken = params.accessToken;
     await setSecureValue(KEYS.refreshToken, params.refreshToken);
     await setSecureValue(KEYS.accessToken, params.accessToken);
     if (params.idToken) {
@@ -167,6 +179,7 @@ export const tokenStorage = {
   },
 
   async clearAll(): Promise<void> {
+    cachedAccessToken = null;
     await Promise.all([
       deleteSecureValue(KEYS.accessToken),
       deleteSecureValue(KEYS.refreshToken),

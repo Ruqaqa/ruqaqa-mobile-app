@@ -3,7 +3,12 @@ import { apiClient } from '@/services/apiClient';
 export interface SuggestionItem {
   id: string;
   name: string;
-  [key: string]: any;
+}
+
+export interface OtherPartySuggestion {
+  id?: string;
+  name: string;
+  type: string;
 }
 
 async function fetchSuggestions(
@@ -35,9 +40,19 @@ export function fetchClientSuggestions(query: string): Promise<SuggestionItem[]>
   return fetchSuggestions('/clients', query, 'clients', limit);
 }
 
-export function fetchOtherPartySuggestions(query: string): Promise<SuggestionItem[]> {
-  if (!query.trim()) return Promise.resolve([]);
-  return fetchSuggestions('/other-parties', query, 'otherParties', 10);
+export async function fetchOtherPartySuggestions(query: string): Promise<OtherPartySuggestion[]> {
+  if (!query.trim()) return [];
+  try {
+    const res = await apiClient.get('/other-parties', {
+      params: { q: query, limit: 10 },
+    });
+    if (res.data?.success && Array.isArray(res.data.otherParties)) {
+      return res.data.otherParties;
+    }
+  } catch {
+    // swallow — return empty
+  }
+  return [];
 }
 
 export function fetchEmployeeSuggestions(query: string): Promise<SuggestionItem[]> {

@@ -97,7 +97,6 @@ export function SubmissionPreviewDialog({
         if (isPaused) return prev;
         if (prev <= 1) {
           clearInterval(timerRef.current!);
-          onConfirm();
           return 0;
         }
         return prev - 1;
@@ -107,7 +106,14 @@ export function SubmissionPreviewDialog({
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [visible, isPaused, onConfirm]);
+  }, [visible, isPaused]);
+
+  // Fire onConfirm when countdown reaches 0 (outside of setState)
+  useEffect(() => {
+    if (visible && countdown === 0) {
+      onConfirm();
+    }
+  }, [visible, countdown, onConfirm]);
 
   const handleCancel = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);

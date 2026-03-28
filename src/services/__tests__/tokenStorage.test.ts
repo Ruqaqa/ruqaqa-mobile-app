@@ -24,9 +24,11 @@ jest.mock('expo-secure-store', () => ({
 import * as SecureStore from 'expo-secure-store';
 import { tokenStorage } from '../tokenStorage';
 
-beforeEach(() => {
+beforeEach(async () => {
   mockStore.clear();
   jest.clearAllMocks();
+  // Clear in-memory cache to prevent cross-test leakage
+  await tokenStorage.clearAll();
 });
 
 // ---------------------------------------------------------------------------
@@ -252,6 +254,63 @@ describe('clearAll', () => {
     expect(await tokenStorage.getRefreshToken()).toBeNull();
     expect(await tokenStorage.getIdToken()).toBeNull();
     expect(await tokenStorage.getTokenExpiry()).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// In-memory cache — survives secure store gaps during token rotation
+// ---------------------------------------------------------------------------
+
+describe('in-memory access token cache', () => {
+  it('returns cached token when secure store returns null', async () => {
+    const jwt = buildJwt({ sub: 'user1', exp: Math.floor(Date.now() / 1000) + 3600 });
+    await tokenStorage.saveTokens({
+      accessToken: jwt,
+      refreshToken: 'ref',
+      expiresIn: 3600,
+    });
+
+    // Simulate secure store returning null (gap during token rotation)
+    mockStore.delete('auth_access_token');
+
+    const result = await tokenStorage.getAccessToken();
+    expect(result).toBe(jwt);
+  });
+
+  it('updates cache immediately on saveTokens', async () => {
+    const jwt1 = buildJwt({ sub: 'user1', exp: Math.floor(Date.now() / 1000) + 3600 });
+    const jwt2 = buildJwt({ sub: 'user2', exp: Math.floor(Date.now() / 1000) + 3600 });
+
+    await tokenStorage.saveTokens({
+      accessToken: jwt1,
+      refreshToken: 'ref1',
+      expiresIn: 3600,
+    });
+
+    // Save new tokens, then wipe store to test cache has new value
+    await tokenStorage.saveTokens({
+      accessToken: jwt2,
+      refreshToken: 'ref2',
+      expiresIn: 3600,
+    });
+
+    mockStore.delete('auth_access_token');
+    const result = await tokenStorage.getAccessToken();
+    expect(result).toBe(jwt2);
+  });
+
+  it('clears cache on clearAll so stale tokens are not returned', async () => {
+    const jwt = buildJwt({ sub: 'user1', exp: Math.floor(Date.now() / 1000) + 3600 });
+    await tokenStorage.saveTokens({
+      accessToken: jwt,
+      refreshToken: 'ref',
+      expiresIn: 3600,
+    });
+
+    await tokenStorage.clearAll();
+
+    const result = await tokenStorage.getAccessToken();
+    expect(result).toBeNull();
   });
 });
 

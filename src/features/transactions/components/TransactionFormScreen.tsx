@@ -47,6 +47,11 @@ function toAutocompleteItems(items: { id: string; name: string }[]): Autocomplet
   return items.map((i) => ({ id: i.id, label: i.name }));
 }
 
+interface OtherPartyItem extends AutocompleteItem {
+  type: string;
+  hasRealId: boolean;
+}
+
 const TAX_OPTIONS = [
   { label: 'نعم', value: 'نعم' },
   { label: 'لا', value: 'لا' },
@@ -129,16 +134,22 @@ export function TransactionFormScreen({
   );
 
   // Other party: autocomplete that also allows free text
-  const handleOtherPartySearch = useCallback(async (query: string) => {
+  // API returns items with optional id (previous free-text entries have no id)
+  const handleOtherPartySearch = useCallback(async (query: string): Promise<OtherPartyItem[]> => {
     const results = await fetchOtherPartySuggestions(query);
-    return toAutocompleteItems(results);
+    return results.map((i, index) => ({
+      id: i.id || `prev_${index}_${i.name}`,
+      label: i.name,
+      type: i.type,
+      hasRealId: !!i.id,
+    }));
   }, []);
 
   const handleOtherPartySelect = useCallback(
-    (item: AutocompleteItem) => {
+    (item: OtherPartyItem) => {
       updateField('otherParty', item.label);
-      updateField('otherPartyId', item.id);
-      updateField('otherPartyType', 'selected');
+      updateField('otherPartyId', item.hasRealId ? item.id : null);
+      updateField('otherPartyType', item.type);
     },
     [updateField],
   );
@@ -387,7 +398,7 @@ export function TransactionFormScreen({
           />
 
           <Input
-            label={t('bankFees')}
+            label={`${t('bankFees')} *`}
             value={form.bankFees}
             onChangeText={(text) => {
               const cleaned = text.replace(/[^0-9.]/g, '');
@@ -459,10 +470,10 @@ export function TransactionFormScreen({
           )}
 
           <View style={{ zIndex: 1 }}>
-            <AutocompleteField
+            <AutocompleteField<OtherPartyItem>
               label={t('otherParty')}
               placeholder={t('searchOtherParties')}
-              value={form.otherPartyId ? { id: form.otherPartyId, label: form.otherParty } : null}
+              value={form.otherPartyType && form.otherPartyType !== 'text' && form.otherParty ? { id: form.otherPartyId ?? `prev_${form.otherParty}`, label: form.otherParty, type: form.otherPartyType, hasRealId: !!form.otherPartyId } as OtherPartyItem : null}
               onSearch={handleOtherPartySearch}
               onSelect={handleOtherPartySelect}
               onClear={handleOtherPartyClear}
