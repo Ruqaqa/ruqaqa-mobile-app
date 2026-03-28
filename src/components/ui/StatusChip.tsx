@@ -49,7 +49,7 @@ export function StatusChip({ status }: StatusChipProps) {
         },
       ]}
     >
-      <Text style={[typography.labelSmall, { color: c.text }]}>{c.label}</Text>
+      <Text style={[typography.labelSmall, { color: c.text }]} numberOfLines={1}>{c.label}</Text>
     </View>
   );
 }
