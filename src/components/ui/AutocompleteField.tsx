@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Keyboard,
+  ScrollView,
 } from 'react-native';
 import { X, Search } from 'lucide-react-native';
 import { useTheme } from '@/theme';
