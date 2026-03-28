@@ -9,6 +9,7 @@ import {
   isValidCurrency,
   isValidPartnerType,
   isValidObjectId,
+  isValidPartnerFilter,
   sanitizeFilename,
   isAllowedMimeType,
   isWithinSizeLimit,
@@ -22,6 +23,8 @@ import {
   FILTER_MAX_LENGTH,
   NOTES_MAX_LENGTH,
   MAX_RECEIPT_FILE_SIZE,
+  WALLET_PARTNER,
+  BALAD_CARD_PARTNER,
   TransactionFilters,
 } from '../types';
 
@@ -188,7 +191,7 @@ describe('sanitizeFilters', () => {
     expect(sanitizeFilters(EMPTY_FILTERS)).toEqual(EMPTY_FILTERS);
   });
 
-  it('trims text fields including partnerEmployee and otherParty', () => {
+  it('trims text fields and resets invalid partnerEmployee', () => {
     const filters: TransactionFilters = {
       ...EMPTY_FILTERS,
       statement: '  rent payment  ',
@@ -199,8 +202,40 @@ describe('sanitizeFilters', () => {
     const result = sanitizeFilters(filters);
     expect(result.statement).toBe('rent payment');
     expect(result.client).toBe('Acme Corp');
-    expect(result.partnerEmployee).toBe('John Doe');
+    expect(result.partnerEmployee).toBe('');  // free text is invalid
     expect(result.otherParty).toBe('Some Company');
+  });
+
+  it('passes through valid ObjectId for partnerEmployee', () => {
+    const filters: TransactionFilters = {
+      ...EMPTY_FILTERS,
+      partnerEmployee: '507f1f77bcf86cd799439011',
+    };
+    expect(sanitizeFilters(filters).partnerEmployee).toBe('507f1f77bcf86cd799439011');
+  });
+
+  it('passes through WALLET_PARTNER constant for partnerEmployee', () => {
+    const filters: TransactionFilters = {
+      ...EMPTY_FILTERS,
+      partnerEmployee: WALLET_PARTNER,
+    };
+    expect(sanitizeFilters(filters).partnerEmployee).toBe(WALLET_PARTNER);
+  });
+
+  it('passes through BALAD_CARD_PARTNER constant for partnerEmployee', () => {
+    const filters: TransactionFilters = {
+      ...EMPTY_FILTERS,
+      partnerEmployee: BALAD_CARD_PARTNER,
+    };
+    expect(sanitizeFilters(filters).partnerEmployee).toBe(BALAD_CARD_PARTNER);
+  });
+
+  it('resets arbitrary text partnerEmployee to empty string', () => {
+    const filters: TransactionFilters = {
+      ...EMPTY_FILTERS,
+      partnerEmployee: 'some random text',
+    };
+    expect(sanitizeFilters(filters).partnerEmployee).toBe('');
   });
 
   it('drops invalid amountMin', () => {
@@ -419,6 +454,32 @@ describe('isValidPartnerType', () => {
 
   it('returns false for arbitrary string', () => {
     expect(isValidPartnerType('admin')).toBe(false);
+  });
+});
+
+describe('isValidPartnerFilter', () => {
+  it('returns true for empty string', () => {
+    expect(isValidPartnerFilter('')).toBe(true);
+  });
+
+  it('returns true for valid ObjectId', () => {
+    expect(isValidPartnerFilter('507f1f77bcf86cd799439011')).toBe(true);
+  });
+
+  it('returns true for WALLET_PARTNER constant', () => {
+    expect(isValidPartnerFilter(WALLET_PARTNER)).toBe(true);
+  });
+
+  it('returns true for BALAD_CARD_PARTNER constant', () => {
+    expect(isValidPartnerFilter(BALAD_CARD_PARTNER)).toBe(true);
+  });
+
+  it('returns false for arbitrary text', () => {
+    expect(isValidPartnerFilter('John Doe')).toBe(false);
+  });
+
+  it('returns false for short hex string', () => {
+    expect(isValidPartnerFilter('507f1f77')).toBe(false);
   });
 });
 

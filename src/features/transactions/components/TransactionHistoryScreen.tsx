@@ -110,6 +110,7 @@ export function TransactionHistoryScreen({
       <SearchModal
         visible={searchVisible}
         filters={filters}
+        showOwn={showOwn}
         onApply={setFilters}
         onClose={handleSearchClose}
       />

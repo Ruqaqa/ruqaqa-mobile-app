@@ -115,7 +115,7 @@ describe('fetchTransactions', () => {
     expect(params.amountMax).toBe('500.50');
   });
 
-  it('sends partnerEmployee query param when set', async () => {
+  it('sends partnerEmployee query param when set to valid ObjectId', async () => {
     mock.onGet('/transactions').reply(200, {
       success: true,
       data: { transactions: [], pagination: mockPagination },
@@ -123,12 +123,12 @@ describe('fetchTransactions', () => {
 
     const filters: TransactionFilters = {
       ...EMPTY_FILTERS,
-      partnerEmployee: 'John',
+      partnerEmployee: '507f1f77bcf86cd799439011',
     };
 
     await fetchTransactions({ page: 1, showOwn: true, filters });
 
-    expect(mock.history.get[0].params.partnerEmployee).toBe('John');
+    expect(mock.history.get[0].params.partnerEmployee).toBe('507f1f77bcf86cd799439011');
   });
 
   it('sends otherParty query param when set', async () => {

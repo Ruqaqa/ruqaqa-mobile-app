@@ -12,6 +12,8 @@ import {
   Currency,
   PARTNER_TYPES,
   PartnerType,
+  WALLET_PARTNER,
+  BALAD_CARD_PARTNER,
   ALLOWED_RECEIPT_MIME_TYPES,
   MAX_RECEIPT_FILE_SIZE,
   TransactionSubmissionData,
@@ -89,6 +91,19 @@ export function isValidPartnerType(
 }
 
 // ---------------------------------------------------------------------------
+// Partner filter validation
+// ---------------------------------------------------------------------------
+
+const VALID_PARTNER_CONSTANTS = [WALLET_PARTNER, BALAD_CARD_PARTNER] as const;
+
+/** Validate that a partner filter value is empty, a valid ObjectId, or a known partner constant. */
+export function isValidPartnerFilter(value: string): boolean {
+  if (value === '') return true;
+  if ((VALID_PARTNER_CONSTANTS as readonly string[]).includes(value)) return true;
+  return /^[a-f\d]{24}$/i.test(value);
+}
+
+// ---------------------------------------------------------------------------
 // ID validation
 // ---------------------------------------------------------------------------
 
@@ -129,7 +144,7 @@ export function sanitizeFilters(filters: TransactionFilters): TransactionFilters
   return {
     statement: sanitizeText(filters.statement),
     transactionNumber: sanitizeText(filters.transactionNumber),
-    partnerEmployee: sanitizeText(filters.partnerEmployee),
+    partnerEmployee: isValidPartnerFilter(filters.partnerEmployee) ? filters.partnerEmployee : '',
     otherParty: sanitizeText(filters.otherParty),
     client: sanitizeText(filters.client),
     project: sanitizeText(filters.project),

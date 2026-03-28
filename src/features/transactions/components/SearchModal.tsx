@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,15 +16,17 @@ import { useTheme } from '@/theme';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { DatePickerField } from '@/components/ui/DatePickerField';
-import { TransactionFilters, EMPTY_FILTERS, TAX_QUARTERS, TAX_YEARS } from '../types';
+import { TransactionFilters, EMPTY_FILTERS, TAX_QUARTERS, TAX_YEARS, WALLET_PARTNER, BALAD_CARD_PARTNER } from '../types';
 import { sanitizeFilters } from '../utils/sanitize';
 import { withAlpha } from '@/utils/colorUtils';
 import { ApprovalStatusChips } from './ApprovalStatusChips';
 import { SelectField } from '@/components/ui/SelectField';
+import { getEmployees, CachedEmployee } from '@/services/employeeCacheService';
 
 interface SearchModalProps {
   visible: boolean;
   filters: TransactionFilters;
+  showOwn: boolean;
   onApply: (filters: TransactionFilters) => void;
   onClose: () => void;
 }
@@ -32,6 +34,7 @@ interface SearchModalProps {
 export function SearchModal({
   visible,
   filters,
+  showOwn,
   onApply,
   onClose,
 }: SearchModalProps) {
@@ -41,15 +44,35 @@ export function SearchModal({
   const [localFilters, setLocalFilters] = useState<TransactionFilters>(filters);
   const [minNegative, setMinNegative] = useState(false);
   const [maxNegative, setMaxNegative] = useState(false);
+  const [employees, setEmployees] = useState<CachedEmployee[]>([]);
 
-  // Sync when opened
-  React.useEffect(() => {
+  // Load employees when modal opens
+  useEffect(() => {
     if (visible) {
-      setLocalFilters(filters);
-      setMinNegative(filters.amountMin.startsWith('-'));
-      setMaxNegative(filters.amountMax.startsWith('-'));
+      getEmployees().then(setEmployees);
     }
-  }, [visible, filters]);
+  }, [visible]);
+
+  const partnerOptions = useMemo(() => {
+    const opts = [
+      { label: t('wallet'), value: WALLET_PARTNER },
+      { label: t('baladCard'), value: BALAD_CARD_PARTNER },
+    ];
+    for (const emp of employees) {
+      if (emp.name) opts.push({ label: emp.name, value: emp.id });
+    }
+    return opts;
+  }, [employees, t]);
+
+  // Sync when opened; clear partner filter if viewing own transactions
+  useEffect(() => {
+    if (visible) {
+      const synced = showOwn ? { ...filters, partnerEmployee: '' } : filters;
+      setLocalFilters(synced);
+      setMinNegative(synced.amountMin.startsWith('-'));
+      setMaxNegative(synced.amountMax.startsWith('-'));
+    }
+  }, [visible, filters, showOwn]);
 
   const updateField = useCallback(
     <K extends keyof TransactionFilters>(key: K, value: TransactionFilters[K]) => {
@@ -130,13 +153,17 @@ export function SearchModal({
             onChangeText={(v) => updateField('transactionNumber', v)}
           />
 
-          {/* 3. Partner (employee) */}
-          <Input
-            label={t('partnerEmployee')}
-            value={localFilters.partnerEmployee}
-            onChangeText={(v) => updateField('partnerEmployee', v)}
-            placeholder={t('searchPartnerEmployee')}
-          />
+          {/* 3. Partner (employee) — hidden in "My Transactions" mode */}
+          {!showOwn && (
+            <SelectField
+              label={t('partnerEmployee')}
+              value={localFilters.partnerEmployee || null}
+              placeholder={t('searchPartnerEmployee')}
+              options={partnerOptions}
+              onChange={(v) => updateField('partnerEmployee', v)}
+              onClear={() => updateField('partnerEmployee', '')}
+            />
+          )}
 
           {/* 4. Other Party (free text) */}
           <Input
