@@ -119,14 +119,17 @@ export function useTransactionForm({ permissions, employee, onSuccess }: UseTran
     if (!form.statement.trim()) errors.statement = t('statementRequired');
     if (!form.amount.trim()) errors.amount = t('statementRequired');
     else if (!isValidSubmissionAmount(form.amount)) errors.amount = t('pleaseEnterValidNumber');
-    if (form.bankFees && !isValidSubmissionAmount(form.bankFees)) errors.bankFees = t('pleaseEnterValidNumber');
+    if (!form.bankFees.trim()) errors.bankFees = t('statementRequired');
+    else if (!isValidSubmissionAmount(form.bankFees)) errors.bankFees = t('pleaseEnterValidNumber');
     return errors;
   }, [form, wasSubmitted, t]);
 
   const isValid =
     form.statement.trim() !== '' &&
     form.amount.trim() !== '' &&
-    isValidSubmissionAmount(form.amount);
+    isValidSubmissionAmount(form.amount) &&
+    form.bankFees.trim() !== '' &&
+    isValidSubmissionAmount(form.bankFees);
 
   // Attachments
   const addAttachment = useCallback((

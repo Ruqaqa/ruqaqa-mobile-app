@@ -14,6 +14,7 @@ export interface TransactionFormData {
   currency: string;
   taxEnabled: boolean;
   tax: string | null;
+  bankFees: string;
   date: Date | null;
   receiptCount: number;
 }
@@ -23,6 +24,7 @@ export interface TransactionFormErrors {
   amount?: string;
   currency?: string;
   tax?: string;
+  bankFees?: string;
   receipts?: string;
 }
 
@@ -59,6 +61,12 @@ export function validateTransactionForm(
 
   if (form.taxEnabled && (!form.tax || !form.tax.trim())) {
     errors.tax = 'Tax value is required when tax is enabled';
+  }
+
+  if (!form.bankFees.trim()) {
+    errors.bankFees = 'Bank fees is required';
+  } else if (!isValidSubmissionAmount(form.bankFees)) {
+    errors.bankFees = 'Bank fees must be a valid positive number (up to 2 decimal places)';
   }
 
   return errors;

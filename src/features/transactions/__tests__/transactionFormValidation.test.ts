@@ -13,6 +13,7 @@ function makeValidForm(overrides: Partial<TransactionFormData> = {}): Transactio
     currency: 'ريال سعودي',
     taxEnabled: false,
     tax: null,
+    bankFees: '10',
     date: new Date('2026-03-27'),
     receiptCount: 0,
     ...overrides,
