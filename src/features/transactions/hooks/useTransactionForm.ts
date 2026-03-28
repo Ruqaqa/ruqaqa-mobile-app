@@ -212,7 +212,7 @@ export function useTransactionForm({ permissions, employee, onSuccess }: UseTran
       currency: isValidCurrency(form.currency) ? form.currency : CURRENCIES[0],
       tax: (VALID_TAX_VALUES as readonly string[]).includes(form.tax) ? form.tax : 'لا',
       transactionDate: formatDateForAPI(form.date),
-      partnerEmployee: isValidObjectId(form.partnerId)
+      partnerEmployee: (form.partnerId && isValidObjectId(form.partnerId))
         ? form.partnerId
         : (form.partner ? sanitizeText(form.partner) : null),
       otherParty: form.otherParty || null,

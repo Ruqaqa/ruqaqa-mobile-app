@@ -111,18 +111,18 @@ export function TransactionFormScreen({
 
   const partnerValue = useMemo(() => {
     if (!form.partner) return null;
-    if (form.partner === t('wallet')) return '__wallet__';
-    if (form.partner === t('baladCard')) return '__baladcard__';
+    if (form.partner === 'المحفظة') return '__wallet__';
+    if (form.partner === 'بطاقة البلاد') return '__baladcard__';
     return form.partnerId;
-  }, [form.partner, form.partnerId, t]);
+  }, [form.partner, form.partnerId]);
 
   const handlePartnerChange = useCallback(
     (value: string) => {
       if (value === '__wallet__') {
-        updateField('partner', t('wallet'));
+        updateField('partner', 'المحفظة');
         updateField('partnerId', null);
       } else if (value === '__baladcard__') {
-        updateField('partner', t('baladCard'));
+        updateField('partner', 'بطاقة البلاد');
         updateField('partnerId', null);
       } else {
         const emp = employees.find((e) => e.id === value);
@@ -130,7 +130,7 @@ export function TransactionFormScreen({
         updateField('partnerId', value);
       }
     },
-    [employees, updateField, t],
+    [employees, updateField],
   );
 
   // Other party: autocomplete that also allows free text
@@ -456,18 +456,12 @@ export function TransactionFormScreen({
           {/* === SECTION 4: Additional Info === */}
           <SectionTitle title={t('additionalInfo')} />
 
-          {canSelectPartner ? (
+          {canSelectPartner && (
             <SelectField
               label={t('partner')}
               value={partnerValue}
               options={partnerOptions}
               onChange={handlePartnerChange}
-            />
-          ) : (
-            <Input
-              label={t('partnerLocked')}
-              value={form.partner ?? ''}
-              editable={false}
             />
           )}
 

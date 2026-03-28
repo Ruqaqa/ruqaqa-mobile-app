@@ -33,7 +33,7 @@ export function extractPermissions(
       has('transactions_read_own') || has('transactions_read_all'),
     canViewAllTransactions: has('transactions_read_all'),
     canUpdateTransactions: has('transactions_update'),
-    canSelectPartner: has('transactions_select_partner'),
+    canSelectPartner: has('mobile_select_partner_in_transactions'),
     canAddReceiptsToSubmitted: has('transactions_add_receipts'),
 
     canCreateReconciliation: has('reconciliation_create'),

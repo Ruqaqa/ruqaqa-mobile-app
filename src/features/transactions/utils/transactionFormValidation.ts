@@ -25,6 +25,7 @@ export interface TransactionFormErrors {
   currency?: string;
   tax?: string;
   bankFees?: string;
+  date?: string;
   receipts?: string;
 }
 
@@ -57,6 +58,10 @@ export function validateTransactionForm(
 
   if (form.receiptCount > MAX_RECEIPTS) {
     errors.receipts = `Cannot exceed ${MAX_RECEIPTS} receipts`;
+  }
+
+  if (!form.date) {
+    errors.date = 'Date is required';
   }
 
   if (form.taxEnabled && (!form.tax || !form.tax.trim())) {
