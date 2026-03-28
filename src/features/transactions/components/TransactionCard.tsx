@@ -4,6 +4,7 @@ import { FileText, User, Briefcase, FolderOpen } from 'lucide-react-native';
 import { useTheme } from '@/theme';
 import { useTranslation } from 'react-i18next';
 import { StatusChip } from '@/components/ui/StatusChip';
+import { SaudiRiyalSymbol } from '@/components/ui/SaudiRiyalSymbol';
 import { Transaction } from '../types';
 import { formatDate, formatAmount, getAmountColor, getPartnerDisplay } from '../utils/formatters';
 
@@ -82,9 +83,13 @@ export function TransactionCard({ transaction, onPress }: TransactionCardProps) 
             },
           ]}
         >
-          <Text style={[typography.labelSmall, { color: colors.foregroundSecondary }]}>
-            {transaction.currency}
-          </Text>
+          {transaction.currency === 'SAR' ? (
+            <SaudiRiyalSymbol size={14} color={colors.foregroundSecondary} />
+          ) : (
+            <Text style={[typography.labelSmall, { color: colors.foregroundSecondary }]}>
+              {transaction.currency}
+            </Text>
+          )}
         </View>
       </View>
 

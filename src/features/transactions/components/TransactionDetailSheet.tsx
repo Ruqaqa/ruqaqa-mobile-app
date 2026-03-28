@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react-native';
 import { useTheme } from '@/theme';
 import { StatusChip } from '@/components/ui/StatusChip';
+import { SaudiRiyalSymbol } from '@/components/ui/SaudiRiyalSymbol';
 import { Transaction, ApprovalStatus } from '../types';
 import {
   formatDate,
@@ -150,6 +151,11 @@ export function TransactionDetailSheet({
             colors={colors}
             typography={typography}
             spacing={spacing}
+            currencySymbol={
+              transaction.currency === 'SAR' ? (
+                <SaudiRiyalSymbol size={14} color={colors[amountColorKey]} />
+              ) : undefined
+            }
           />
           {transaction.tax && (
             <DetailRow
@@ -280,6 +286,7 @@ function DetailRow({
   colors,
   typography,
   spacing,
+  currencySymbol,
 }: {
   label: string;
   value: string;
@@ -287,6 +294,7 @@ function DetailRow({
   colors: any;
   typography: any;
   spacing: any;
+  currencySymbol?: React.ReactNode;
 }) {
   return (
     <View style={[styles.detailRow, { marginBottom: spacing.md }]}>
@@ -299,18 +307,20 @@ function DetailRow({
       >
         {label}
       </Text>
-      <Text
-        style={[
-          typography.bodyMedium,
-          {
-            color: valueColor ?? colors.foreground,
-            fontWeight: '600',
-            flex: 1,
-          },
-        ]}
-      >
-        {value}
-      </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+        {currencySymbol && <View style={{ marginEnd: 4 }}>{currencySymbol}</View>}
+        <Text
+          style={[
+            typography.bodyMedium,
+            {
+              color: valueColor ?? colors.foreground,
+              fontWeight: '600',
+            },
+          ]}
+        >
+          {value}
+        </Text>
+      </View>
     </View>
   );
 }

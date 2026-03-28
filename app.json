@@ -33,7 +33,8 @@
       "expo-router",
       "expo-localization",
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-sharing"
     ],
     "extra": {
       "releaseChannel": "development"

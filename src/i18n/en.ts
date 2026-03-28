@@ -131,6 +131,10 @@ export default {
   camera: 'Camera',
   document: 'Document',
   receiptUploadFailed: 'Failed to upload receipt',
+  receiptDownload: 'Download Receipt',
+  receiptDownloadFailed: 'Failed to download receipt',
+  receiptOpenFailed: 'Failed to open receipt',
+  receiptSharingUnavailable: 'Sharing is not available on this device',
 
   // Approval
   approval: 'Approval',
