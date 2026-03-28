@@ -75,29 +75,35 @@ export function AutocompleteField<T extends AutocompleteItem>({
       setQuery(text);
       onTextChange?.(text);
 
+      // Always cancel pending debounce
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
 
       if (text.length < minChars) {
+        requestCounter.current++;
         setResults([]);
         setShowDropdown(false);
+        setIsLoading(false);
         return;
       }
 
+      // Immediately mark as loading, then debounce the actual API call
       setIsLoading(true);
-      const requestId = ++requestCounter.current;
+      const currentQuery = text;
       debounceTimer.current = setTimeout(async () => {
+        // Capture counter BEFORE the async call
+        const myId = ++requestCounter.current;
         try {
-          const items = await onSearch(text);
-          // Only apply results if this is still the latest request
-          if (requestId !== requestCounter.current) return;
-          setResults(items);
-          setShowDropdown(items.length > 0);
+          const items = await onSearch(currentQuery);
+          // Only update if no newer search has started
+          if (myId === requestCounter.current) {
+            setResults(items);
+            setShowDropdown(items.length > 0);
+            setIsLoading(false);
+          }
         } catch {
-          if (requestId !== requestCounter.current) return;
-          setResults([]);
-          setShowDropdown(false);
-        } finally {
-          if (requestId === requestCounter.current) {
+          if (myId === requestCounter.current) {
+            setResults([]);
+            setShowDropdown(false);
             setIsLoading(false);
           }
         }
