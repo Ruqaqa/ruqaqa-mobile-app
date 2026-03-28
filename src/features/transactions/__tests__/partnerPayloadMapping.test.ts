@@ -3,8 +3,8 @@
  *
  * The buildSanitizedPayload function must produce the correct partnerEmployee
  * value for each partner type:
- * - Wallet: sends 'المحفظة' (Arabic string, not null)
- * - Balad card: sends 'بطاقة البلاد' (Arabic string, not null)
+ * - Wallet: sends WALLET_PARTNER (Arabic string, not null)
+ * - Balad card: sends BALAD_CARD_PARTNER (Arabic string, not null)
  * - Employee: sends the employee ObjectId
  * - No partner: sends null
  *
@@ -12,24 +12,15 @@
  */
 
 import { isValidObjectId, sanitizeText } from '../utils/sanitize';
+import { WALLET_PARTNER, BALAD_CARD_PARTNER } from '../types';
 
 /**
  * Mirrors the partnerEmployee derivation logic from buildSanitizedPayload in useTransactionForm.
- * The current production code has:
- *   partnerEmployee: isValidObjectId(form.partnerId) ? form.partnerId : (form.partner ? sanitizeText(form.partner) : null)
- *
- * Bug: isValidObjectId(null) returns true (null is a valid "optional" value),
- * so when partnerId is null (wallet/balad), the ternary evaluates to form.partnerId = null,
- * discarding the Arabic partner name.
- *
- * The correct logic should check if partnerId is a non-null valid ObjectId:
- *   partnerEmployee: (form.partnerId && isValidObjectId(form.partnerId)) ? form.partnerId : (form.partner ? sanitizeText(form.partner) : null)
  */
 function derivePartnerEmployee(
   partner: string | null,
   partnerId: string | null,
 ): string | null {
-  // This is what the FIXED code should do:
   if (partnerId && isValidObjectId(partnerId)) {
     return partnerId;
   }
@@ -38,13 +29,13 @@ function derivePartnerEmployee(
 
 describe('partner to partnerEmployee payload mapping', () => {
   it('sends المحفظة for wallet partner', () => {
-    const result = derivePartnerEmployee('المحفظة', null);
-    expect(result).toBe('المحفظة');
+    const result = derivePartnerEmployee(WALLET_PARTNER, null);
+    expect(result).toBe(WALLET_PARTNER);
   });
 
   it('sends بطاقة البلاد for balad card partner', () => {
-    const result = derivePartnerEmployee('بطاقة البلاد', null);
-    expect(result).toBe('بطاقة البلاد');
+    const result = derivePartnerEmployee(BALAD_CARD_PARTNER, null);
+    expect(result).toBe(BALAD_CARD_PARTNER);
   });
 
   it('sends employee ObjectId for employee partner', () => {
@@ -63,7 +54,7 @@ describe('partner to partnerEmployee payload mapping', () => {
   });
 
   it('sanitizes partner name text (trims whitespace)', () => {
-    const result = derivePartnerEmployee('  المحفظة  ', null);
-    expect(result).toBe('المحفظة');
+    const result = derivePartnerEmployee(`  ${WALLET_PARTNER}  `, null);
+    expect(result).toBe(WALLET_PARTNER);
   });
 });

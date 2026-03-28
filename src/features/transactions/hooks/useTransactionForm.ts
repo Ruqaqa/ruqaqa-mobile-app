@@ -112,9 +112,8 @@ export function useTransactionForm({ permissions, employee, onSuccess }: UseTran
 
   const canSelectPartner = permissions.canSelectPartner;
 
-  // Validation (inline errors for UI)
-  const getErrors = useCallback((): Partial<Record<keyof TransactionFormData, string>> => {
-    if (!wasSubmitted) return {};
+  // Single source of truth for validation
+  const computeErrors = useCallback((): Partial<Record<keyof TransactionFormData, string>> => {
     const errors: Partial<Record<keyof TransactionFormData, string>> = {};
     if (!form.statement.trim()) errors.statement = t('statementRequired');
     if (!form.amount.trim()) errors.amount = t('statementRequired');
@@ -123,14 +122,14 @@ export function useTransactionForm({ permissions, employee, onSuccess }: UseTran
     else if (!isValidSubmissionAmount(form.bankFees)) errors.bankFees = t('pleaseEnterValidNumber');
     if (!form.date) errors.date = t('statementRequired');
     return errors;
-  }, [form, wasSubmitted, t]);
+  }, [form, t]);
 
-  const isValid =
-    form.statement.trim() !== '' &&
-    form.amount.trim() !== '' &&
-    isValidSubmissionAmount(form.amount) &&
-    form.bankFees.trim() !== '' &&
-    isValidSubmissionAmount(form.bankFees);
+  const getErrors = useCallback((): Partial<Record<keyof TransactionFormData, string>> => {
+    if (!wasSubmitted) return {};
+    return computeErrors();
+  }, [wasSubmitted, computeErrors]);
+
+  const isValid = Object.keys(computeErrors()).length === 0;
 
   // Attachments
   const addAttachment = useCallback((

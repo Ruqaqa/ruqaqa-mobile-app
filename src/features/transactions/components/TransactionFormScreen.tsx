@@ -31,6 +31,7 @@ import {
   fetchProjectSuggestions,
   fetchOtherPartySuggestions,
 } from '../services/suggestionsService';
+import { WALLET_PARTNER, BALAD_CARD_PARTNER } from '../types';
 import { CachedEmployee } from '@/services/employeeCacheService';
 import { ReceiptPickerSection } from './ReceiptPickerSection';
 import { SubmissionPreviewDialog } from './SubmissionPreviewDialog';
@@ -111,18 +112,18 @@ export function TransactionFormScreen({
 
   const partnerValue = useMemo(() => {
     if (!form.partner) return null;
-    if (form.partner === 'المحفظة') return '__wallet__';
-    if (form.partner === 'بطاقة البلاد') return '__baladcard__';
+    if (form.partner === WALLET_PARTNER) return '__wallet__';
+    if (form.partner === BALAD_CARD_PARTNER) return '__baladcard__';
     return form.partnerId;
   }, [form.partner, form.partnerId]);
 
   const handlePartnerChange = useCallback(
     (value: string) => {
       if (value === '__wallet__') {
-        updateField('partner', 'المحفظة');
+        updateField('partner', WALLET_PARTNER);
         updateField('partnerId', null);
       } else if (value === '__baladcard__') {
-        updateField('partner', 'بطاقة البلاد');
+        updateField('partner', BALAD_CARD_PARTNER);
         updateField('partnerId', null);
       } else {
         const emp = employees.find((e) => e.id === value);

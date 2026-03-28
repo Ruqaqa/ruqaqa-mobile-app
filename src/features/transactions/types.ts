@@ -14,6 +14,10 @@ export type TaxYear = (typeof TAX_YEARS)[number];
 export const CURRENCIES = ['ريال سعودي', 'دولار أمريكي'] as const;
 export type Currency = (typeof CURRENCIES)[number];
 
+/** Partner API-contract values — these are wire-format strings, not display labels */
+export const WALLET_PARTNER = 'المحفظة' as const;
+export const BALAD_CARD_PARTNER = 'بطاقة البلاد' as const;
+
 /** Partner type values */
 export const PARTNER_TYPES = ['employee', 'wallet'] as const;
 export type PartnerType = (typeof PARTNER_TYPES)[number];

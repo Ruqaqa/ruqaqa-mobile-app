@@ -1,13 +1,15 @@
 /**
  * Tests for partner field submission values.
  *
- * Key behavior: wallet stores Arabic constant 'المحفظة' (not translated i18n),
- * balad card stores 'بطاقة البلاد', and employee stores the employee ID.
+ * Key behavior: wallet stores Arabic constant WALLET_PARTNER (not translated i18n),
+ * balad card stores BALAD_CARD_PARTNER, and employee stores the employee ID.
  * The partner field is hidden when canSelectPartner is false.
  *
  * These tests extract the partner handling logic from TransactionFormScreen
  * to verify the exact values sent to the API.
  */
+
+import { WALLET_PARTNER, BALAD_CARD_PARTNER } from '../types';
 
 describe('partner change handler', () => {
   // Mirror the handlePartnerChange logic from TransactionFormScreen
@@ -26,9 +28,9 @@ describe('partner change handler', () => {
     employees: CachedEmployee[],
   ): PartnerState {
     if (value === '__wallet__') {
-      return { partner: 'المحفظة', partnerId: null };
+      return { partner: WALLET_PARTNER, partnerId: null };
     } else if (value === '__baladcard__') {
-      return { partner: 'بطاقة البلاد', partnerId: null };
+      return { partner: BALAD_CARD_PARTNER, partnerId: null };
     } else {
       const emp = employees.find((e) => e.id === value);
       return { partner: emp?.name ?? value, partnerId: value };
@@ -37,13 +39,13 @@ describe('partner change handler', () => {
 
   it('wallet stores Arabic constant المحفظة with null partnerId', () => {
     const result = handlePartnerChange('__wallet__', []);
-    expect(result.partner).toBe('المحفظة');
+    expect(result.partner).toBe(WALLET_PARTNER);
     expect(result.partnerId).toBeNull();
   });
 
   it('balad card stores Arabic constant بطاقة البلاد with null partnerId', () => {
     const result = handlePartnerChange('__baladcard__', []);
-    expect(result.partner).toBe('بطاقة البلاد');
+    expect(result.partner).toBe(BALAD_CARD_PARTNER);
     expect(result.partnerId).toBeNull();
   });
 
@@ -72,17 +74,17 @@ describe('partner value reverse mapping', () => {
     partnerId: string | null,
   ): string | null {
     if (!partner) return null;
-    if (partner === 'المحفظة') return '__wallet__';
-    if (partner === 'بطاقة البلاد') return '__baladcard__';
+    if (partner === WALLET_PARTNER) return '__wallet__';
+    if (partner === BALAD_CARD_PARTNER) return '__baladcard__';
     return partnerId;
   }
 
   it('maps المحفظة back to __wallet__', () => {
-    expect(derivePartnerValue('المحفظة', null)).toBe('__wallet__');
+    expect(derivePartnerValue(WALLET_PARTNER, null)).toBe('__wallet__');
   });
 
   it('maps بطاقة البلاد back to __baladcard__', () => {
-    expect(derivePartnerValue('بطاقة البلاد', null)).toBe('__baladcard__');
+    expect(derivePartnerValue(BALAD_CARD_PARTNER, null)).toBe('__baladcard__');
   });
 
   it('maps employee partner to partnerId', () => {
@@ -96,17 +98,14 @@ describe('partner value reverse mapping', () => {
 
 describe('wallet and balad card values are Arabic constants not i18n keys', () => {
   it('wallet value is a literal Arabic string, not a translation key', () => {
-    // The value must be the exact Arabic constant, not something like t('wallet')
-    const walletValue = 'المحفظة';
-    expect(walletValue).not.toBe('wallet');
-    expect(walletValue).not.toBe('Wallet');
-    expect(walletValue).toBe('المحفظة');
+    expect(WALLET_PARTNER).not.toBe('wallet');
+    expect(WALLET_PARTNER).not.toBe('Wallet');
+    expect(WALLET_PARTNER).toBe('المحفظة');
   });
 
   it('balad card value is a literal Arabic string, not a translation key', () => {
-    const baladValue = 'بطاقة البلاد';
-    expect(baladValue).not.toBe('baladCard');
-    expect(baladValue).not.toBe('Balad Card');
-    expect(baladValue).toBe('بطاقة البلاد');
+    expect(BALAD_CARD_PARTNER).not.toBe('baladCard');
+    expect(BALAD_CARD_PARTNER).not.toBe('Balad Card');
+    expect(BALAD_CARD_PARTNER).toBe('بطاقة البلاد');
   });
 });
