@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { Globe } from 'lucide-react-native';
 import { useTheme } from '../../theme';
 import { useAppModuleContext } from '../../navigation/AppModuleContext';
 import { changeLanguage, isRTL } from '../../i18n';
@@ -20,8 +21,32 @@ export function AppBar() {
 
   return (
     <View style={[styles.bar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-      {/* Left: module switcher */}
-      <View style={styles.left}>
+      {/* Profile + language toggle (leading side: left in LTR, right in RTL) */}
+      <View style={styles.section}>
+        {/* Profile avatar placeholder */}
+        <View
+          style={[
+            styles.avatar,
+            { backgroundColor: colors.primary, borderRadius: radius.full, marginEnd: spacing.sm },
+          ]}
+        >
+          <Text style={[typography.labelSmall, { color: '#ffffff' }]}>U</Text>
+        </View>
+
+        <Pressable
+          onPress={toggleLang}
+          style={[
+            styles.iconButton,
+            { backgroundColor: colors.muted, borderRadius: radius.md },
+          ]}
+          accessibilityLabel="Toggle language"
+        >
+          <Globe size={18} color={colors.foreground} />
+        </Pressable>
+      </View>
+
+      {/* Module switcher (trailing side: right in LTR, left in RTL) */}
+      <View style={styles.section}>
         {canSwitch && (
           <Pressable
             onPress={openSwitcher}
@@ -37,32 +62,6 @@ export function AppBar() {
           </Pressable>
         )}
       </View>
-
-      {/* Right: language toggle + profile placeholder */}
-      <View style={styles.right}>
-        <Pressable
-          onPress={toggleLang}
-          style={[
-            styles.iconButton,
-            { backgroundColor: colors.muted, borderRadius: radius.md },
-          ]}
-          accessibilityLabel="Toggle language"
-        >
-          <Text style={[typography.labelSmall, { color: colors.foreground }]}>
-            {currentLang === 'ar' ? 'EN' : 'AR'}
-          </Text>
-        </Pressable>
-
-        {/* Profile avatar placeholder */}
-        <View
-          style={[
-            styles.avatar,
-            { backgroundColor: colors.primary, borderRadius: radius.full, marginStart: spacing.sm },
-          ]}
-        >
-          <Text style={[typography.labelSmall, { color: '#ffffff' }]}>U</Text>
-        </View>
-      </View>
     </View>
   );
 }
@@ -76,8 +75,7 @@ const styles = StyleSheet.create({
     height: 56,
     borderBottomWidth: 1,
   },
-  left: { flexDirection: 'row', alignItems: 'center' },
-  right: { flexDirection: 'row', alignItems: 'center' },
+  section: { flexDirection: 'row', alignItems: 'center' },
   iconButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
