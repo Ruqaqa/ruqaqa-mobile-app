@@ -387,7 +387,7 @@ export function TransactionFormScreen({
           />
 
           <Input
-            label={t('bankFeesOptional')}
+            label={t('bankFees')}
             value={form.bankFees}
             onChangeText={(text) => {
               const cleaned = text.replace(/[^0-9.]/g, '');
@@ -395,16 +395,15 @@ export function TransactionFormScreen({
             }}
             keyboardType="decimal-pad"
             placeholder="0.00"
+            error={errors.bankFees}
           />
 
-          {form.bankFees !== '' && (
-            <SelectField
-              label={t('feesCurrency')}
-              value={form.bankFeesCurrency}
-              options={CURRENCY_OPTIONS}
-              onChange={(val) => updateField('bankFeesCurrency', val)}
-            />
-          )}
+          <SelectField
+            label={t('feesCurrency')}
+            value={form.bankFeesCurrency}
+            options={CURRENCY_OPTIONS}
+            onChange={(val) => updateField('bankFeesCurrency', val)}
+          />
 
           {/* === SECTION 3: Project Details === */}
           <SectionTitle title={t('projectDetails')} />
