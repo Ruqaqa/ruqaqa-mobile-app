@@ -54,6 +54,7 @@ export function AutocompleteField<T extends AutocompleteItem>({
   const [showDropdown, setShowDropdown] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestCounter = useRef(0);
   const inputRef = useRef<TextInput>(null);
 
   const hasError = !!error;
@@ -83,16 +84,22 @@ export function AutocompleteField<T extends AutocompleteItem>({
       }
 
       setIsLoading(true);
+      const requestId = ++requestCounter.current;
       debounceTimer.current = setTimeout(async () => {
         try {
           const items = await onSearch(text);
+          // Only apply results if this is still the latest request
+          if (requestId !== requestCounter.current) return;
           setResults(items);
           setShowDropdown(items.length > 0);
         } catch {
+          if (requestId !== requestCounter.current) return;
           setResults([]);
           setShowDropdown(false);
         } finally {
-          setIsLoading(false);
+          if (requestId === requestCounter.current) {
+            setIsLoading(false);
+          }
         }
       }, debounceMs);
     },
