@@ -35,9 +35,17 @@ export interface TokenResponse {
 }
 
 /**
+ * Raw employee shape from the validate endpoint.
+ * Includes fields the backend sends that aren't on the client Employee type.
+ */
+export interface ValidateEmployeeResponse extends Employee {
+  professionalPictureUrl?: string;
+}
+
+/**
  * Employee validation response from POST /api/mobile/auth/validate.
  */
 export interface ValidateResponse {
   success: boolean;
-  employee?: Employee;
+  employee?: ValidateEmployeeResponse;
 }

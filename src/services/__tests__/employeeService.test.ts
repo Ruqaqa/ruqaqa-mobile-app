@@ -116,4 +116,55 @@ describe('validateEmployee', () => {
     expect(result).toBeNull();
   });
 
+  it('maps professionalPictureUrl to avatarUrl', async () => {
+    const mockEmployee = {
+      id: 'emp1',
+      name: 'Test User',
+      email: 'test@ruqaqa.sa',
+      professionalPictureUrl: '/media/avatars/photo.jpg',
+    };
+
+    (apiClient.post as jest.Mock).mockResolvedValueOnce({
+      data: { success: true, employee: mockEmployee },
+    });
+
+    const result = await validateEmployee();
+    expect(result).not.toBeNull();
+    expect(result!.avatarUrl).toBe('/media/avatars/photo.jpg');
+  });
+
+  it('prefers professionalPictureUrl over existing avatarUrl', async () => {
+    const mockEmployee = {
+      id: 'emp2',
+      name: 'Another User',
+      email: 'another@ruqaqa.sa',
+      avatarUrl: '/old/avatar.jpg',
+      professionalPictureUrl: '/media/new-avatar.jpg',
+    };
+
+    (apiClient.post as jest.Mock).mockResolvedValueOnce({
+      data: { success: true, employee: mockEmployee },
+    });
+
+    const result = await validateEmployee();
+    expect(result).not.toBeNull();
+    expect(result!.avatarUrl).toBe('/media/new-avatar.jpg');
+  });
+
+  it('keeps avatarUrl undefined when neither professionalPictureUrl nor avatarUrl exist', async () => {
+    const mockEmployee = {
+      id: 'emp3',
+      name: 'No Avatar User',
+      email: 'noavatar@ruqaqa.sa',
+    };
+
+    (apiClient.post as jest.Mock).mockResolvedValueOnce({
+      data: { success: true, employee: mockEmployee },
+    });
+
+    const result = await validateEmployee();
+    expect(result).not.toBeNull();
+    expect(result!.avatarUrl).toBeUndefined();
+  });
+
 });

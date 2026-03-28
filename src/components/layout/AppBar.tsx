@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Globe } from 'lucide-react-native';
 import { useTheme } from '../../theme';
 import { useAppModuleContext } from '../../navigation/AppModuleContext';
-import { changeLanguage, isRTL } from '../../i18n';
+import { AuthContext } from '../../services/authContext';
+import { ProfileAvatar } from '../ui/ProfileAvatar';
+import { changeLanguage } from '../../i18n';
 import type { Language } from '../../i18n';
 
 /**
@@ -12,8 +14,9 @@ import type { Language } from '../../i18n';
  */
 export function AppBar() {
   const { t, i18n } = useTranslation();
-  const { colors, typography, spacing, radius, shadows } = useTheme();
+  const { colors, typography, spacing, radius } = useTheme();
   const { canSwitch, openSwitcher, activeModule } = useAppModuleContext();
+  const { employee } = useContext(AuthContext);
 
   const currentLang = i18n.language as Language;
   const toggleLang = () =>
@@ -23,14 +26,8 @@ export function AppBar() {
     <View style={[styles.bar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
       {/* Profile + language toggle (leading side: left in LTR, right in RTL) */}
       <View style={styles.section}>
-        {/* Profile avatar placeholder */}
-        <View
-          style={[
-            styles.avatar,
-            { backgroundColor: colors.primary, borderRadius: radius.full, marginEnd: spacing.sm },
-          ]}
-        >
-          <Text style={[typography.labelSmall, { color: '#ffffff' }]}>U</Text>
+        <View style={{ marginEnd: spacing.sm }}>
+          <ProfileAvatar url={employee?.avatarUrl} size={32} />
         </View>
 
         <Pressable
@@ -80,12 +77,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     minHeight: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatar: {
-    width: 32,
-    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },
