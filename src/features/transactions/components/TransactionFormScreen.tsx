@@ -446,9 +446,11 @@ export function TransactionFormScreen({
           <DatePickerField
             label={t('date')}
             value={form.date}
-            onChange={(date) => updateField('date', date ?? new Date())}
+            onChange={(date) => updateField('date', date ?? null)}
             maxDate={new Date()}
             minDate={new Date(2024, 0, 1)}
+            placeholder={t('selectDate')}
+            error={errors.date}
           />
 
           {/* === SECTION 4: Additional Info === */}

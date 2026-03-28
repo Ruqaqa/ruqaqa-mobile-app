@@ -30,7 +30,7 @@ export interface TransactionFormData {
   currency: string; // 'ريال سعودي' | 'دولار أمريكي'
   bankFees: string;
   bankFeesCurrency: string;
-  date: Date;
+  date: Date | null;
   partner: string | null;
   partnerId: string | null;
   otherParty: string;
@@ -50,7 +50,7 @@ const INITIAL_FORM: TransactionFormData = {
   currency: 'ريال سعودي',
   bankFees: '',
   bankFeesCurrency: 'ريال سعودي',
-  date: new Date(),
+  date: null,
   partner: null,
   partnerId: null,
   otherParty: '',
@@ -121,6 +121,7 @@ export function useTransactionForm({ permissions, employee, onSuccess }: UseTran
     else if (!isValidSubmissionAmount(form.amount)) errors.amount = t('pleaseEnterValidNumber');
     if (!form.bankFees.trim()) errors.bankFees = t('statementRequired');
     else if (!isValidSubmissionAmount(form.bankFees)) errors.bankFees = t('pleaseEnterValidNumber');
+    if (!form.date) errors.date = t('statementRequired');
     return errors;
   }, [form, wasSubmitted, t]);
 
@@ -173,7 +174,8 @@ export function useTransactionForm({ permissions, employee, onSuccess }: UseTran
     return form.isExpense ? `-${amt}` : amt;
   };
 
-  const formatDateForAPI = (date: Date): string => {
+  const formatDateForAPI = (date: Date | null): string => {
+    if (!date) return '';
     const m = String(date.getMonth() + 1).padStart(2, '0');
     const d = String(date.getDate()).padStart(2, '0');
     const y = date.getFullYear();

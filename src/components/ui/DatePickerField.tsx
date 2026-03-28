@@ -11,6 +11,7 @@ interface DatePickerFieldProps {
   maxDate?: Date;
   minDate?: Date;
   placeholder?: string;
+  error?: string;
 }
 
 export function DatePickerField({
@@ -20,6 +21,7 @@ export function DatePickerField({
   maxDate,
   minDate,
   placeholder = 'Select date',
+  error,
 }: DatePickerFieldProps) {
   const { colors, typography, spacing, radius } = useTheme();
   const [showPicker, setShowPicker] = useState(false);
@@ -57,7 +59,7 @@ export function DatePickerField({
           styles.field,
           {
             backgroundColor: colors.surface,
-            borderColor: colors.input,
+            borderColor: error ? colors.error : colors.input,
             borderRadius: radius.md,
             paddingHorizontal: spacing.md,
           },
@@ -89,6 +91,11 @@ export function DatePickerField({
           </Pressable>
         )}
       </Pressable>
+      {error && (
+        <Text style={[typography.bodySmall, { color: colors.error, marginTop: spacing.xxs }]}>
+          {error}
+        </Text>
+      )}
       {showPicker && (
         <DateTimePicker
           value={value ?? new Date()}
