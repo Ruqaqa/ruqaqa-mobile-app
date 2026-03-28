@@ -1,0 +1,114 @@
+appId: sa.ruqaqa.finance
+env:
+  TEST_USERNAME: ${TEST_USERNAME}
+  TEST_PASSWORD: ${TEST_PASSWORD}
+---
+# Transaction history: list, detail sheet, search, filters, mine/all toggle
+
+# --- Login (handles already-authenticated state) ---
+- launchApp
+- extendedWaitUntil:
+    visible: "Sign in with SSO|Update now|Operations|Reconciliation|Payroll"
+    timeout: 10000
+- tapOn:
+    id: "dev-skip-update"
+    optional: true
+- runFlow:
+    when:
+      visible: "Sign in with SSO"
+    commands:
+      - tapOn:
+          id: "sso-keycloak-button"
+      - extendedWaitUntil:
+          visible: "Username or email|Operations|Reconciliation|Payroll"
+          timeout: 10000
+      - runFlow:
+          when:
+            visible: "Username or email"
+          commands:
+            - tapOn: "Username or email"
+            - inputText: "${TEST_USERNAME}"
+            - tapOn: "Password"
+            - inputText: "${TEST_PASSWORD}"
+            - pressKey: back
+            - scrollUntilVisible:
+                element: "Sign In"
+                direction: DOWN
+            - tapOn: "Sign In"
+
+# --- 1. Transaction list loads ---
+- extendedWaitUntil:
+    visible: "Operations|Reconciliation|Payroll"
+    timeout: 10000
+# Dismiss debugger warning bar if present
+- tapOn:
+    text: ".*Open debugger.*"
+    optional: true
+# Wait for at least one transaction card or the empty state
+- extendedWaitUntil:
+    visible: "Approved|Pending|Rejected|No transactions"
+    timeout: 10000
+
+# --- 2. Tap first transaction → detail sheet ---
+# Tap the first visible transaction card by its status chip
+- tapOn:
+    text: "Approved|Pending|Rejected"
+    index: 0
+# Detail sheet should show
+- extendedWaitUntil:
+    visible: "Transaction Details"
+    timeout: 5000
+# Verify key detail fields are present
+- assertVisible: "Statement"
+- assertVisible: "Total Amount"
+- scrollUntilVisible:
+    element: "Date"
+    direction: DOWN
+
+# --- 3. Close detail sheet ---
+- pressKey: back
+
+# Wait for list to be visible again
+- extendedWaitUntil:
+    visible: "Approved|Pending|Rejected"
+    timeout: 5000
+
+# --- 4. Open advanced search ---
+- tapOn:
+    id: "filter-bar-search"
+- extendedWaitUntil:
+    visible: "Advanced Search"
+    timeout: 5000
+
+# --- 5. Search by statement ---
+- tapOn: "Search in statement"
+- inputText: "zzzznotfound"
+- pressKey: back
+# Tap the Search button in the bottom action bar
+- tapOn:
+    id: "search-apply-button"
+
+# --- 6. Verify filtered results (should be empty for gibberish) ---
+- extendedWaitUntil:
+    visible: "No transactions"
+    timeout: 10000
+
+# --- 7. Clear filters ---
+- tapOn:
+    id: "filter-bar-clear"
+# List should reload with real data
+- extendedWaitUntil:
+    visible: "Approved|Pending|Rejected"
+    timeout: 10000
+
+# --- 8. Toggle Mine/All (if user has permission) ---
+- tapOn:
+    text: "All"
+    optional: true
+# Wait for list to reload
+- extendedWaitUntil:
+    visible: "Approved|Pending|Rejected|No transactions"
+    timeout: 10000
+- tapOn:
+    text: "Mine"
+    optional: true

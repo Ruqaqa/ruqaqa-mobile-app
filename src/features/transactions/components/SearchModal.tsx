@@ -293,6 +293,7 @@ export function SearchModal({
             <Button
               title={t('search')}
               onPress={handleSearch}
+              testID="search-apply-button"
             />
           </View>
         </View>
