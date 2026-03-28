@@ -152,7 +152,7 @@ export function TransactionDetailSheet({
             typography={typography}
             spacing={spacing}
             currencySymbol={
-              transaction.currency === 'SAR' ? (
+              transaction.currency === 'SAR' || transaction.currency === 'ريال سعودي' ? (
                 <SaudiRiyalSymbol size={14} color={colors[amountColorKey]} />
               ) : undefined
             }
@@ -308,7 +308,6 @@ function DetailRow({
         {label}
       </Text>
       <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-        {currencySymbol && <View style={{ marginEnd: 4 }}>{currencySymbol}</View>}
         <Text
           style={[
             typography.bodyMedium,
@@ -320,6 +319,7 @@ function DetailRow({
         >
           {value}
         </Text>
+        {currencySymbol && <View style={{ marginStart: 4 }}>{currencySymbol}</View>}
       </View>
     </View>
   );

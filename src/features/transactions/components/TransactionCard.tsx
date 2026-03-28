@@ -79,11 +79,11 @@ export function TransactionCard({ transaction, onPress }: TransactionCardProps) 
               borderRadius: radius.full,
               paddingHorizontal: spacing.sm,
               paddingVertical: spacing.xxs,
-              marginStart: spacing.sm,
+              marginStart: 4,
             },
           ]}
         >
-          {transaction.currency === 'SAR' ? (
+          {transaction.currency === 'SAR' || transaction.currency === 'ريال سعودي' ? (
             <SaudiRiyalSymbol size={14} color={colors.foregroundSecondary} />
           ) : (
             <Text style={[typography.labelSmall, { color: colors.foregroundSecondary }]}>
