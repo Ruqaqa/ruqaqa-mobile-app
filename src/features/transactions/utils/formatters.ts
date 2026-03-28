@@ -51,6 +51,14 @@ export function getPartnerDisplay(params: {
   return null;
 }
 
+/** Flow direction type for the transaction flow widget. */
+export type FlowDirection = 'expense' | 'income';
+
+/** Determine flow direction from totalAmount: negative = expense, zero/positive = income. */
+export function getFlowDirection(totalAmount: number): FlowDirection {
+  return totalAmount < 0 ? 'expense' : 'income';
+}
+
 /** Get display string for an employee reference. Handles object, string, null, undefined. */
 export function getEmployeeDisplay(
   employee: TransactionEmployee | string | null | undefined,

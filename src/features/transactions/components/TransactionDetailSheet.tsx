@@ -225,6 +225,7 @@ export function TransactionDetailSheet({
               <TransactionFlowWidget
                 partnerLabel={partner}
                 otherPartyLabel={transaction.otherParty ?? null}
+                isExpense={(transaction.totalAmount ?? 0) < 0}
               />
             </View>
           )}

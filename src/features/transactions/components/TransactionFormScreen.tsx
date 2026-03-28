@@ -260,7 +260,7 @@ export function TransactionFormScreen({
     setPreviewVisible(false);
   }, []);
 
-  // Build preview fields for the dialog
+  // Build preview fields for the dialog (partner/otherParty shown via flow widget, not here)
   const previewFields = useMemo(() => {
     const data = buildPreviewPayload();
     return [
@@ -273,8 +273,6 @@ export function TransactionFormScreen({
       { label: t('date'), value: data['التاريخ'] },
       { label: t('project'), value: data['رمز المشروع'] },
       { label: t('clientName'), value: data['اسم العميل'] },
-      { label: t('partner'), value: data['طرف الشريك'] },
-      { label: t('otherParty'), value: data['الطرف الآخر'] },
       ...(data['ملاحظات'] ? [{ label: t('notes'), value: data['ملاحظات'] }] : []),
     ];
   }, [buildPreviewPayload, t]);
@@ -538,6 +536,8 @@ export function TransactionFormScreen({
         fields={previewFields}
         amount={getActualAmount()}
         currency={form.currency}
+        partnerLabel={form.partner || null}
+        otherPartyLabel={form.otherParty || null}
         receiptCount={form.attachments.length}
         onConfirm={handleConfirmSubmit}
         onCancel={handleCancelPreview}

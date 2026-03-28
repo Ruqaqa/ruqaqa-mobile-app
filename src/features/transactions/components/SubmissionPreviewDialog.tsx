@@ -22,6 +22,7 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/theme';
 import { withAlpha } from '@/utils/colorUtils';
 import { SaudiRiyalSymbol } from '@/components/ui/SaudiRiyalSymbol';
+import { TransactionFlowWidget } from './TransactionFlowWidget';
 
 interface PreviewField {
   label: string;
@@ -34,6 +35,8 @@ interface SubmissionPreviewDialogProps {
   fields: PreviewField[];
   amount?: string | number | null;
   currency?: string;
+  partnerLabel?: string | null;
+  otherPartyLabel?: string | null;
   receiptCount?: number;
   countdownSeconds?: number;
   onConfirm: () => void;
@@ -45,6 +48,8 @@ export function SubmissionPreviewDialog({
   fields,
   amount,
   currency = 'SAR',
+  partnerLabel,
+  otherPartyLabel,
   receiptCount = 0,
   countdownSeconds = 10,
   onConfirm,
@@ -382,6 +387,17 @@ export function SubmissionPreviewDialog({
                 </View>
               );
             })}
+
+            {/* Transaction flow */}
+            {(partnerLabel || otherPartyLabel) && (
+              <View style={{ marginTop: spacing.sm, marginBottom: spacing.sm }}>
+                <TransactionFlowWidget
+                  partnerLabel={partnerLabel ?? null}
+                  otherPartyLabel={otherPartyLabel ?? null}
+                  isExpense={!!isExpense}
+                />
+              </View>
+            )}
 
             {/* Receipt count */}
             {receiptCount > 0 && (
