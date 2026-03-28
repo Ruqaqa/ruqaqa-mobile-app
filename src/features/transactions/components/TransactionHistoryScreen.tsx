@@ -1,10 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/theme';
 import { UserPermissions } from '@/types/permissions';
 import { Transaction, ApprovalStatus } from '../types';
-import { TransactionError } from '../services/transactionService';
 import { useTransactionList } from '../hooks/useTransactionList';
 import { useApprovalAction } from '../hooks/useApprovalAction';
 import { FilterBar } from './FilterBar';
@@ -19,7 +17,6 @@ interface TransactionHistoryScreenProps {
 export function TransactionHistoryScreen({
   permissions,
 }: TransactionHistoryScreenProps) {
-  const { t } = useTranslation();
   const { colors } = useTheme();
 
   const {
@@ -43,12 +40,22 @@ export function TransactionHistoryScreen({
     canViewAll: permissions.canViewAllTransactions,
   });
 
-  const { isUpdating, execute: executeApproval } = useApprovalAction();
-
   const [searchVisible, setSearchVisible] = useState(false);
+
   const [selectedTransaction, setSelectedTransaction] =
     useState<Transaction | null>(null);
   const [detailVisible, setDetailVisible] = useState(false);
+
+  const { isUpdating, execute: executeApproval } = useApprovalAction();
+
+  // Stable callback — only depends on state setters (stable by React guarantee)
+  const handleSearchPress = useCallback(() => {
+    setSearchVisible(true);
+  }, []);
+
+  const handleSearchClose = useCallback(() => {
+    setSearchVisible(false);
+  }, []);
 
   const handleTransactionPress = useCallback((txn: Transaction) => {
     setSelectedTransaction(txn);
@@ -71,8 +78,6 @@ export function TransactionHistoryScreen({
         }
       } catch (err) {
         // Error is a TransactionError; the hook throws it.
-        // The ApprovalActions component shows the Alert confirmation,
-        // so we just silently fail here (the user already saw the loading state).
       }
     },
     [selectedTransaction, executeApproval, updateTransaction],
@@ -85,7 +90,7 @@ export function TransactionHistoryScreen({
         onShowOwnChange={setShowOwn}
         canViewAll={permissions.canViewAllTransactions}
         hasActiveFilters={hasActiveFilters}
-        onSearchPress={() => setSearchVisible(true)}
+        onSearchPress={handleSearchPress}
         onClearFilters={clearFilters}
       />
 
@@ -106,7 +111,7 @@ export function TransactionHistoryScreen({
         visible={searchVisible}
         filters={filters}
         onApply={setFilters}
-        onClose={() => setSearchVisible(false)}
+        onClose={handleSearchClose}
       />
 
       <TransactionDetailSheet

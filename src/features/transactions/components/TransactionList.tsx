@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   FlatList,
   View,
@@ -37,7 +37,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   UNKNOWN: 'errorUnknown',
 };
 
-export function TransactionList({
+export const TransactionList = React.memo(function TransactionList({
   transactions,
   isLoading,
   isLoadingMore,
@@ -52,11 +52,16 @@ export function TransactionList({
   const { t } = useTranslation();
   const { colors, spacing } = useTheme();
 
+  const contentContainerStyle = useMemo(
+    () => ({ paddingVertical: spacing.xs }),
+    [spacing.xs],
+  );
+
   const renderItem = useCallback(
     ({ item }: { item: Transaction }) => (
       <TransactionCard
         transaction={item}
-        onPress={() => onTransactionPress(item)}
+        onPress={onTransactionPress}
       />
     ),
     [onTransactionPress],
@@ -130,10 +135,13 @@ export function TransactionList({
           tintColor={colors.primary}
         />
       }
-      contentContainerStyle={{ paddingVertical: spacing.xs }}
+      contentContainerStyle={contentContainerStyle}
+      maxToRenderPerBatch={10}
+      windowSize={5}
+      removeClippedSubviews
     />
   );
-}
+});
 
 const styles = StyleSheet.create({
   skeletonContainer: {

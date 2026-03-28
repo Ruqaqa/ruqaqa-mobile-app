@@ -10,10 +10,11 @@ import { formatDate, formatAmount, getAmountColor, getPartnerDisplay } from '../
 
 interface TransactionCardProps {
   transaction: Transaction;
-  onPress: () => void;
+  onPress: (transaction: Transaction) => void;
 }
 
-export function TransactionCard({ transaction, onPress }: TransactionCardProps) {
+export const TransactionCard = React.memo(function TransactionCard({ transaction, onPress }: TransactionCardProps) {
+  const handlePress = React.useCallback(() => onPress(transaction), [onPress, transaction]);
   const { colors, typography, spacing, radius } = useTheme();
   const { t } = useTranslation();
 
@@ -28,7 +29,7 @@ export function TransactionCard({ transaction, onPress }: TransactionCardProps) 
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={handlePress}
       style={({ pressed }) => [
         styles.card,
         {
@@ -164,7 +165,7 @@ export function TransactionCard({ transaction, onPress }: TransactionCardProps) 
       </View>
     </Pressable>
   );
-}
+});
 
 function MetadataLine({
   icon,

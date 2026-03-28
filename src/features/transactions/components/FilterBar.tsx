@@ -14,7 +14,7 @@ interface FilterBarProps {
   onClearFilters: () => void;
 }
 
-export function FilterBar({
+export const FilterBar = React.memo(function FilterBar({
   showOwn,
   onShowOwnChange,
   canViewAll,
@@ -105,7 +105,7 @@ export function FilterBar({
       )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

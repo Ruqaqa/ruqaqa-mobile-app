@@ -47,6 +47,10 @@ export function useTransactionList({
   const [filters, setFiltersState] = useState<TransactionFilters>(EMPTY_FILTERS);
   const pageRef = useRef(1);
   const isMountedRef = useRef(true);
+  const stateRef = useRef({ hasMore, isLoading, isLoadingMore, showOwn, filters });
+
+  // Keep stateRef in sync so stable callbacks can read latest values
+  stateRef.current = { hasMore, isLoading, isLoadingMore, showOwn, filters };
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -110,32 +114,35 @@ export function useTransactionList({
   }, []);
 
   const loadMore = useCallback(() => {
-    if (!hasMore || isLoading || isLoadingMore) return;
+    const { hasMore: hm, isLoading: il, isLoadingMore: ilm, showOwn: so, filters: f } = stateRef.current;
+    if (!hm || il || ilm) return;
     const nextPage = pageRef.current + 1;
     pageRef.current = nextPage;
     setIsLoadingMore(true);
-    doFetch(nextPage, showOwn, filters, true).finally(() => {
+    doFetch(nextPage, so, f, true).finally(() => {
       if (isMountedRef.current) setIsLoadingMore(false);
     });
-  }, [hasMore, isLoading, isLoadingMore, showOwn, filters, doFetch]);
+  }, [doFetch]);
 
   const refresh = useCallback(() => {
+    const { showOwn: so, filters: f } = stateRef.current;
     pageRef.current = 1;
     setIsRefreshing(true);
-    doFetch(1, showOwn, filters, false).finally(() => {
+    doFetch(1, so, f, false).finally(() => {
       if (isMountedRef.current) setIsRefreshing(false);
     });
-  }, [showOwn, filters, doFetch]);
+  }, [doFetch]);
 
   const retry = useCallback(() => {
+    const { showOwn: so, filters: f } = stateRef.current;
     pageRef.current = 1;
     setIsLoading(true);
     setError(null);
     setTransactions([]);
-    doFetch(1, showOwn, filters, false).finally(() => {
+    doFetch(1, so, f, false).finally(() => {
       if (isMountedRef.current) setIsLoading(false);
     });
-  }, [showOwn, filters, doFetch]);
+  }, [doFetch]);
 
   const updateTransaction = useCallback(
     (id: string, updated: Transaction) => {

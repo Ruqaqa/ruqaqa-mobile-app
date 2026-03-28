@@ -5,7 +5,14 @@ import { keycloakEndpoints, keycloakConfig } from './keycloakDiscovery';
 import { tokenStorage } from './tokenStorage';
 import { extractPermissions } from './permissionService';
 import { withRetry, isRetryableError } from '../utils/retry';
-import { validateEmployee } from './employeeService';
+// Lazy-imported to break require cycle: apiClient → authService → employeeService → apiClient
+let _validateEmployee: typeof import('./employeeService').validateEmployee;
+function getValidateEmployee() {
+  if (!_validateEmployee) {
+    _validateEmployee = require('./employeeService').validateEmployee;
+  }
+  return _validateEmployee;
+}
 
 // ---------------------------------------------------------------------------
 // Token exchange — Authorization Code Grant
@@ -172,7 +179,7 @@ export async function postLoginValidation(): Promise<PostLoginResult> {
 
   const permissions = extractPermissions(payload as Record<string, any>);
 
-  const employee = await validateEmployee();
+  const employee = await getValidateEmployee()();
 
   if (!employee) {
     await tokenStorage.clearAll();
