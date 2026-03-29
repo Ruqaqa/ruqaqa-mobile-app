@@ -83,8 +83,8 @@ export const TransactionCard = React.memo(function TransactionCard({ transaction
           {transaction.currency === 'SAR' || transaction.currency === 'ريال سعودي' ? (
             <SaudiRiyalSymbol size={14} color={colors[amountColorKey]} />
           ) : (
-            <Text style={[typography.labelSmall, { color: colors.foregroundSecondary }]}>
-              {transaction.currency}
+            <Text style={[typography.headingSmall, { color: colors[amountColorKey] }]}>
+              $
             </Text>
           )}
         </View>

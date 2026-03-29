@@ -15,6 +15,7 @@ interface SelectFieldProps {
   options: SelectOption[];
   onChange: (value: string) => void;
   onClear?: () => void;
+  error?: string;
 }
 
 export function SelectField({
@@ -24,6 +25,7 @@ export function SelectField({
   options,
   onChange,
   onClear,
+  error,
 }: SelectFieldProps) {
   const { colors, typography, spacing, radius } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
@@ -72,7 +74,7 @@ export function SelectField({
           styles.field,
           {
             backgroundColor: colors.surface,
-            borderColor: colors.input,
+            borderColor: error ? colors.error : colors.input,
             borderRadius: radius.md,
             paddingHorizontal: spacing.md,
           },
@@ -106,6 +108,11 @@ export function SelectField({
           <ChevronDown size={18} color={colors.foregroundSecondary} />
         )}
       </Pressable>
+      {error && (
+        <Text style={[typography.bodySmall, { color: colors.error, marginTop: spacing.xs }]}>
+          {error}
+        </Text>
+      )}
 
       {/* Android bottom sheet modal */}
       <Modal

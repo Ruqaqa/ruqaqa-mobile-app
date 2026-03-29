@@ -154,7 +154,9 @@ export function TransactionDetailSheet({
             currencySymbol={
               transaction.currency === 'SAR' || transaction.currency === 'ريال سعودي' ? (
                 <SaudiRiyalSymbol size={14} color={colors[amountColorKey]} />
-              ) : undefined
+              ) : (
+                <Text style={[typography.headingSmall, { color: colors[amountColorKey] }]}>$</Text>
+              )
             }
           />
           {transaction.tax && (

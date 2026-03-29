@@ -121,6 +121,8 @@ export function useTransactionForm({ permissions, employee, onSuccess }: UseTran
     if (!form.bankFees.trim()) errors.bankFees = t('statementRequired');
     else if (!isValidSubmissionAmount(form.bankFees)) errors.bankFees = t('pleaseEnterValidNumber');
     if (!form.date) errors.date = t('statementRequired');
+    if (!form.otherParty.trim()) errors.otherParty = t('statementRequired');
+    if (canSelectPartner && !form.partner) errors.partner = t('statementRequired');
     return errors;
   }, [form, t]);
 

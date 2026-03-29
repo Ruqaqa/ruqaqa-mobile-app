@@ -3,7 +3,7 @@
  *
  * The hook has its own inline getErrors() and isValid computation
  * that enforce: statement required, amount required + valid, bankFees required + valid,
- * date required (non-null).
+ * date required (non-null), otherParty required, partner required (when canSelectPartner).
  *
  * These tests verify the validation rules by extracting the pure logic
  * (no React hooks) to test them directly.
@@ -20,9 +20,11 @@ interface FormState {
   amount: string;
   bankFees: string;
   date: Date | null;
+  otherParty: string;
+  partner: string | null;
 }
 
-function getFormErrors(form: FormState): Partial<Record<keyof FormState, string>> {
+function getFormErrors(form: FormState, canSelectPartner = false): Partial<Record<keyof FormState, string>> {
   const errors: Partial<Record<keyof FormState, string>> = {};
   if (!form.statement.trim()) errors.statement = 'statementRequired';
   if (!form.amount.trim()) errors.amount = 'statementRequired';
@@ -30,6 +32,8 @@ function getFormErrors(form: FormState): Partial<Record<keyof FormState, string>
   if (!form.bankFees.trim()) errors.bankFees = 'statementRequired';
   else if (!isValidSubmissionAmount(form.bankFees)) errors.bankFees = 'pleaseEnterValidNumber';
   if (!form.date) errors.date = 'statementRequired';
+  if (!form.otherParty.trim()) errors.otherParty = 'statementRequired';
+  if (canSelectPartner && !form.partner) errors.partner = 'statementRequired';
   return errors;
 }
 
@@ -52,6 +56,8 @@ function makeValid(overrides: Partial<FormState> = {}): FormState {
     amount: '500',
     bankFees: '10',
     date: new Date('2026-03-27'),
+    otherParty: 'Vendor Corp',
+    partner: 'Employee Name',
     ...overrides,
   };
 }
@@ -93,17 +99,45 @@ describe('getErrors (hook inline validation)', () => {
     expect(getFormErrors(makeValid()).date).toBeUndefined();
   });
 
+  it('returns otherParty error when empty', () => {
+    expect(getFormErrors(makeValid({ otherParty: '' })).otherParty).toBeDefined();
+  });
+
+  it('returns otherParty error when whitespace only', () => {
+    expect(getFormErrors(makeValid({ otherParty: '   ' })).otherParty).toBeDefined();
+  });
+
+  it('returns no otherParty error when provided', () => {
+    expect(getFormErrors(makeValid()).otherParty).toBeUndefined();
+  });
+
+  it('returns partner error when canSelectPartner and partner is null', () => {
+    expect(getFormErrors(makeValid({ partner: null }), true).partner).toBeDefined();
+  });
+
+  it('returns no partner error when canSelectPartner and partner is set', () => {
+    expect(getFormErrors(makeValid(), true).partner).toBeUndefined();
+  });
+
+  it('returns no partner error when canSelectPartner is false even if partner is null', () => {
+    expect(getFormErrors(makeValid({ partner: null }), false).partner).toBeUndefined();
+  });
+
   it('returns multiple errors simultaneously', () => {
     const errors = getFormErrors({
       statement: '',
       amount: '',
       bankFees: '',
       date: null,
-    });
+      otherParty: '',
+      partner: null,
+    }, true);
     expect(errors.statement).toBeDefined();
     expect(errors.amount).toBeDefined();
     expect(errors.bankFees).toBeDefined();
     expect(errors.date).toBeDefined();
+    expect(errors.otherParty).toBeDefined();
+    expect(errors.partner).toBeDefined();
   });
 });
 
@@ -150,6 +184,8 @@ describe('date defaults to null', () => {
       amount: '100',
       bankFees: '5',
       date: null, // Simulates the INITIAL_FORM default
+      otherParty: 'Vendor',
+      partner: 'Employee',
     });
     expect(errors.date).toBeDefined();
   });

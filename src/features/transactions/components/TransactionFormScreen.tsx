@@ -457,17 +457,19 @@ export function TransactionFormScreen({
 
           {canSelectPartner && (
             <SelectField
-              label={t('partner')}
+              label={`${t('partner')} *`}
               value={partnerValue}
               options={partnerOptions}
               onChange={handlePartnerChange}
+              error={errors.partner}
             />
           )}
 
           <View style={{ zIndex: 1 }}>
             <AutocompleteField<OtherPartyItem>
-              label={t('otherParty')}
+              label={`${t('otherParty')} *`}
               placeholder={t('searchOtherParties')}
+              error={errors.otherParty}
               value={form.otherPartyType && form.otherPartyType !== 'text' && form.otherParty ? { id: form.otherPartyId ?? `prev_${form.otherParty}`, label: form.otherParty, type: form.otherPartyType, hasRealId: !!form.otherPartyId } as OtherPartyItem : null}
               onSearch={handleOtherPartySearch}
               onSelect={handleOtherPartySelect}
