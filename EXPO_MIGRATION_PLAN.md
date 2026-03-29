@@ -141,9 +141,17 @@ Since video watermarking has no reliable client-side solution in React Native, c
 - Special permission-gated feature
 - Users can attach additional receipts to already-submitted transactions
 
-**Share Intent Integration:**
-- When a user shares a file (image/document) from another app to this app, the file should be available to attach as a receipt in the transaction form
-- If the user is not logged in when the share happens, show a banner on the login screen indicating pending files, and attach them after login
+**Share Intent Integration — DONE:**
+- When a user shares a file (image/document) from another app to this app, the file is available to attach as a receipt in the transaction form
+- If the user is not logged in when the share happens, a banner on the login screen indicates pending files, and attaches them after login
+- Flow selector bottom sheet: user chooses where to route shared files (Transaction, Reconciliation, Gallery) — extensible registry pattern, Reconciliation/Gallery show "Coming soon"
+- Module-level pub/sub store (`shareIntentStore`) with 4-state machine: idle → files_received → flow_selected → idle
+- `expo-share-intent` package handles native Android intent filters (image/*, application/pdf) and iOS Share Extension
+- `ShareIntentBridge` component bridges library hook to store in root layout
+- Validation at trust boundary: MIME type, file size (10MB), filename sanitization, file count limits
+- `sharedFilesAdapter` converts shared files to receipt attachments with MAX_ATTACHMENTS cap
+- Security reviewed: 12 findings addressed (path traversal, MIME spoofing, file size bombs)
+- 91 tests covering store, service, validation, flow targets, hook, and form integration
 
 **Refer to:** `lib/features/transactions/` (all files), `lib/widgets/` (form widgets, receipt widgets)
 
@@ -174,9 +182,14 @@ Since video watermarking has no reliable client-side solution in React Native, c
 - Toggle between "my records" and "all records" (permission-dependent)
 - Search and filter capabilities
 
+**Share Intent Integration:**
+- Enable the "Reconciliation" flow target in `src/services/shareIntent/flowTargets.ts` (currently registered but disabled with "Coming soon" badge)
+- When user shares files and selects Reconciliation, navigate to the reconciliation form with files pre-attached
+- Follow the same pattern as transactions: consume files via `useShareIntent()` hook + adapter on form mount
+
 **Refer to:** `lib/features/reconciliation/`
 
-**Deliverable:** Full reconciliation form with step-by-step flow and history browsing.
+**Deliverable:** Full reconciliation form with step-by-step flow, history browsing, and share intent attachment.
 
 ---
 
