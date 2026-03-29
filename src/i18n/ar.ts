@@ -135,6 +135,14 @@ export default {
   receiptDownloadFailed: 'فشل في تحميل الإيصال',
   receiptOpenFailed: 'فشل في فتح الإيصال',
   receiptSharingUnavailable: 'المشاركة غير متاحة على هذا الجهاز',
+  receiptEditorExisting: 'الإيصالات الحالية',
+  receiptEditorNewAttachments: 'مرفقات جديدة',
+  receiptEditorSave: 'حفظ التغييرات',
+  receiptEditorSaving: 'جاري الحفظ...',
+  receiptEditorRemoving: 'جاري حذف الإيصالات...',
+  receiptEditorUploading: 'جاري رفع {{current}} من {{total}}...',
+  receiptEditorMarkedForRemoval_one: 'إيصال واحد محدد للحذف',
+  receiptEditorMarkedForRemoval_other: '{{count}} إيصالات محددة للحذف',
 
   // Approval
   approval: 'موافقة',

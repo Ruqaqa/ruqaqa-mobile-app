@@ -9,8 +9,9 @@ import {
   Dimensions,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { X } from 'lucide-react-native';
+import { X, Paperclip, Pencil } from 'lucide-react-native';
 import { useTheme } from '@/theme';
+import { withAlpha } from '@/utils/colorUtils';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { SaudiRiyalSymbol } from '@/components/ui/SaudiRiyalSymbol';
 import { Transaction, ApprovalStatus } from '../types';
@@ -32,6 +33,12 @@ interface TransactionDetailSheetProps {
   canUpdate: boolean;
   isUpdating: boolean;
   onStatusChange: (newStatus: ApprovalStatus) => void;
+  /** Whether current user can add receipts (partner employee) */
+  canAddReceipts?: boolean;
+  /** Whether current user can fully edit receipts (accountant) */
+  canEditReceipts?: boolean;
+  /** Called to open the receipt editor */
+  onEditReceipts?: (mode: 'add' | 'edit') => void;
 }
 
 const SHEET_HEIGHT_RATIO = 0.75;
@@ -43,6 +50,9 @@ export function TransactionDetailSheet({
   canUpdate,
   isUpdating,
   onStatusChange,
+  canAddReceipts,
+  canEditReceipts,
+  onEditReceipts,
 }: TransactionDetailSheetProps) {
   const { t } = useTranslation();
   const { colors, typography, spacing, radius } = useTheme();
@@ -247,6 +257,61 @@ export function TransactionDetailSheet({
             </View>
           )}
 
+          {/* Receipt editor buttons */}
+          {onEditReceipts && (canAddReceipts || canEditReceipts) && (
+            <View style={[styles.receiptActions, { marginTop: spacing.md, gap: spacing.sm }]}>
+              {canEditReceipts ? (
+                <Pressable
+                  onPress={() => onEditReceipts('edit')}
+                  style={({ pressed }) => [
+                    styles.receiptActionBtn,
+                    {
+                      backgroundColor: withAlpha(colors.primary, 0.1),
+                      borderRadius: radius.md,
+                      opacity: pressed ? 0.7 : 1,
+                    },
+                  ]}
+                  accessibilityLabel={t('editReceipts')}
+                  testID="edit-receipts-btn"
+                >
+                  <Pencil size={18} color={colors.primary} />
+                  <Text
+                    style={[
+                      typography.label,
+                      { color: colors.primary, marginStart: spacing.sm },
+                    ]}
+                  >
+                    {t('editReceipts')}
+                  </Text>
+                </Pressable>
+              ) : canAddReceipts ? (
+                <Pressable
+                  onPress={() => onEditReceipts('add')}
+                  style={({ pressed }) => [
+                    styles.receiptActionBtn,
+                    {
+                      backgroundColor: withAlpha(colors.green, 0.1),
+                      borderRadius: radius.md,
+                      opacity: pressed ? 0.7 : 1,
+                    },
+                  ]}
+                  accessibilityLabel={t('addReceipts')}
+                  testID="add-receipts-btn"
+                >
+                  <Paperclip size={18} color={colors.green} />
+                  <Text
+                    style={[
+                      typography.label,
+                      { color: colors.green, marginStart: spacing.sm },
+                    ]}
+                  >
+                    {t('addReceipts')}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
+          )}
+
           {/* Notes */}
           {transaction.notes && (
             <View
@@ -367,4 +432,15 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   notesStrip: {},
+  receiptActions: {
+    flexDirection: 'row',
+  },
+  receiptActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    height: 44,
+    flex: 1,
+    justifyContent: 'center',
+  },
 });

@@ -135,6 +135,14 @@ export default {
   receiptDownloadFailed: 'Failed to download receipt',
   receiptOpenFailed: 'Failed to open receipt',
   receiptSharingUnavailable: 'Sharing is not available on this device',
+  receiptEditorExisting: 'Existing Receipts',
+  receiptEditorNewAttachments: 'New Attachments',
+  receiptEditorSave: 'Save Changes',
+  receiptEditorSaving: 'Saving...',
+  receiptEditorRemoving: 'Removing receipts...',
+  receiptEditorUploading: 'Uploading {{current}} of {{total}}...',
+  receiptEditorMarkedForRemoval_one: '{{count}} receipt marked for removal',
+  receiptEditorMarkedForRemoval_other: '{{count}} receipts marked for removal',
 
   // Approval
   approval: 'Approval',

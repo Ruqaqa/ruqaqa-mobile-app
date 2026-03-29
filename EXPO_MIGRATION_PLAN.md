@@ -102,7 +102,7 @@ Since video watermarking has no reliable client-side solution in React Native, c
 
 ---
 
-### Phase 3: Transactions (In Progress)
+### Phase 3: Transactions — DONE
 
 **Goal:** Users can create financial transactions, attach receipts, and browse transaction history.
 
@@ -137,9 +137,14 @@ Since video watermarking has no reliable client-side solution in React Native, c
 - Approve/Reject/Set to Pending action buttons on transaction details with confirmation dialogs
 - No optimistic updates — waits for server confirmation, then refreshes the full transaction in-place
 
-**Adding Receipts to Submitted Transactions:**
-- Special permission-gated feature
-- Users can attach additional receipts to already-submitted transactions
+**Adding Receipts to Submitted Transactions — DONE:**
+- Special permission-gated feature with two modes: add-only (partner employee) and full-edit (accountant)
+- Add-only: user must have `add_receipts_2_submitted_transaction` permission AND be the partner employee on the transaction
+- Full-edit: user must have `transactions_update` permission — can add and remove receipts
+- Receipt upload via `POST /api/mobile/receipts/upload`, then link via `POST /transactions/add-receipts` (add-only) or `PUT /transactions` (full-edit)
+- ReceiptEditorScreen with EditableReceiptGrid (tap-to-delete toggle), ReceiptUploadProgress (per-file status)
+- Security reviewed: 11 findings addressed (permission bypass, receipt ID injection, MIME validation)
+- 63 new tests covering service, permissions, editor hook, and wiring
 
 **Share Intent Integration — DONE:**
 - When a user shares a file (image/document) from another app to this app, the file is available to attach as a receipt in the transaction form

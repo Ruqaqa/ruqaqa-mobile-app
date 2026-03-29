@@ -1,14 +1,21 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useTheme } from '@/theme';
+import { useAuth } from '@/services/authContext';
 import { UserPermissions } from '@/types/permissions';
 import { Transaction, ApprovalStatus } from '../types';
 import { useTransactionList } from '../hooks/useTransactionList';
 import { useApprovalAction } from '../hooks/useApprovalAction';
+import { getReceiptEditMode } from '../utils/receiptEditorPermissions';
+import {
+  createUploadHandler,
+  createSaveCompleteHandler,
+} from '../utils/receiptEditorHandlers';
 import { FilterBar } from './FilterBar';
 import { TransactionList } from './TransactionList';
 import { SearchModal } from './SearchModal';
 import { TransactionDetailSheet } from './TransactionDetailSheet';
+import { ReceiptEditorScreen, ReceiptEditorMode } from './ReceiptEditorScreen';
 
 interface TransactionHistoryScreenProps {
   permissions: UserPermissions;
@@ -47,6 +54,60 @@ export function TransactionHistoryScreen({
   const [detailVisible, setDetailVisible] = useState(false);
 
   const { isUpdating, execute: executeApproval } = useApprovalAction();
+
+  // --- Receipt editor state ---
+  const { employee } = useAuth();
+  const [receiptEditorVisible, setReceiptEditorVisible] = useState(false);
+  const [receiptEditorMode, setReceiptEditorMode] =
+    useState<ReceiptEditorMode>('add');
+
+  // Compute receipt edit mode for the selected transaction
+  const receiptEditMode = useMemo(() => {
+    if (!selectedTransaction) return null;
+    return getReceiptEditMode(
+      selectedTransaction,
+      permissions,
+      employee?.id ?? null,
+    );
+  }, [selectedTransaction, permissions, employee?.id]);
+
+  const canAddReceipts = receiptEditMode === 'add-only';
+  const canEditReceipts = receiptEditMode === 'full-edit';
+
+  const handleEditReceipts = useCallback(
+    (mode: 'add' | 'edit') => {
+      setReceiptEditorMode(mode);
+      setDetailVisible(false);
+      setReceiptEditorVisible(true);
+    },
+    [],
+  );
+
+  const handleReceiptEditorClose = useCallback(() => {
+    setReceiptEditorVisible(false);
+  }, []);
+
+  const uploadHandler = useMemo(() => createUploadHandler(), []);
+
+  const handleReceiptSaveComplete = useCallback(
+    async (updatedReceipts: import('../types').TransactionReceipt[]) => {
+      if (!selectedTransaction) return;
+
+      const handler = createSaveCompleteHandler({
+        transactionId: selectedTransaction.id,
+        mode: receiptEditorMode,
+        existingReceiptIds: (selectedTransaction.expenseReceipts ?? []).map(
+          (r) => r.id,
+        ),
+        onRefresh: () => {
+          refresh();
+        },
+      });
+
+      await handler(updatedReceipts);
+    },
+    [selectedTransaction, receiptEditorMode, refresh],
+  );
 
   // Stable callback — only depends on state setters (stable by React guarantee)
   const handleSearchPress = useCallback(() => {
@@ -122,7 +183,22 @@ export function TransactionHistoryScreen({
         canUpdate={permissions.canUpdateTransactions}
         isUpdating={isUpdating}
         onStatusChange={handleStatusChange}
+        canAddReceipts={canAddReceipts}
+        canEditReceipts={canEditReceipts}
+        onEditReceipts={handleEditReceipts}
       />
+
+      {selectedTransaction && (
+        <ReceiptEditorScreen
+          visible={receiptEditorVisible}
+          mode={receiptEditorMode}
+          transactionId={selectedTransaction.id}
+          existingReceipts={selectedTransaction.expenseReceipts ?? []}
+          onClose={handleReceiptEditorClose}
+          onSaveComplete={handleReceiptSaveComplete}
+          onUploadFiles={uploadHandler}
+        />
+      )}
     </View>
   );
 }
