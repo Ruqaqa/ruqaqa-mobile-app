@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, StyleSheet, Pressable, Text, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus } from 'lucide-react-native';
@@ -13,6 +13,7 @@ import {
 import { AppBar } from '../components/layout/AppBar';
 import { TransactionHistoryScreen } from '../features/transactions/components/TransactionHistoryScreen';
 import { TransactionFormScreen } from '../features/transactions/components/TransactionFormScreen';
+import { useShareIntent } from '../hooks/useShareIntent';
 
 // Placeholder tab content — replaced per-feature in later phases
 function PlaceholderTab({ label }: { label: string }) {
@@ -47,6 +48,14 @@ export function FinanceShell() {
   );
   const [activeTab, setActiveTab] = useState<FinanceTab>(tabs[0] ?? 'operations');
   const [formVisible, setFormVisible] = useState(false);
+  const { state: shareState } = useShareIntent();
+
+  // Auto-open transaction form when share intent targets transactions
+  useEffect(() => {
+    if (shareState.status === 'flow_selected' && shareState.targetId === 'transaction') {
+      setFormVisible(true);
+    }
+  }, [shareState]);
 
   const tabLabels: Record<FinanceTab, string> = {
     operations: t('operations'),

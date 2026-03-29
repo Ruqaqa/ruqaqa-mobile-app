@@ -311,6 +311,16 @@ export default {
   filesReceivedBanner_one: '1 file received. Will be attached after login.',
   filesReceivedBanner_other: '{{count}} files received. Will be attached after login.',
   receiptsAttached: 'Receipts attached to statement',
+  shareFlowTitle: 'Where to add this?',
+  shareFileCount_one: '1 file shared',
+  shareFileCount_other: '{{count}} files shared',
+  shareFlowTransaction: 'Transaction Receipt',
+  shareFlowTransactionDesc: 'Attach as receipt to a new transaction',
+  shareFlowReconciliation: 'Reconciliation',
+  shareFlowReconciliationDesc: 'Attach to a reconciliation record',
+  shareFlowGallery: 'Gallery Album',
+  shareFlowGalleryDesc: 'Upload to a gallery album',
+  shareFlowComingSoon: 'Coming soon',
 
   // Search enhancements
   partnerEmployee: 'Partner',

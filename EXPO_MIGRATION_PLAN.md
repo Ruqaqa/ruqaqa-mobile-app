@@ -113,10 +113,11 @@ Since video watermarking has no reliable client-side solution in React Native, c
 - Receipt attachments: up to 4 images/documents per transaction, with inline preview and remove capability
 - Autocomplete/search fields for: projects, clients, employees, other parties, tags — each fetched from the backend with search-as-you-type
 - Form caches the last selected client and project for convenience
-- Validation: required fields enforced with inline error messages before submission
+- Validation: required fields enforced with inline error messages before submission (partner and other party required)
 - Submission confirmation dialog showing a preview of all entered data
-- Success feedback: play a sound on successful submission
+- Success feedback: play a sound on successful submission via `soundService.ts` + `expo-av`
 - Multipart upload of receipts during submission
+- Partner search in transaction history uses SelectField dropdown with employee ID-based filtering
 
 **Transaction History — DONE:**
 - Paginated list of transactions (20 per page) with infinite scroll and pull-to-refresh

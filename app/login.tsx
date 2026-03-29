@@ -14,11 +14,14 @@ import { useAuth } from '../src/services/authContext';
 import { Button } from '../src/components/ui/Button';
 import { LanguageSwitcher } from '../src/components/auth/LanguageSwitcher';
 import { LoginStatus } from '../src/types/auth';
+import { useShareIntent } from '../src/hooks/useShareIntent';
+import { SharePendingBanner } from '../src/components/share';
 
 export default function LoginScreen() {
   const { t } = useTranslation();
   const { colors, typography, spacing, radius } = useTheme();
   const { login, logoutMessage, clearLogoutMessage } = useAuth();
+  const { hasPendingFiles, pendingFileCount, clear: clearShareIntent } = useShareIntent();
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
@@ -69,6 +72,13 @@ export default function LoginScreen() {
         <View style={[styles.topBar, { paddingHorizontal: spacing.base, paddingTop: spacing.sm, paddingBottom: spacing.base }]}>
           <LanguageSwitcher />
         </View>
+
+        {/* Share intent pending banner */}
+        {hasPendingFiles && (
+          <View style={{ marginBottom: spacing.md }}>
+            <SharePendingBanner fileCount={pendingFileCount} onDismiss={clearShareIntent} />
+          </View>
+        )}
 
         {/* Error / logout banner */}
         {errorBanner && (

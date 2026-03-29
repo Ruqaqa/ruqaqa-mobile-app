@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Redirect } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -12,6 +12,10 @@ import { ModuleSwitcherSheet } from '../../src/components/layout/ModuleSwitcherS
 import { NoAccessScreen } from '../../src/components/layout/NoAccessScreen';
 import { ErrorBoundary } from '../../src/components/layout/ErrorBoundary';
 import { useTheme } from '../../src/theme';
+import { useShareIntent } from '../../src/hooks/useShareIntent';
+import { FlowSelectorSheet } from '../../src/components/share';
+import type { ShareFlowTarget } from '../../src/components/share';
+import { shareIntentStore } from '../../src/services/shareIntent';
 
 /**
  * Main authenticated app layout.
@@ -69,6 +73,49 @@ export default function AppLayout() {
     [],
   );
 
+  // Share intent: show flow selector when files arrive
+  const { hasPendingFiles, pendingFiles, selectFlow, clear: clearShareIntent } = useShareIntent();
+  const [flowSelectorVisible, setFlowSelectorVisible] = useState(false);
+
+  useEffect(() => {
+    if (hasPendingFiles) {
+      setFlowSelectorVisible(true);
+    }
+  }, [hasPendingFiles]);
+
+  const handleFlowSelect = useCallback((target: ShareFlowTarget) => {
+    selectFlow(target);
+    setFlowSelectorVisible(false);
+  }, [selectFlow]);
+
+  const handleFlowDismiss = useCallback(() => {
+    clearShareIntent();
+    setFlowSelectorVisible(false);
+  }, [clearShareIntent]);
+
+  const handleRemoveSharedFile = useCallback((index: number) => {
+    const state = shareIntentStore.getState();
+    if (state.status === 'files_received') {
+      const remaining = state.files.filter((_, i) => i !== index);
+      if (remaining.length === 0) {
+        shareIntentStore.clear();
+        setFlowSelectorVisible(false);
+      } else {
+        shareIntentStore.setFiles(remaining);
+      }
+    }
+  }, []);
+
+  // Map store SharedFile (fileName: string | null) to component SharedFile (fileName: string)
+  const flowSelectorFiles = useMemo(
+    () => pendingFiles.map((f) => ({
+      uri: f.uri,
+      mimeType: f.mimeType,
+      fileName: f.fileName ?? `file.${f.mimeType.split('/')[1] ?? 'bin'}`,
+    })),
+    [pendingFiles],
+  );
+
   const canSwitch = availableModules.length > 1;
 
   const ctxValue = useMemo(
@@ -112,6 +159,14 @@ export default function AppLayout() {
             availableModules={availableModules}
             onSelect={switchTo}
             onClose={closeSwitcher}
+          />
+
+          <FlowSelectorSheet
+            visible={flowSelectorVisible}
+            files={flowSelectorFiles}
+            onSelect={handleFlowSelect}
+            onDismiss={handleFlowDismiss}
+            onRemoveFile={handleRemoveSharedFile}
           />
         </View>
       </AppModuleContext.Provider>

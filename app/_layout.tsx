@@ -7,6 +7,7 @@ import { DirectionProvider } from '../src/i18n/DirectionProvider';
 import { AuthProvider, useAuth } from '../src/services/authContext';
 import { VersionGate } from '../src/components/version/VersionGate';
 import { SessionExpiredModal } from '../src/components/auth/SessionExpiredModal';
+import { ShareIntentBridge } from '../src/components/share/ShareIntentBridge';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -28,6 +29,7 @@ export default function RootLayout() {
     <DirectionProvider>
       <ThemeProvider>
         <AuthProvider>
+          <ShareIntentBridge />
           <VersionGate>
             <StatusBar style="auto" />
             <Slot />

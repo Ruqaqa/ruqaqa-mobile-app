@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -36,6 +36,9 @@ import { CachedEmployee } from '@/services/employeeCacheService';
 import { ReceiptPickerSection } from './ReceiptPickerSection';
 import { SubmissionPreviewDialog } from './SubmissionPreviewDialog';
 import { useTransactionForm } from '../hooks/useTransactionForm';
+import { playSuccessSound } from '@/services/soundService';
+import { useShareIntent } from '@/hooks/useShareIntent';
+import { convertSharedFilesToAttachments } from '../utils/sharedFilesAdapter';
 
 interface TransactionFormScreenProps {
   permissions: UserPermissions;
@@ -93,6 +96,24 @@ export function TransactionFormScreen({
     employee,
     onSuccess: onClose,
   });
+
+  // Consume shared files targeted at transactions on mount
+  const { state: shareState, consumeFiles } = useShareIntent();
+  const consumedRef = useRef(false);
+  useEffect(() => {
+    if (
+      !consumedRef.current &&
+      shareState.status === 'flow_selected' &&
+      shareState.targetId === 'transaction'
+    ) {
+      consumedRef.current = true;
+      const sharedFiles = consumeFiles();
+      const { attachments } = convertSharedFilesToAttachments(sharedFiles, form.attachments.length);
+      for (const att of attachments) {
+        addAttachment(att.uri, att.type, att.name, att.mimeType, att.fileSize);
+      }
+    }
+  }, [shareState]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const errors = getErrors();
 
@@ -247,6 +268,7 @@ export function TransactionFormScreen({
     setPreviewVisible(false);
     const result = await submit();
     if (result.success) {
+      playSuccessSound(); // fire-and-forget
       const msg = result.transactionNumber
         ? `${t('transactionSubmittedSuccess')}\n${t('transactionNumberLabel', { number: result.transactionNumber })}`
         : t('transactionSubmittedSuccess');

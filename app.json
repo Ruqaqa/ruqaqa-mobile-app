@@ -34,7 +34,15 @@
       "expo-localization",
       "expo-secure-store",
       "expo-web-browser",
-      "expo-sharing"
+      "expo-sharing",
+      ["expo-share-intent", {
+        "iosActivationRules": {
+          "NSExtensionActivationSupportsImageWithMaxCount": 4,
+          "NSExtensionActivationSupportsFileWithMaxCount": 4
+        },
+        "androidIntentFilters": ["image/*", "application/pdf"],
+        "androidMultiIntentFilters": ["image/*"]
+      }]
     ],
     "extra": {
       "releaseChannel": "development"

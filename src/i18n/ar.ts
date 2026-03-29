@@ -311,6 +311,16 @@ export default {
   filesReceivedBanner_one: 'تم استلام ملف واحد. سيتم إرفاقه بعد تسجيل الدخول.',
   filesReceivedBanner_other: 'تم استلام {{count}} ملفات. سيتم إرفاقها بعد تسجيل الدخول.',
   receiptsAttached: 'تم إرفاق الإيصالات بالبيان',
+  shareFlowTitle: 'أين تريد الإضافة؟',
+  shareFileCount_one: 'ملف واحد',
+  shareFileCount_other: '{{count}} ملفات',
+  shareFlowTransaction: 'إيصال عملية',
+  shareFlowTransactionDesc: 'إرفاق كإيصال لعملية جديدة',
+  shareFlowReconciliation: 'التسوية',
+  shareFlowReconciliationDesc: 'إرفاق بسجل تسوية',
+  shareFlowGallery: 'ألبوم المعرض',
+  shareFlowGalleryDesc: 'رفع إلى ألبوم في المعرض',
+  shareFlowComingSoon: 'قريباً',
 
   // Search enhancements
   partnerEmployee: 'الشريك',
