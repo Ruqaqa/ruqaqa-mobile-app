@@ -102,13 +102,13 @@ Since video watermarking has no reliable client-side solution in React Native, c
 
 ---
 
-### Phase 3: Transactions
+### Phase 3: Transactions (In Progress)
 
 **Goal:** Users can create financial transactions, attach receipts, and browse transaction history.
 
 **Business Requirements:**
 
-**Transaction Creation Form:**
+**Transaction Creation Form — DONE:**
 - Multi-section form with: statement (description), amount, currency (default SAR), tax toggle, date, partner (employee or wallet), other party, bank fees, project code, client, notes
 - Receipt attachments: up to 4 images/documents per transaction, with inline preview and remove capability
 - Autocomplete/search fields for: projects, clients, employees, other parties, tags — each fetched from the backend with search-as-you-type
