@@ -42,9 +42,13 @@ export async function fetchReconciliations(
 
   if (sanitized.statement) queryParams.statement = sanitized.statement;
   if (sanitized.reconciliationNumber) queryParams.reconciliationNumber = sanitized.reconciliationNumber;
-  if (sanitized.employee) queryParams.employee = sanitized.employee;
-  if (sanitized.amount) queryParams.amount = sanitized.amount;
+  if (sanitized.fromEmployee) queryParams.fromEmployee = sanitized.fromEmployee;
+  if (sanitized.toEmployee) queryParams.toEmployee = sanitized.toEmployee;
+  if (sanitized.amountMin) queryParams.amountMin = sanitized.amountMin;
+  if (sanitized.amountMax) queryParams.amountMax = sanitized.amountMax;
   if (sanitized.type) queryParams.type = sanitized.type;
+  if (sanitized.fromType) queryParams.fromType = sanitized.fromType;
+  if (sanitized.toType) queryParams.toType = sanitized.toType;
   if (sanitized.senderChannel) queryParams.senderChannel = sanitized.senderChannel;
   if (sanitized.receiverChannel) queryParams.receiverChannel = sanitized.receiverChannel;
   if (sanitized.approvalStatus) queryParams.approvalStatus = sanitized.approvalStatus;

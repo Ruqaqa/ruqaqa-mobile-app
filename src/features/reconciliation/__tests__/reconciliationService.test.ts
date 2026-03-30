@@ -111,7 +111,8 @@ describe('fetchReconciliations', () => {
       ...EMPTY_FILTERS,
       statement: '  rent  ',
       approvalStatus: 'Approved',
-      amount: '500.50',
+      amountMin: '500.50',
+      amountMax: '1000',
     };
 
     await fetchReconciliations({ page: 1, showOwn: true, filters });
@@ -119,7 +120,8 @@ describe('fetchReconciliations', () => {
     const params = mock.history.get[0].params;
     expect(params.statement).toBe('rent');
     expect(params.approvalStatus).toBe('Approved');
-    expect(params.amount).toBe('500.50');
+    expect(params.amountMin).toBe('500.50');
+    expect(params.amountMax).toBe('1000');
   });
 
   it('sends type filter when set', async () => {
@@ -136,6 +138,46 @@ describe('fetchReconciliations', () => {
     await fetchReconciliations({ page: 1, showOwn: true, filters });
 
     expect(mock.history.get[0].params.type).toBe('salary');
+  });
+
+  it('sends fromEmployee and toEmployee filters', async () => {
+    mock.onGet('/reconciliation').reply(200, {
+      success: true,
+      data: { reconciliation: [], pagination: mockPagination },
+    });
+
+    const filters: ReconciliationFilters = {
+      ...EMPTY_FILTERS,
+      fromType: 'employee',
+      fromEmployee: 'John',
+      toType: 'employee',
+      toEmployee: 'Jane',
+    };
+
+    await fetchReconciliations({ page: 1, showOwn: true, filters });
+
+    const params = mock.history.get[0].params;
+    expect(params.fromEmployee).toBe('John');
+    expect(params.toEmployee).toBe('Jane');
+  });
+
+  it('sends fromType and toType filters', async () => {
+    mock.onGet('/reconciliation').reply(200, {
+      success: true,
+      data: { reconciliation: [], pagination: mockPagination },
+    });
+
+    const filters: ReconciliationFilters = {
+      ...EMPTY_FILTERS,
+      fromType: 'employee',
+      toType: 'المحفظة',
+    };
+
+    await fetchReconciliations({ page: 1, showOwn: true, filters });
+
+    const params = mock.history.get[0].params;
+    expect(params.fromType).toBe('employee');
+    expect(params.toType).toBe('المحفظة');
   });
 
   it('sends senderChannel and receiverChannel filters', async () => {
@@ -167,7 +209,10 @@ describe('fetchReconciliations', () => {
 
     const params = mock.history.get[0].params;
     expect(params.statement).toBeUndefined();
-    expect(params.employee).toBeUndefined();
+    expect(params.fromEmployee).toBeUndefined();
+    expect(params.toEmployee).toBeUndefined();
+    expect(params.fromType).toBeUndefined();
+    expect(params.toType).toBeUndefined();
     expect(params.approvalStatus).toBeUndefined();
     expect(params.type).toBeUndefined();
     expect(params.senderChannel).toBeUndefined();

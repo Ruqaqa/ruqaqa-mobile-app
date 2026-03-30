@@ -4,6 +4,9 @@ export { APPROVAL_STATUSES, ApprovalStatus, PAGE_SIZE, FILTER_MAX_LENGTH };
 export const RECONCILIATION_TYPES = ['salary', 'bonus', 'normal'] as const;
 export type ReconciliationType = (typeof RECONCILIATION_TYPES)[number];
 
+export const ENTITY_TYPES = ['المحفظة', 'employee', 'بطاقة البلاد'] as const;
+export type EntityType = (typeof ENTITY_TYPES)[number];
+
 export interface ReconciliationEmployee {
   id: string;
   name: string | null;
@@ -47,9 +50,13 @@ export interface ReconciliationPagination {
 export interface ReconciliationFilters {
   statement: string;
   reconciliationNumber: string;
-  employee: string;
-  amount: string;
+  fromEmployee: string;
+  toEmployee: string;
+  amountMin: string;
+  amountMax: string;
   type: ReconciliationType | null;
+  fromType: EntityType | null;
+  toType: EntityType | null;
   senderChannel: string;
   receiverChannel: string;
   dateFrom: Date | null;
@@ -60,9 +67,13 @@ export interface ReconciliationFilters {
 export const EMPTY_FILTERS: ReconciliationFilters = {
   statement: '',
   reconciliationNumber: '',
-  employee: '',
-  amount: '',
+  fromEmployee: '',
+  toEmployee: '',
+  amountMin: '',
+  amountMax: '',
   type: null,
+  fromType: null,
+  toType: null,
   senderChannel: '',
   receiverChannel: '',
   dateFrom: null,

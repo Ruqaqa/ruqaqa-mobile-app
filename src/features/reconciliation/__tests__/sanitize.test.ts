@@ -1,5 +1,6 @@
 import {
   isValidReconciliationType,
+  isValidEntityType,
   sanitizeFilters,
   hasActiveFilters,
 } from '../utils/sanitize';
@@ -31,6 +32,28 @@ describe('isValidReconciliationType', () => {
   });
 });
 
+describe('isValidEntityType', () => {
+  it('returns true for null (no filter)', () => {
+    expect(isValidEntityType(null)).toBe(true);
+  });
+
+  it('returns true for المحفظة', () => {
+    expect(isValidEntityType('المحفظة')).toBe(true);
+  });
+
+  it('returns true for employee', () => {
+    expect(isValidEntityType('employee')).toBe(true);
+  });
+
+  it('returns true for بطاقة البلاد', () => {
+    expect(isValidEntityType('بطاقة البلاد')).toBe(true);
+  });
+
+  it('returns false for arbitrary string', () => {
+    expect(isValidEntityType('invalid')).toBe(false);
+  });
+});
+
 describe('sanitizeFilters', () => {
   it('returns EMPTY_FILTERS for empty input', () => {
     expect(sanitizeFilters(EMPTY_FILTERS)).toEqual(EMPTY_FILTERS);
@@ -41,28 +64,82 @@ describe('sanitizeFilters', () => {
       ...EMPTY_FILTERS,
       statement: '  office rent  ',
       reconciliationNumber: '  REC-001  ',
-      employee: '  John Doe  ',
+      fromType: 'employee',
+      fromEmployee: '  John Doe  ',
+      toType: 'employee',
+      toEmployee: '  Jane Smith  ',
     };
     const result = sanitizeFilters(filters);
     expect(result.statement).toBe('office rent');
     expect(result.reconciliationNumber).toBe('REC-001');
-    expect(result.employee).toBe('John Doe');
+    expect(result.fromEmployee).toBe('John Doe');
+    expect(result.toEmployee).toBe('Jane Smith');
   });
 
-  it('drops invalid amount', () => {
+  it('clears fromEmployee when fromType is not employee', () => {
     const filters: ReconciliationFilters = {
       ...EMPTY_FILTERS,
-      amount: 'not-a-number',
+      fromType: 'المحفظة',
+      fromEmployee: 'Ahmed',
     };
-    expect(sanitizeFilters(filters).amount).toBe('');
+    expect(sanitizeFilters(filters).fromEmployee).toBe('');
   });
 
-  it('keeps valid amount', () => {
+  it('clears toEmployee when toType is null', () => {
     const filters: ReconciliationFilters = {
       ...EMPTY_FILTERS,
-      amount: '500.50',
+      toType: null,
+      toEmployee: 'Ahmed',
     };
-    expect(sanitizeFilters(filters).amount).toBe('500.50');
+    expect(sanitizeFilters(filters).toEmployee).toBe('');
+  });
+
+  it('drops invalid amountMin', () => {
+    const filters: ReconciliationFilters = {
+      ...EMPTY_FILTERS,
+      amountMin: 'not-a-number',
+    };
+    expect(sanitizeFilters(filters).amountMin).toBe('');
+  });
+
+  it('keeps valid amountMin', () => {
+    const filters: ReconciliationFilters = {
+      ...EMPTY_FILTERS,
+      amountMin: '500.50',
+    };
+    expect(sanitizeFilters(filters).amountMin).toBe('500.50');
+  });
+
+  it('drops invalid amountMax', () => {
+    const filters: ReconciliationFilters = {
+      ...EMPTY_FILTERS,
+      amountMax: 'abc',
+    };
+    expect(sanitizeFilters(filters).amountMax).toBe('');
+  });
+
+  it('keeps valid amountMax', () => {
+    const filters: ReconciliationFilters = {
+      ...EMPTY_FILTERS,
+      amountMax: '1000',
+    };
+    expect(sanitizeFilters(filters).amountMax).toBe('1000');
+  });
+
+  it('keeps negative amountMin', () => {
+    const filters: ReconciliationFilters = {
+      ...EMPTY_FILTERS,
+      amountMin: '-250.00',
+    };
+    expect(sanitizeFilters(filters).amountMin).toBe('-250.00');
+  });
+
+  it('keeps negative amountMax', () => {
+    const filters: ReconciliationFilters = {
+      ...EMPTY_FILTERS,
+      amountMax: '-100',
+    };
+    expect(sanitizeFilters(filters).amountMax).toBe('-100');
   });
 
   it('drops invalid reconciliation type', () => {
@@ -129,6 +206,38 @@ describe('sanitizeFilters', () => {
     expect(sanitizeFilters(filters).approvalStatus).toBe('Approved');
   });
 
+  it('drops invalid fromType', () => {
+    const filters: ReconciliationFilters = {
+      ...EMPTY_FILTERS,
+      fromType: 'BadType' as any,
+    };
+    expect(sanitizeFilters(filters).fromType).toBeNull();
+  });
+
+  it('keeps valid fromType', () => {
+    const filters: ReconciliationFilters = {
+      ...EMPTY_FILTERS,
+      fromType: 'employee',
+    };
+    expect(sanitizeFilters(filters).fromType).toBe('employee');
+  });
+
+  it('drops invalid toType', () => {
+    const filters: ReconciliationFilters = {
+      ...EMPTY_FILTERS,
+      toType: 'wallet' as any,
+    };
+    expect(sanitizeFilters(filters).toType).toBeNull();
+  });
+
+  it('keeps valid toType المحفظة', () => {
+    const filters: ReconciliationFilters = {
+      ...EMPTY_FILTERS,
+      toType: 'المحفظة',
+    };
+    expect(sanitizeFilters(filters).toType).toBe('المحفظة');
+  });
+
   it('preserves date fields as-is', () => {
     const d = new Date('2025-06-15');
     const filters: ReconciliationFilters = {
@@ -152,12 +261,28 @@ describe('hasActiveFilters', () => {
     expect(hasActiveFilters({ ...EMPTY_FILTERS, reconciliationNumber: 'REC-001' })).toBe(true);
   });
 
-  it('returns true when employee is set', () => {
-    expect(hasActiveFilters({ ...EMPTY_FILTERS, employee: 'John' })).toBe(true);
+  it('returns true when fromEmployee is set', () => {
+    expect(hasActiveFilters({ ...EMPTY_FILTERS, fromEmployee: 'John' })).toBe(true);
   });
 
-  it('returns true when amount is set', () => {
-    expect(hasActiveFilters({ ...EMPTY_FILTERS, amount: '500' })).toBe(true);
+  it('returns true when toEmployee is set', () => {
+    expect(hasActiveFilters({ ...EMPTY_FILTERS, toEmployee: 'Jane' })).toBe(true);
+  });
+
+  it('returns true when fromType is set', () => {
+    expect(hasActiveFilters({ ...EMPTY_FILTERS, fromType: 'employee' })).toBe(true);
+  });
+
+  it('returns true when toType is set', () => {
+    expect(hasActiveFilters({ ...EMPTY_FILTERS, toType: 'المحفظة' })).toBe(true);
+  });
+
+  it('returns true when amountMin is set', () => {
+    expect(hasActiveFilters({ ...EMPTY_FILTERS, amountMin: '500' })).toBe(true);
+  });
+
+  it('returns true when amountMax is set', () => {
+    expect(hasActiveFilters({ ...EMPTY_FILTERS, amountMax: '1000' })).toBe(true);
   });
 
   it('returns true when type is set', () => {

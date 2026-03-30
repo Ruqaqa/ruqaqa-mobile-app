@@ -17,10 +17,13 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { DatePickerField } from '@/components/ui/DatePickerField';
 import { SelectField } from '@/components/ui/SelectField';
+import { AutocompleteField, AutocompleteItem } from '@/components/ui/AutocompleteField';
 import { ApprovalStatusChips } from '@/components/finance/ApprovalStatusChips';
-import { ReconciliationFilters, EMPTY_FILTERS, RECONCILIATION_TYPES } from '../types';
+import { AmountInput } from '@/components/finance/AmountInput';
+import { ReconciliationFilters, EMPTY_FILTERS, RECONCILIATION_TYPES, ENTITY_TYPES } from '../types';
 import { sanitizeFilters } from '../utils/sanitize';
 import { getFinanceChannels, CachedFinanceChannel } from '@/services/financeChannelService';
+import { getEmployees, CachedEmployee } from '@/services/employeeCacheService';
 
 interface SearchModalProps {
   visible: boolean;
@@ -40,10 +43,16 @@ export function SearchModal({
 
   const [localFilters, setLocalFilters] = useState<ReconciliationFilters>(filters);
   const [channels, setChannels] = useState<CachedFinanceChannel[]>([]);
+  const [employees, setEmployees] = useState<CachedEmployee[]>([]);
+  const [selectedFromEmployee, setSelectedFromEmployee] = useState<AutocompleteItem | null>(null);
+  const [selectedToEmployee, setSelectedToEmployee] = useState<AutocompleteItem | null>(null);
+  const [minNegative, setMinNegative] = useState(false);
+  const [maxNegative, setMaxNegative] = useState(false);
 
   useEffect(() => {
     if (visible) {
       getFinanceChannels().then(setChannels);
+      getEmployees().then(setEmployees);
     }
   }, [visible]);
 
@@ -67,11 +76,42 @@ export function SearchModal({
     [t],
   );
 
+  const entityTypeOptions = useMemo(
+    () =>
+      ENTITY_TYPES.map((et) => ({
+        label: t(
+          et === 'المحفظة'
+            ? 'entityTypeWallet'
+            : et === 'employee'
+              ? 'entityTypeEmployee'
+              : ('entityTypeBiladCard' as any),
+        ),
+        value: et,
+      })),
+    [t],
+  );
+
+  // Sync local filters and derive selected employee state when modal opens
   useEffect(() => {
     if (visible) {
       setLocalFilters(filters);
+      setMinNegative(filters.amountMin.startsWith('-'));
+      setMaxNegative(filters.amountMax.startsWith('-'));
+      // Derive selected employee from filter text + cached employees
+      if (filters.fromEmployee && filters.fromType === 'employee') {
+        const match = employees.find((e) => e.name === filters.fromEmployee);
+        setSelectedFromEmployee(match ? { id: match.id, label: match.name } : null);
+      } else {
+        setSelectedFromEmployee(null);
+      }
+      if (filters.toEmployee && filters.toType === 'employee') {
+        const match = employees.find((e) => e.name === filters.toEmployee);
+        setSelectedToEmployee(match ? { id: match.id, label: match.name } : null);
+      } else {
+        setSelectedToEmployee(null);
+      }
     }
-  }, [visible, filters]);
+  }, [visible, filters, employees]);
 
   const updateField = useCallback(
     <K extends keyof ReconciliationFilters>(key: K, value: ReconciliationFilters[K]) => {
@@ -87,8 +127,22 @@ export function SearchModal({
     onClose();
   }, [localFilters, onApply, onClose]);
 
+  const handleEmployeeSearch = useCallback(
+    async (query: string): Promise<AutocompleteItem[]> => {
+      const q = query.toLowerCase();
+      return employees
+        .filter((e) => e.name.toLowerCase().includes(q))
+        .map((e) => ({ id: e.id, label: e.name }));
+    },
+    [employees],
+  );
+
   const handleClear = useCallback(() => {
     setLocalFilters(EMPTY_FILTERS);
+    setSelectedFromEmployee(null);
+    setSelectedToEmployee(null);
+    setMinNegative(false);
+    setMaxNegative(false);
   }, []);
 
   return (
@@ -151,23 +205,134 @@ export function SearchModal({
             placeholder={t('searchByReconciliationNumber')}
           />
 
-          {/* 3. Employee */}
-          <Input
-            label={t('employee')}
-            value={localFilters.employee}
-            onChangeText={(v) => updateField('employee', v)}
-            placeholder={t('searchByEmployee')}
+          {/* 3. Sender section */}
+          <Text
+            style={[
+              typography.label,
+              { color: colors.primary, marginBottom: spacing.sm, marginTop: spacing.sm },
+            ]}
+          >
+            {t('senderDetails')}
+          </Text>
+          <SelectField
+            label={t('senderType')}
+            value={localFilters.fromType}
+            placeholder={t('selectSenderType')}
+            options={entityTypeOptions}
+            onChange={(v) => {
+              updateField('fromType', v as any);
+              if (v !== 'employee') {
+                updateField('fromEmployee', '');
+                setSelectedFromEmployee(null);
+              }
+            }}
+            onClear={() => {
+              updateField('fromType', null);
+              updateField('fromEmployee', '');
+              setSelectedFromEmployee(null);
+            }}
           />
+          {localFilters.fromType === 'employee' && (
+            <AutocompleteField
+              label={t('senderEmployee')}
+              value={selectedFromEmployee}
+              placeholder={t('searchBySenderEmployee')}
+              onSearch={handleEmployeeSearch}
+              onSelect={(item) => {
+                updateField('fromEmployee', item.label);
+                setSelectedFromEmployee(item);
+              }}
+              onClear={() => {
+                updateField('fromEmployee', '');
+                setSelectedFromEmployee(null);
+              }}
+              testID="from-employee-autocomplete"
+            />
+          )}
 
-          {/* 4. Amount */}
-          <Input
-            label={t('totalAmount')}
-            value={localFilters.amount}
-            onChangeText={(v) => updateField('amount', v.replace(/[^0-9.]/g, ''))}
-            keyboardType="decimal-pad"
+          {/* 4. Receiver section */}
+          <Text
+            style={[
+              typography.label,
+              { color: colors.primary, marginBottom: spacing.sm, marginTop: spacing.sm },
+            ]}
+          >
+            {t('receiverDetails')}
+          </Text>
+          <SelectField
+            label={t('receiverType')}
+            value={localFilters.toType}
+            placeholder={t('selectReceiverType')}
+            options={entityTypeOptions}
+            onChange={(v) => {
+              updateField('toType', v as any);
+              if (v !== 'employee') {
+                updateField('toEmployee', '');
+                setSelectedToEmployee(null);
+              }
+            }}
+            onClear={() => {
+              updateField('toType', null);
+              updateField('toEmployee', '');
+              setSelectedToEmployee(null);
+            }}
           />
+          {localFilters.toType === 'employee' && (
+            <AutocompleteField
+              label={t('receiverEmployee')}
+              value={selectedToEmployee}
+              placeholder={t('searchByReceiverEmployee')}
+              onSearch={handleEmployeeSearch}
+              onSelect={(item) => {
+                updateField('toEmployee', item.label);
+                setSelectedToEmployee(item);
+              }}
+              onClear={() => {
+                updateField('toEmployee', '');
+                setSelectedToEmployee(null);
+              }}
+              testID="to-employee-autocomplete"
+            />
+          )}
 
-          {/* 5. Type */}
+          {/* 5. Min Amount / Max Amount side by side with +/- toggles */}
+          <View style={styles.dateRow}>
+            <View style={{ flex: 1 }}>
+              <AmountInput
+                label={t('minAmount')}
+                placeholder={t('min')}
+                value={localFilters.amountMin}
+                isNegative={minNegative}
+                onChangeText={(v) => updateField('amountMin', (minNegative ? '-' : '') + v.replace(/[^0-9.]/g, ''))}
+                onToggleSign={() => {
+                  setMinNegative((prev) => {
+                    const raw = localFilters.amountMin.replace(/^-/, '');
+                    updateField('amountMin', !prev && raw ? `-${raw}` : raw);
+                    return !prev;
+                  });
+                }}
+              />
+            </View>
+            <View style={{ width: spacing.sm }} />
+            <View style={{ flex: 1 }}>
+              <AmountInput
+                label={t('maxAmount')}
+                placeholder={t('max')}
+                value={localFilters.amountMax}
+                isNegative={maxNegative}
+                onChangeText={(v) => updateField('amountMax', (maxNegative ? '-' : '') + v.replace(/[^0-9.]/g, ''))}
+                onToggleSign={() => {
+                  setMaxNegative((prev) => {
+                    const raw = localFilters.amountMax.replace(/^-/, '');
+                    updateField('amountMax', !prev && raw ? `-${raw}` : raw);
+                    return !prev;
+                  });
+                }}
+              />
+            </View>
+          </View>
+
+          {/* 6. Type */}
           <SelectField
             label={t('reconciliationType')}
             value={localFilters.type}
@@ -177,7 +342,7 @@ export function SearchModal({
             onClear={() => updateField('type', null)}
           />
 
-          {/* 6. Sender Channel */}
+          {/* 7. Sender Channel */}
           <SelectField
             label={t('senderChannel')}
             value={localFilters.senderChannel || null}
@@ -187,7 +352,7 @@ export function SearchModal({
             onClear={() => updateField('senderChannel', '')}
           />
 
-          {/* 7. Receiver Channel */}
+          {/* 8. Receiver Channel */}
           <SelectField
             label={t('receiverChannel')}
             value={localFilters.receiverChannel || null}
@@ -197,7 +362,7 @@ export function SearchModal({
             onClear={() => updateField('receiverChannel', '')}
           />
 
-          {/* 8. Approval Status */}
+          {/* 9. Approval Status */}
           <Text
             style={[
               typography.label,
@@ -211,7 +376,7 @@ export function SearchModal({
             onChange={(v) => updateField('approvalStatus', v)}
           />
 
-          {/* 9-10. Date From / Date To */}
+          {/* 10-11. Date From / Date To */}
           <View style={[styles.dateRow, { marginTop: spacing.base }]}>
             <View style={{ flex: 1 }}>
               <DatePickerField

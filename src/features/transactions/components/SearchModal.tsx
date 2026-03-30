@@ -18,8 +18,8 @@ import { Button } from '@/components/ui/Button';
 import { DatePickerField } from '@/components/ui/DatePickerField';
 import { TransactionFilters, EMPTY_FILTERS, TAX_QUARTERS, TAX_YEARS, WALLET_PARTNER, BALAD_CARD_PARTNER } from '../types';
 import { sanitizeFilters } from '../utils/sanitize';
-import { withAlpha } from '@/utils/colorUtils';
 import { ApprovalStatusChips } from './ApprovalStatusChips';
+import { AmountInput } from '@/components/finance/AmountInput';
 import { SelectField } from '@/components/ui/SelectField';
 import { getEmployees, CachedEmployee } from '@/services/employeeCacheService';
 
@@ -39,7 +39,7 @@ export function SearchModal({
   onClose,
 }: SearchModalProps) {
   const { t } = useTranslation();
-  const { colors, typography, spacing, radius } = useTheme();
+  const { colors, typography, spacing } = useTheme();
 
   const [localFilters, setLocalFilters] = useState<TransactionFilters>(filters);
   const [minNegative, setMinNegative] = useState(false);
@@ -194,7 +194,7 @@ export function SearchModal({
                 label={t('minAmount')}
                 placeholder={t('min')}
                 value={localFilters.amountMin}
-                negative={minNegative}
+                isNegative={minNegative}
                 onChangeText={(v) => updateField('amountMin', (minNegative ? '-' : '') + v.replace(/[^0-9.]/g, ''))}
                 onToggleSign={() => {
                   setMinNegative((prev) => {
@@ -203,18 +203,15 @@ export function SearchModal({
                     return !prev;
                   });
                 }}
-                colors={colors}
-                typography={typography}
-                radius={radius}
               />
             </View>
-            <View style={{ width: 8 }} />
+            <View style={{ width: spacing.sm }} />
             <View style={{ flex: 1 }}>
               <AmountInput
                 label={t('maxAmount')}
                 placeholder={t('max')}
                 value={localFilters.amountMax}
-                negative={maxNegative}
+                isNegative={maxNegative}
                 onChangeText={(v) => updateField('amountMax', (maxNegative ? '-' : '') + v.replace(/[^0-9.]/g, ''))}
                 onToggleSign={() => {
                   setMaxNegative((prev) => {
@@ -223,9 +220,6 @@ export function SearchModal({
                     return !prev;
                   });
                 }}
-                colors={colors}
-                typography={typography}
-                radius={radius}
               />
             </View>
           </View>
@@ -329,63 +323,6 @@ export function SearchModal({
   );
 }
 
-function AmountInput({
-  label,
-  placeholder,
-  value,
-  negative,
-  onChangeText,
-  onToggleSign,
-  colors,
-  typography,
-  radius,
-}: {
-  label: string;
-  placeholder: string;
-  value: string;
-  negative: boolean;
-  onChangeText: (v: string) => void;
-  onToggleSign: () => void;
-  colors: any;
-  typography: any;
-  radius: any;
-}) {
-  const displayValue = value.replace(/^-/, '');
-  return (
-    <View>
-      <Input
-        label={label}
-        value={displayValue}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        keyboardType="decimal-pad"
-        style={{ paddingEnd: 40 }}
-      />
-      <Pressable
-        onPress={onToggleSign}
-        hitSlop={6}
-        style={[
-          styles.signToggle,
-          {
-            backgroundColor: negative
-              ? withAlpha(colors.error, 0.15)
-              : withAlpha(colors.green, 0.15),
-            borderRadius: radius.full,
-          },
-        ]}
-      >
-        <Text
-          style={[
-            typography.label,
-            { color: negative ? colors.error : colors.green, fontWeight: '700' },
-          ]}
-        >
-          {negative ? '−' : '+'}
-        </Text>
-      </Pressable>
-    </View>
-  );
-}
 
 const styles = StyleSheet.create({
   container: {
@@ -407,14 +344,5 @@ const styles = StyleSheet.create({
   actionBar: {
     flexDirection: 'row',
     borderTopWidth: 1,
-  },
-  signToggle: {
-    position: 'absolute',
-    end: 8,
-    bottom: 24,
-    width: 28,
-    height: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });
