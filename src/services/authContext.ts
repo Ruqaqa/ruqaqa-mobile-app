@@ -26,6 +26,8 @@ import {
   refreshTokens,
 } from './authService';
 import { createDeduplicatedRefresh } from '../utils/deduplicatedRefresh';
+import { initializeEmployeeCache, clearEmployeeCache } from './employeeCacheService';
+import { initializeFinanceChannelCache, clearFinanceChannelCache } from './financeChannelService';
 
 // ---------------------------------------------------------------------------
 // Context shape
@@ -222,6 +224,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsAuthenticated(true);
         scheduleRefreshRef.current();
 
+        // Non-blocking cache warm-up
+        initializeEmployeeCache().catch(() => {});
+        initializeFinanceChannelCache().catch(() => {});
+
         return { status: LoginStatus.Success };
       } catch {
         return {
@@ -255,6 +261,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await logoutServer();
       // Dismiss any open browser session
       WebBrowser.dismissBrowser();
+      clearEmployeeCache();
+      clearFinanceChannelCache();
       setEmployee(null);
       setPermissions(null);
       setIsAuthenticated(false);
@@ -298,6 +306,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setPermissions(validation.permissions);
             setIsAuthenticated(true);
             scheduleRefresh();
+            // Non-blocking cache warm-up on session restore
+            initializeEmployeeCache().catch(() => {});
+            initializeFinanceChannelCache().catch(() => {});
           } else {
             await tokenStorage.clearAll();
           }

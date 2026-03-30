@@ -1,5 +1,6 @@
-import { AxiosError } from 'axios';
 import { apiClient } from '@/services/apiClient';
+import { ApiError, mapAxiosError } from '@/services/errors';
+import { formatDateParam } from '@/utils/formatters';
 import {
   Transaction,
   TransactionPagination,
@@ -10,15 +11,8 @@ import {
 } from '../types';
 import { sanitizeFilters } from '../utils/sanitize';
 
-export class TransactionError extends Error {
-  constructor(
-    public code: 'FORBIDDEN' | 'NOT_FOUND' | 'NETWORK' | 'SERVER' | 'UNKNOWN',
-    message?: string,
-  ) {
-    super(message ?? code);
-    this.name = 'TransactionError';
-  }
-}
+/** @deprecated Use ApiError from '@/services/errors' directly */
+export { ApiError as TransactionError } from '@/services/errors';
 
 interface FetchTransactionsParams {
   page: number;
@@ -29,24 +23,6 @@ interface FetchTransactionsParams {
 interface FetchTransactionsResult {
   transactions: Transaction[];
   pagination: TransactionPagination;
-}
-
-function mapError(error: unknown): TransactionError {
-  if (error instanceof TransactionError) return error;
-
-  if (error instanceof AxiosError) {
-    if (!error.response) return new TransactionError('NETWORK');
-    const status = error.response.status;
-    if (status === 403) return new TransactionError('FORBIDDEN');
-    if (status === 404) return new TransactionError('NOT_FOUND');
-    if (status >= 500) return new TransactionError('SERVER');
-  }
-
-  return new TransactionError('UNKNOWN');
-}
-
-function formatDateParam(date: Date): string {
-  return date.toISOString().split('T')[0];
 }
 
 export async function fetchTransactions(
@@ -83,7 +59,7 @@ export async function fetchTransactions(
     const { transactions, pagination } = response.data.data;
     return { transactions, pagination };
   } catch (error) {
-    throw mapError(error);
+    throw mapAxiosError(error);
   }
 }
 
@@ -94,7 +70,7 @@ export async function fetchTransactionById(
     const response = await apiClient.get(`/transactions/${id}`);
     return response.data.data;
   } catch (error) {
-    throw mapError(error);
+    throw mapAxiosError(error);
   }
 }
 
@@ -103,7 +79,7 @@ export async function updateApprovalStatus(
   status: ApprovalStatus,
 ): Promise<Transaction> {
   if (!(APPROVAL_STATUSES as readonly string[]).includes(status)) {
-    throw new TransactionError('UNKNOWN', 'Invalid approval status');
+    throw new ApiError('UNKNOWN', 'Invalid approval status');
   }
 
   try {
@@ -116,6 +92,6 @@ export async function updateApprovalStatus(
     const updated = await fetchTransactionById(recordId);
     return updated;
   } catch (error) {
-    throw mapError(error);
+    throw mapAxiosError(error);
   }
 }

@@ -7,24 +7,24 @@ import {
 } from '../utils/formatters';
 
 describe('formatDate', () => {
-  it('formats ISO date string to DD MMM YYYY', () => {
-    expect(formatDate('2025-03-15T10:30:00Z')).toBe('15 Mar 2025');
+  it('formats ISO date string to DD/MM/YYYY', () => {
+    expect(formatDate('2025-03-15T10:30:00Z')).toBe('15/03/2025');
   });
 
   it('returns dash for undefined', () => {
-    expect(formatDate(undefined)).toBe('—');
+    expect(formatDate(undefined)).toBe('\u2014');
   });
 
   it('returns dash for empty string', () => {
-    expect(formatDate('')).toBe('—');
+    expect(formatDate('')).toBe('\u2014');
   });
 
   it('returns dash for invalid date', () => {
-    expect(formatDate('not-a-date')).toBe('—');
+    expect(formatDate('not-a-date')).toBe('\u2014');
   });
 
   it('formats date-only string', () => {
-    expect(formatDate('2025-01-01')).toBe('01 Jan 2025');
+    expect(formatDate('2025-01-01')).toBe('01/01/2025');
   });
 });
 

@@ -1,6 +1,5 @@
-/** Approval status values — the only valid values for the approvalStatus field */
-export const APPROVAL_STATUSES = ['Pending', 'Approved', 'Rejected'] as const;
-export type ApprovalStatus = (typeof APPROVAL_STATUSES)[number];
+import { APPROVAL_STATUSES, ApprovalStatus, PAGE_SIZE, FILTER_MAX_LENGTH } from '@/types/shared';
+export { APPROVAL_STATUSES, ApprovalStatus, PAGE_SIZE, FILTER_MAX_LENGTH };
 
 /** Tax quarter values */
 export const TAX_QUARTERS = ['Q1', 'Q2', 'Q3', 'Q4'] as const;
@@ -21,12 +20,6 @@ export const BALAD_CARD_PARTNER = 'بطاقة البلاد' as const;
 /** Partner type values */
 export const PARTNER_TYPES = ['employee', 'wallet'] as const;
 export type PartnerType = (typeof PARTNER_TYPES)[number];
-
-/** Pagination constants */
-export const PAGE_SIZE = 20;
-
-/** Max length for text filter inputs */
-export const FILTER_MAX_LENGTH = 200;
 
 /** Max length for notes field */
 export const NOTES_MAX_LENGTH = 1000;

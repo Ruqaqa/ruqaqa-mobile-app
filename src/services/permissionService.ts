@@ -40,6 +40,7 @@ export function extractPermissions(
     canViewReconciliationHistory:
       has('reconciliation_read_own') || has('reconciliation_read_all'),
     canViewAllReconciliations: has('reconciliation_read_all'),
+    canUpdateReconciliation: has('reconciliation_update'),
 
     canViewPayrollHistory: has('payroll_read_own') || has('payroll_read_all'),
     canViewAllPayroll: has('payroll_read_all'),

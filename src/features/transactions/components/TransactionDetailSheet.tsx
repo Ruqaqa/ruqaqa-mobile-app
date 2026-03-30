@@ -12,8 +12,10 @@ import { useTranslation } from 'react-i18next';
 import { X, Paperclip, Pencil } from 'lucide-react-native';
 import { useTheme } from '@/theme';
 import { withAlpha } from '@/utils/colorUtils';
+import { isSAR } from '@/utils/formatters';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { SaudiRiyalSymbol } from '@/components/ui/SaudiRiyalSymbol';
+import { DetailRow } from '@/components/finance/DetailRow';
 import { Transaction, ApprovalStatus } from '../types';
 import {
   formatDate,
@@ -134,9 +136,6 @@ export function TransactionDetailSheet({
           <DetailRow
             label={t('statement')}
             value={transaction.statement}
-            colors={colors}
-            typography={typography}
-            spacing={spacing}
           />
           <View style={[styles.detailRow, { marginBottom: spacing.md }]}>
             <Text
@@ -158,11 +157,8 @@ export function TransactionDetailSheet({
             label={t('totalAmount')}
             value={formatAmount(transaction.totalAmount)}
             valueColor={colors[amountColorKey]}
-            colors={colors}
-            typography={typography}
-            spacing={spacing}
             currencySymbol={
-              transaction.currency === 'SAR' || transaction.currency === 'ريال سعودي' ? (
+              isSAR(transaction.currency) ? (
                 <SaudiRiyalSymbol size={14} color={colors[amountColorKey]} />
               ) : (
                 <Text style={[typography.headingSmall, { color: colors[amountColorKey] }]}>$</Text>
@@ -173,61 +169,40 @@ export function TransactionDetailSheet({
             <DetailRow
               label={t('tax')}
               value={transaction.tax}
-              colors={colors}
-              typography={typography}
-              spacing={spacing}
             />
           )}
           {transaction.bankFees !== undefined && transaction.bankFees !== null && (
             <DetailRow
               label={t('bankFees')}
               value={formatAmount(transaction.bankFees)}
-              colors={colors}
-              typography={typography}
-              spacing={spacing}
             />
           )}
           {transaction.transactionNumber && (
             <DetailRow
               label={t('transactionNumber')}
               value={transaction.transactionNumber}
-              colors={colors}
-              typography={typography}
-              spacing={spacing}
             />
           )}
           {transaction.client && (
             <DetailRow
               label={t('client')}
               value={transaction.client.name}
-              colors={colors}
-              typography={typography}
-              spacing={spacing}
             />
           )}
           {transaction.project && (
             <DetailRow
               label={t('project')}
               value={transaction.project.name}
-              colors={colors}
-              typography={typography}
-              spacing={spacing}
             />
           )}
           <DetailRow
             label={t('date')}
             value={formatDate(transaction.transactionDate ?? transaction.createdAt)}
-            colors={colors}
-            typography={typography}
-            spacing={spacing}
           />
           {recordedBy && (
             <DetailRow
               label={t('recordedBy')}
               value={recordedBy}
-              colors={colors}
-              typography={typography}
-              spacing={spacing}
             />
           )}
 
@@ -347,51 +322,6 @@ export function TransactionDetailSheet({
   );
 }
 
-function DetailRow({
-  label,
-  value,
-  valueColor,
-  colors,
-  typography,
-  spacing,
-  currencySymbol,
-}: {
-  label: string;
-  value: string;
-  valueColor?: string;
-  colors: any;
-  typography: any;
-  spacing: any;
-  currencySymbol?: React.ReactNode;
-}) {
-  return (
-    <View style={[styles.detailRow, { marginBottom: spacing.md }]}>
-      <Text
-        style={[
-          typography.label,
-          styles.detailLabel,
-          { color: colors.foregroundSecondary },
-        ]}
-      >
-        {label}
-      </Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-        <Text
-          style={[
-            typography.bodyMedium,
-            {
-              color: valueColor ?? colors.foreground,
-              fontWeight: '600',
-            },
-          ]}
-        >
-          {value}
-        </Text>
-        {currencySymbol && <View style={{ marginStart: 4 }}>{currencySymbol}</View>}
-      </View>
-    </View>
-  );
-}
 
 const styles = StyleSheet.create({
   backdrop: {

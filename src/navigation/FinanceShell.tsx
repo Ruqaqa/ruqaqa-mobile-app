@@ -13,6 +13,7 @@ import {
 import { AppBar } from '../components/layout/AppBar';
 import { TransactionHistoryScreen } from '../features/transactions/components/TransactionHistoryScreen';
 import { TransactionFormScreen } from '../features/transactions/components/TransactionFormScreen';
+import { ReconciliationHistoryScreen } from '../features/reconciliation/components/ReconciliationHistoryScreen';
 import { useShareIntent } from '../hooks/useShareIntent';
 
 // Placeholder tab content — replaced per-feature in later phases
@@ -100,6 +101,8 @@ export function FinanceShell() {
           >
             {tab === 'operations' ? (
               <TransactionHistoryScreen permissions={permissions} />
+            ) : tab === 'reconciliation' ? (
+              <ReconciliationHistoryScreen permissions={permissions} />
             ) : (
               <PlaceholderTab label={tabLabels[tab]} />
             )}

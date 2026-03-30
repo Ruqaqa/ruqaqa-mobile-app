@@ -1,28 +1,6 @@
 import { TransactionEmployee } from '../types';
 
-const MONTHS = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
-
-/** Format ISO date string to "DD MMM YYYY". Returns em-dash for invalid/empty input. */
-export function formatDate(value: string | undefined): string {
-  if (!value) return '\u2014';
-  const d = new Date(value);
-  if (isNaN(d.getTime())) return '\u2014';
-  const day = String(d.getUTCDate()).padStart(2, '0');
-  const month = MONTHS[d.getUTCMonth()];
-  const year = d.getUTCFullYear();
-  return `${day} ${month} ${year}`;
-}
-
-/** Format number to comma-separated string with 2 decimal places. */
-export function formatAmount(value: number): string {
-  return value.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
+export { formatDate, formatAmount, formatDateParam } from '@/utils/formatters';
 
 /** Return the theme color key for an amount value. */
 export function getAmountColor(

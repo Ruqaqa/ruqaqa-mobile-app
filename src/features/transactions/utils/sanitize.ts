@@ -1,9 +1,6 @@
 import {
   TransactionFilters,
-  FILTER_MAX_LENGTH,
   NOTES_MAX_LENGTH,
-  APPROVAL_STATUSES,
-  ApprovalStatus,
   TAX_QUARTERS,
   TaxQuarter,
   TAX_YEARS,
@@ -19,49 +16,21 @@ import {
   TransactionSubmissionData,
 } from '../types';
 
-// ---------------------------------------------------------------------------
-// Text sanitization
-// ---------------------------------------------------------------------------
-
-/** Trim and cap a string input. Defaults to FILTER_MAX_LENGTH (200). */
-export function sanitizeText(
-  value: string,
-  maxLength: number = FILTER_MAX_LENGTH,
-): string {
-  return (value ?? '').trim().slice(0, maxLength);
-}
+// Re-export shared sanitizers so existing imports from this module keep working
+export { sanitizeText, isValidAmount, isValidApprovalStatus, isValidObjectId } from '@/utils/sanitize';
+import { sanitizeText } from '@/utils/sanitize';
+import { isValidAmount } from '@/utils/sanitize';
+import { isValidApprovalStatus } from '@/utils/sanitize';
 
 /** Trim and cap a notes field (1000 chars). */
 export function sanitizeNotes(value: string): string {
   return sanitizeText(value, NOTES_MAX_LENGTH);
 }
 
-// ---------------------------------------------------------------------------
-// Amount validation
-// ---------------------------------------------------------------------------
-
-/** Validate amount for filter inputs (allows negative, 2 decimal places max). */
-export function isValidAmount(value: string): boolean {
-  if (value === '') return true;
-  return /^-?\d+(\.\d{1,2})?$/.test(value.trim());
-}
-
 /** Validate amount for transaction submission (positive only, 2 decimal places max). */
 export function isValidSubmissionAmount(value: string): boolean {
   if (value === '') return false;
   return /^\d+(\.\d{1,2})?$/.test(value.trim());
-}
-
-// ---------------------------------------------------------------------------
-// Enum validators
-// ---------------------------------------------------------------------------
-
-/** Validate approval status against the enum */
-export function isValidApprovalStatus(
-  value: string | null,
-): value is ApprovalStatus {
-  if (value === null) return true;
-  return (APPROVAL_STATUSES as readonly string[]).includes(value);
 }
 
 /** Validate tax quarter against the enum */
@@ -101,18 +70,6 @@ export function isValidPartnerFilter(value: string): boolean {
   if (value === '') return true;
   if ((VALID_PARTNER_CONSTANTS as readonly string[]).includes(value)) return true;
   return /^[a-f\d]{24}$/i.test(value);
-}
-
-// ---------------------------------------------------------------------------
-// ID validation
-// ---------------------------------------------------------------------------
-
-const OBJECT_ID_RE = /^[a-f\d]{24}$/i;
-
-/** Validate a MongoDB ObjectId format. Null/empty is allowed (optional field). */
-export function isValidObjectId(value: string | null | undefined): boolean {
-  if (value == null || value === '') return true;
-  return OBJECT_ID_RE.test(value);
 }
 
 // ---------------------------------------------------------------------------

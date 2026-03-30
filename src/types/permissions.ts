@@ -19,6 +19,7 @@ export interface UserPermissions {
   canCreateReconciliation: boolean;
   canViewReconciliationHistory: boolean;
   canViewAllReconciliations: boolean;
+  canUpdateReconciliation: boolean;
 
   // Payroll
   canViewPayrollHistory: boolean;
