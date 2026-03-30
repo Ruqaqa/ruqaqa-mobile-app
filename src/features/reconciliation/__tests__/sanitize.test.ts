@@ -64,23 +64,30 @@ describe('sanitizeFilters', () => {
       ...EMPTY_FILTERS,
       statement: '  office rent  ',
       reconciliationNumber: '  REC-001  ',
-      fromType: 'employee',
-      fromEmployee: '  John Doe  ',
-      toType: 'employee',
-      toEmployee: '  Jane Smith  ',
     };
     const result = sanitizeFilters(filters);
     expect(result.statement).toBe('office rent');
     expect(result.reconciliationNumber).toBe('REC-001');
-    expect(result.fromEmployee).toBe('John Doe');
-    expect(result.toEmployee).toBe('Jane Smith');
+  });
+
+  it('keeps valid employee ObjectIds when fromType is employee', () => {
+    const filters: ReconciliationFilters = {
+      ...EMPTY_FILTERS,
+      fromType: 'employee',
+      fromEmployee: '507f1f77bcf86cd799439011',
+      toType: 'employee',
+      toEmployee: 'aabbccddeeff00112233aabb',
+    };
+    const result = sanitizeFilters(filters);
+    expect(result.fromEmployee).toBe('507f1f77bcf86cd799439011');
+    expect(result.toEmployee).toBe('aabbccddeeff00112233aabb');
   });
 
   it('clears fromEmployee when fromType is not employee', () => {
     const filters: ReconciliationFilters = {
       ...EMPTY_FILTERS,
       fromType: 'المحفظة',
-      fromEmployee: 'Ahmed',
+      fromEmployee: '507f1f77bcf86cd799439011',
     };
     expect(sanitizeFilters(filters).fromEmployee).toBe('');
   });
@@ -89,9 +96,18 @@ describe('sanitizeFilters', () => {
     const filters: ReconciliationFilters = {
       ...EMPTY_FILTERS,
       toType: null,
-      toEmployee: 'Ahmed',
+      toEmployee: '507f1f77bcf86cd799439011',
     };
     expect(sanitizeFilters(filters).toEmployee).toBe('');
+  });
+
+  it('drops invalid employee value (not ObjectId)', () => {
+    const filters: ReconciliationFilters = {
+      ...EMPTY_FILTERS,
+      fromType: 'employee',
+      fromEmployee: 'not-an-id',
+    };
+    expect(sanitizeFilters(filters).fromEmployee).toBe('');
   });
 
   it('drops invalid amountMin', () => {

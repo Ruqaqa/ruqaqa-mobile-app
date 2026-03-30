@@ -109,10 +109,10 @@ describe('SearchModal employee autocomplete', () => {
     expect(getByTestId('to-employee-autocomplete')).toBeTruthy();
   });
 
-  it('shows pre-selected sender employee when filter has matching name', async () => {
+  it('shows pre-selected sender employee when filter has matching ID', async () => {
     const { getByText } = renderModal({
       fromType: 'employee',
-      fromEmployee: 'Ahmed Ali',
+      fromEmployee: 'emp-1',
     });
     await waitFor(() => {
       expect(mockGetEmployees).toHaveBeenCalled();
@@ -123,10 +123,10 @@ describe('SearchModal employee autocomplete', () => {
     });
   });
 
-  it('shows pre-selected receiver employee when filter has matching name', async () => {
+  it('shows pre-selected receiver employee when filter has matching ID', async () => {
     const { getByText } = renderModal({
       toType: 'employee',
-      toEmployee: 'Mohammed Saeed',
+      toEmployee: 'emp-2',
     });
     await waitFor(() => {
       expect(mockGetEmployees).toHaveBeenCalled();
@@ -139,7 +139,7 @@ describe('SearchModal employee autocomplete', () => {
   it('clears selected sender employee when clear all is pressed', async () => {
     const { getByText, queryByText } = renderModal({
       fromType: 'employee',
-      fromEmployee: 'Ahmed Ali',
+      fromEmployee: 'emp-1',
     });
     await waitFor(() => {
       expect(getByText('Ahmed Ali')).toBeTruthy();

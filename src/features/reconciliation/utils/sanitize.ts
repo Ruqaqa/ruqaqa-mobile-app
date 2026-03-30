@@ -24,8 +24,8 @@ export function sanitizeFilters(filters: ReconciliationFilters): ReconciliationF
   return {
     statement: sanitizeText(filters.statement),
     reconciliationNumber: sanitizeText(filters.reconciliationNumber),
-    fromEmployee: filters.fromType === 'employee' ? sanitizeText(filters.fromEmployee) : '',
-    toEmployee: filters.toType === 'employee' ? sanitizeText(filters.toEmployee) : '',
+    fromEmployee: filters.fromType === 'employee' && isValidObjectId(filters.fromEmployee) ? filters.fromEmployee : '',
+    toEmployee: filters.toType === 'employee' && isValidObjectId(filters.toEmployee) ? filters.toEmployee : '',
     amountMin: isValidAmount(filters.amountMin) ? filters.amountMin.trim() : '',
     amountMax: isValidAmount(filters.amountMax) ? filters.amountMax.trim() : '',
     type: isValidReconciliationType(filters.type) ? filters.type : null,

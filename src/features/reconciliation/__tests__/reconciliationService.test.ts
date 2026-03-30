@@ -149,16 +149,16 @@ describe('fetchReconciliations', () => {
     const filters: ReconciliationFilters = {
       ...EMPTY_FILTERS,
       fromType: 'employee',
-      fromEmployee: 'John',
+      fromEmployee: '507f1f77bcf86cd799439011',
       toType: 'employee',
-      toEmployee: 'Jane',
+      toEmployee: 'aabbccddeeff00112233aabb',
     };
 
     await fetchReconciliations({ page: 1, showOwn: true, filters });
 
     const params = mock.history.get[0].params;
-    expect(params.fromEmployee).toBe('John');
-    expect(params.toEmployee).toBe('Jane');
+    expect(params.fromEmployee).toBe('507f1f77bcf86cd799439011');
+    expect(params.toEmployee).toBe('aabbccddeeff00112233aabb');
   });
 
   it('sends fromType and toType filters', async () => {

@@ -99,13 +99,13 @@ export function SearchModal({
       setMaxNegative(filters.amountMax.startsWith('-'));
       // Derive selected employee from filter text + cached employees
       if (filters.fromEmployee && filters.fromType === 'employee') {
-        const match = employees.find((e) => e.name === filters.fromEmployee);
+        const match = employees.find((e) => e.id === filters.fromEmployee);
         setSelectedFromEmployee(match ? { id: match.id, label: match.name } : null);
       } else {
         setSelectedFromEmployee(null);
       }
       if (filters.toEmployee && filters.toType === 'employee') {
-        const match = employees.find((e) => e.name === filters.toEmployee);
+        const match = employees.find((e) => e.id === filters.toEmployee);
         setSelectedToEmployee(match ? { id: match.id, label: match.name } : null);
       } else {
         setSelectedToEmployee(null);
@@ -239,13 +239,14 @@ export function SearchModal({
               placeholder={t('searchBySenderEmployee')}
               onSearch={handleEmployeeSearch}
               onSelect={(item) => {
-                updateField('fromEmployee', item.label);
+                updateField('fromEmployee', item.id);
                 setSelectedFromEmployee(item);
               }}
               onClear={() => {
                 updateField('fromEmployee', '');
                 setSelectedFromEmployee(null);
               }}
+              minChars={0}
               testID="from-employee-autocomplete"
             />
           )}
@@ -284,9 +285,10 @@ export function SearchModal({
               placeholder={t('searchByReceiverEmployee')}
               onSearch={handleEmployeeSearch}
               onSelect={(item) => {
-                updateField('toEmployee', item.label);
+                updateField('toEmployee', item.id);
                 setSelectedToEmployee(item);
               }}
+              minChars={0}
               onClear={() => {
                 updateField('toEmployee', '');
                 setSelectedToEmployee(null);

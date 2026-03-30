@@ -237,7 +237,12 @@ export function AutocompleteField<T extends AutocompleteItem>({
           onChangeText={handleSearch}
           placeholder={placeholder}
           placeholderTextColor={colors.foregroundSecondary}
-          onFocus={() => setIsFocused(true)}
+          onFocus={() => {
+            setIsFocused(true);
+            if (minChars === 0 && query.length === 0) {
+              handleSearch('');
+            }
+          }}
           onBlur={handleBlur}
           style={[
             styles.textInput,
