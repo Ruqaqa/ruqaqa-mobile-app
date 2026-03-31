@@ -227,25 +227,64 @@ Since video watermarking has no reliable client-side solution in React Native, c
 
 **Goal:** Users can browse photo/video albums, view media full-screen, and download media.
 
-**Business Requirements:**
+#### Phase 5A: Album Browsing & CRUD
 
-**Album Browsing:**
+**Goal:** Users can browse, create, and delete albums with tag management.
+
+**Business Requirements:**
 - Grid of albums with thumbnail and item count
 - Album creation: name, optional project association, optional tags
 - Album deletion with confirmation
 - Tag management: create and assign tags to albums
+- Empty states, loading/skeleton states, error states with retry
+- Pagination for large album lists
+- Permission-gated: only users with gallery permissions see the Gallery module
 
-**Media Viewing:**
-- Album detail page shows a grid of media thumbnails (images and videos distinguished visually)
+**Refer to:** `lib/features/gallery/pages/gallery_page.dart`, `lib/features/gallery/services/gallery_api_service.dart`
+
+**Deliverable:** Users can browse, create, and manage albums.
+
+---
+
+#### Phase 5B: Media Viewing
+
+**Goal:** Users can view media inside albums with full-screen viewer.
+
+**Business Requirements:**
+- Media grid inside album showing thumbnails (images and videos distinguished visually)
 - Tap to open full-screen media viewer with pinch-to-zoom for images
 - Video playback support in the viewer
-- Multi-select mode: long-press to enter selection mode, select multiple items for bulk actions
-- Bulk delete with confirmation dialog
-- Reassign media: move/copy selected items to a different album, reassign tags, or change project association
 - Pagination for large albums
 
-**Downloading:**
-- Download individual items or selected items
+**Refer to:** `lib/features/gallery/pages/album_detail_page.dart`, `lib/features/gallery/pages/media_viewer_page.dart`
+
+**Deliverable:** Users can browse media in albums and view them full-screen.
+
+---
+
+#### Phase 5C: Multi-Select & Bulk Actions
+
+**Goal:** Users can select multiple media items and perform bulk operations.
+
+**Business Requirements:**
+- Long-press to enter selection mode, tap to toggle selection
+- Select all / deselect all
+- Bulk delete with confirmation dialog
+- Reassign media: move/copy selected items to a different album, reassign tags, or change project association
+- Exit selection mode on action completion or explicit cancel
+
+**Refer to:** `lib/features/gallery/pages/album_detail_page.dart`
+
+**Deliverable:** Multi-select with bulk delete and media reassignment.
+
+---
+
+#### Phase 5D: Download System
+
+**Goal:** Users can download media to their device with queue management.
+
+**Business Requirements:**
+- Download individual items or selected items (integrates with 5C multi-select)
 - Format selection: original quality or watermarked version (if watermarked variant exists on the server)
 - Downloads save to the device's public Downloads folder (Android) or Documents (iOS)
 - Downloaded media should appear in the system gallery/photos app (Android media scanner integration)
@@ -253,9 +292,9 @@ Since video watermarking has no reliable client-side solution in React Native, c
 - Support for resuming interrupted downloads
 - Download queue: max 2 concurrent downloads, remaining queued
 
-**Refer to:** `lib/features/gallery/pages/`, `lib/features/gallery/services/gallery_api_service.dart`, `lib/features/gallery/services/gallery_download_service.dart`, `lib/core/downloads/`
+**Refer to:** `lib/features/gallery/services/gallery_download_service.dart`, `lib/core/downloads/`
 
-**Deliverable:** Album browsing, media viewing, and downloading with system integration.
+**Deliverable:** Full download system with queue, progress, and system integration.
 
 ---
 
@@ -338,11 +377,14 @@ Since video watermarking has no reliable client-side solution in React Native, c
 | 2 | Permissions & Role-Based Access | Phase 1 |
 | 3 | Transactions | Phase 2 |
 | 4 | Reconciliation | Phase 2 |
-| 5 | Gallery — Albums & Viewing | Phase 2 |
-| 6 | Gallery — Upload & Processing | Phase 5 |
+| 5A | Gallery — Album Browsing & CRUD | Phase 2 |
+| 5B | Gallery — Media Viewing | Phase 5A |
+| 5C | Gallery — Multi-Select & Bulk Actions | Phase 5B |
+| 5D | Gallery — Download System | Phase 5B |
+| 6 | Gallery — Upload & Processing | Phase 5A |
 | 7 | Shared Components & Polish | All phases |
 
-Phases 3, 4, and 5 can be worked on in parallel once Phase 2 is complete.
+Phases 3, 4, and 5A can be worked on in parallel once Phase 2 is complete. 5C and 5D can be worked on in parallel once 5B is complete.
 
 ---
 
