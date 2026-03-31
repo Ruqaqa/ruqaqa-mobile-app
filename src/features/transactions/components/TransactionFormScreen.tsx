@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -74,6 +75,24 @@ export function TransactionFormScreen({
   const { t } = useTranslation();
   const { colors, typography, spacing, radius, shadows } = useTheme();
   const [previewVisible, setPreviewVisible] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  // Track keyboard height to add bottom padding so all fields remain scrollable
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const {
     form,
@@ -336,6 +355,7 @@ export function TransactionFormScreen({
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <ScrollView
+          ref={scrollRef}
           style={styles.flex}
           contentContainerStyle={[styles.scrollContent, { padding: spacing.base }]}
           keyboardShouldPersistTaps="handled"
@@ -527,8 +547,8 @@ export function TransactionFormScreen({
             maxAttachments={maxAttachments}
           />
 
-          {/* Bottom spacer */}
-          <View style={{ height: 100 }} />
+          {/* Bottom spacer — grows when keyboard is open so all fields remain scrollable */}
+          <View style={{ height: 100 + keyboardHeight }} />
         </ScrollView>
 
         {/* Submit button */}

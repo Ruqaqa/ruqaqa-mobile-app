@@ -1,4 +1,5 @@
-import { APPROVAL_STATUSES, FILTER_MAX_LENGTH } from '@/types/shared';
+import { APPROVAL_STATUSES, FILTER_MAX_LENGTH, CURRENCIES } from '@/types/shared';
+import type { Currency } from '@/types/shared';
 
 // ---------------------------------------------------------------------------
 // Text sanitization
@@ -32,6 +33,22 @@ export function isValidApprovalStatus(
 ): value is (typeof APPROVAL_STATUSES)[number] {
   if (value === null) return true;
   return (APPROVAL_STATUSES as readonly string[]).includes(value);
+}
+
+// ---------------------------------------------------------------------------
+// Submission amount validation
+// ---------------------------------------------------------------------------
+
+/** Validate amount for submission (positive only, 2 decimal places max). */
+export function isValidSubmissionAmount(value: string): boolean {
+  if (value === '') return false;
+  return /^\d+(\.\d{1,2})?$/.test(value.trim());
+}
+
+/** Validate currency against the allowed list */
+export function isValidCurrency(value: string | null): value is Currency {
+  if (value === null) return false;
+  return (CURRENCIES as readonly string[]).includes(value);
 }
 
 // ---------------------------------------------------------------------------

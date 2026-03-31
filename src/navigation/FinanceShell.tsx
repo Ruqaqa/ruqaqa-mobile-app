@@ -14,6 +14,7 @@ import { AppBar } from '../components/layout/AppBar';
 import { TransactionHistoryScreen } from '../features/transactions/components/TransactionHistoryScreen';
 import { TransactionFormScreen } from '../features/transactions/components/TransactionFormScreen';
 import { ReconciliationHistoryScreen } from '../features/reconciliation/components/ReconciliationHistoryScreen';
+import { ReconciliationFormScreen } from '../features/reconciliation/components/ReconciliationFormScreen';
 import { useShareIntent } from '../hooks/useShareIntent';
 
 // Placeholder tab content — replaced per-feature in later phases
@@ -49,6 +50,7 @@ export function FinanceShell() {
   );
   const [activeTab, setActiveTab] = useState<FinanceTab>(tabs[0] ?? 'operations');
   const [formVisible, setFormVisible] = useState(false);
+  const [reconciliationFormVisible, setReconciliationFormVisible] = useState(false);
   const { state: shareState } = useShareIntent();
 
   // Auto-open transaction form when share intent targets transactions
@@ -72,8 +74,11 @@ export function FinanceShell() {
 
   const openForm = useCallback(() => setFormVisible(true), []);
   const closeForm = useCallback(() => setFormVisible(false), []);
+  const openReconciliationForm = useCallback(() => setReconciliationFormVisible(true), []);
+  const closeReconciliationForm = useCallback(() => setReconciliationFormVisible(false), []);
 
-  const showFab = activeTab === 'operations' && permissions.canCreateTransactions;
+  const showTransactionFab = activeTab === 'operations' && permissions.canCreateTransactions;
+  const showReconciliationFab = activeTab === 'reconciliation' && permissions.canCreateReconciliation;
 
   if (tabs.length === 0) {
     return (
@@ -111,7 +116,7 @@ export function FinanceShell() {
       </View>
 
       {/* FAB — only on Operations tab with create permission */}
-      {showFab && (
+      {showTransactionFab && (
         <Pressable
           onPress={openForm}
           style={({ pressed }) => [
@@ -131,6 +136,27 @@ export function FinanceShell() {
         </Pressable>
       )}
 
+      {/* FAB — only on Reconciliation tab with create permission */}
+      {showReconciliationFab && (
+        <Pressable
+          onPress={openReconciliationForm}
+          style={({ pressed }) => [
+            styles.fab,
+            {
+              backgroundColor: colors.primary,
+              borderRadius: radius.full,
+              opacity: pressed ? 0.85 : 1,
+              ...shadows.gradient,
+            },
+          ]}
+          accessibilityLabel={t('newReconciliation')}
+          accessibilityRole="button"
+          testID="fab-new-reconciliation"
+        >
+          <Plus size={28} color={colors.onPrimary} strokeWidth={2.5} />
+        </Pressable>
+      )}
+
       {/* Transaction Form Modal */}
       <Modal
         visible={formVisible}
@@ -143,6 +169,16 @@ export function FinanceShell() {
           employee={employee}
           onClose={closeForm}
         />
+      </Modal>
+
+      {/* Reconciliation Form Modal */}
+      <Modal
+        visible={reconciliationFormVisible}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={closeReconciliationForm}
+      >
+        <ReconciliationFormScreen onClose={closeReconciliationForm} />
       </Modal>
 
       {/* Bottom tab bar — only show if more than one tab */}

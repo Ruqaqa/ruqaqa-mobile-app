@@ -164,7 +164,7 @@ Since video watermarking has no reliable client-side solution in React Native, c
 
 ---
 
-### Phase 4: Reconciliation
+### Phase 4: Reconciliation — IN PROGRESS
 
 **Goal:** Users can create financial reconciliation records and browse reconciliation history.
 
@@ -173,19 +173,34 @@ Since video watermarking has no reliable client-side solution in React Native, c
 **Reconciliation Creation Form:**
 - Multi-step form (5 steps) with page-by-page navigation and a progress indicator:
   1. Basic info: statement, total amount, date, currency
-  2. Type selection: normal or other types
-  3. Sender details: type (employee or wallet), finance channel, employee selection (if employee type)
-  4. Receiver details: type (employee or wallet), optional employee selection
+  2. Type selection: salary, bonus, or normal
+  3. Sender details: entity type (wallet/employee/bilad card), finance channel, employee selection (if employee type)
+  4. Receiver details: entity type (wallet/employee/bilad card), optional finance channel, employee selection (if employee type)
   5. Additional info: bank fees (with separate currency selector), notes
 - Validation per step: cannot advance to the next step until current step is valid
 - Finance channels are fetched from the backend and cached for 24 hours
 - Employee selection uses the same cached employee list as transactions
 - Success feedback on submission
 
-**Reconciliation History:**
-- Paginated list of reconciliation records
-- Toggle between "my records" and "all records" (permission-dependent)
-- Search and filter capabilities
+**Reconciliation History — DONE:**
+- Paginated list of reconciliation records (20 per page) with pull-to-refresh
+- Toggle between "my reconciliations" and "all reconciliations" (permission-dependent)
+- Search by: statement, reconciliation number, amount range (min/max with +/- sign toggle), date range, sender/receiver entity type (wallet/employee/bilad card), sender/receiver employee (autocomplete dropdown with ObjectId-based filtering), sender/receiver channel, reconciliation type (salary/bonus/normal)
+- Filter by approval status (Pending, Approved, Rejected)
+- Employee autocomplete shows all cached employees on focus (`minChars=0`), sends ObjectId for precise matching
+- Conditional employee fields: only visible when the corresponding entity type is set to "employee"
+- Each card shows: statement, amount, status chip, sender/receiver flow, date
+- Detail bottom sheet with all fields, reconciliation flow visualization, and notes
+- Approval workflow: approve/reject/return to pending with confirmation dialogs
+- Shared components reused: PaginatedList, DetailRow, ApprovalStatusChips, AmountInput (extracted as shared `src/components/finance/AmountInput.tsx`)
+- Security: input sanitization (ObjectId validation for employee IDs, entity type allowlist, regex escaping), cross-validation (employee filter cleared when entity type is not "employee"), backend ownership filter enforced as mandatory AND for `read_own` users
+- Backend enhancements: `fromType`/`toType`/`fromEmployee`/`toEmployee` query params, `amountMin`/`amountMax` range query
+
+**Approval Workflow — DONE:**
+- Users with reconciliation update permission can approve or reject records
+- Approval status chips (visual indicators)
+- Approve/Reject/Set to Pending action buttons on detail sheet with confirmation dialogs
+- No optimistic updates — waits for server confirmation, then refreshes in-place
 
 **Share Intent Integration:**
 - Enable the "Reconciliation" flow target in `src/services/shareIntent/flowTargets.ts` (currently registered but disabled with "Coming soon" badge)

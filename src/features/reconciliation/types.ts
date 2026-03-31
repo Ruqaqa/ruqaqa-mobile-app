@@ -1,5 +1,7 @@
-import { APPROVAL_STATUSES, ApprovalStatus, PAGE_SIZE, FILTER_MAX_LENGTH } from '@/types/shared';
-export { APPROVAL_STATUSES, ApprovalStatus, PAGE_SIZE, FILTER_MAX_LENGTH };
+import { APPROVAL_STATUSES, ApprovalStatus, PAGE_SIZE, FILTER_MAX_LENGTH, CURRENCIES } from '@/types/shared';
+import type { Currency } from '@/types/shared';
+export { APPROVAL_STATUSES, ApprovalStatus, PAGE_SIZE, FILTER_MAX_LENGTH, CURRENCIES };
+export type { Currency };
 
 export const RECONCILIATION_TYPES = ['salary', 'bonus', 'normal'] as const;
 export type ReconciliationType = (typeof RECONCILIATION_TYPES)[number];
@@ -80,3 +82,58 @@ export const EMPTY_FILTERS: ReconciliationFilters = {
   dateTo: null,
   approvalStatus: null,
 };
+
+// ---------------------------------------------------------------------------
+// Form types (creation wizard)
+// ---------------------------------------------------------------------------
+
+/** Total number of steps in the reconciliation form wizard */
+export const FORM_TOTAL_STEPS = 5;
+
+/** Form state for the reconciliation creation wizard */
+export interface ReconciliationFormData {
+  statement: string;
+  totalAmount: string;
+  currency: Currency;
+  bankFees: string;
+  bankFeesCurrency: Currency;
+  date: Date | null;
+  type: ReconciliationType;
+  fromType: EntityType;
+  fromEmployee: string | null; // ObjectId
+  senderChannel: string | null; // ObjectId
+  toType: EntityType;
+  toEmployee: string | null; // ObjectId
+  receiverChannel: string | null; // ObjectId
+  notes: string;
+}
+
+/** Default form state */
+export const INITIAL_FORM_DATA: ReconciliationFormData = {
+  statement: '',
+  totalAmount: '',
+  currency: 'ريال سعودي',
+  bankFees: '',
+  bankFeesCurrency: 'ريال سعودي',
+  date: null,
+  type: 'normal',
+  fromType: 'المحفظة',
+  fromEmployee: null,
+  senderChannel: null,
+  toType: 'المحفظة',
+  toEmployee: null,
+  receiverChannel: null,
+  notes: '',
+};
+
+/** Data shape returned by the submission service on success */
+export interface ReconciliationSubmissionResult {
+  success: boolean;
+  reconciliation?: {
+    id: string;
+    statement: string;
+    totalAmount: number;
+    currency: string;
+  };
+  error?: string;
+}

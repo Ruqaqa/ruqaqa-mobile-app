@@ -5,8 +5,6 @@ import {
   TaxQuarter,
   TAX_YEARS,
   TaxYear,
-  CURRENCIES,
-  Currency,
   PARTNER_TYPES,
   PartnerType,
   WALLET_PARTNER,
@@ -17,7 +15,7 @@ import {
 } from '../types';
 
 // Re-export shared sanitizers so existing imports from this module keep working
-export { sanitizeText, isValidAmount, isValidApprovalStatus, isValidObjectId } from '@/utils/sanitize';
+export { sanitizeText, isValidAmount, isValidApprovalStatus, isValidObjectId, isValidSubmissionAmount, isValidCurrency } from '@/utils/sanitize';
 import { sanitizeText } from '@/utils/sanitize';
 import { isValidAmount } from '@/utils/sanitize';
 import { isValidApprovalStatus } from '@/utils/sanitize';
@@ -27,11 +25,7 @@ export function sanitizeNotes(value: string): string {
   return sanitizeText(value, NOTES_MAX_LENGTH);
 }
 
-/** Validate amount for transaction submission (positive only, 2 decimal places max). */
-export function isValidSubmissionAmount(value: string): boolean {
-  if (value === '') return false;
-  return /^\d+(\.\d{1,2})?$/.test(value.trim());
-}
+// isValidSubmissionAmount re-exported from @/utils/sanitize above
 
 /** Validate tax quarter against the enum */
 export function isValidTaxQuarter(value: string | null): value is TaxQuarter {
@@ -45,11 +39,7 @@ export function isValidTaxYear(value: string | null): value is TaxYear {
   return (TAX_YEARS as readonly string[]).includes(value);
 }
 
-/** Validate currency against the allowed list */
-export function isValidCurrency(value: string | null): value is Currency {
-  if (value === null) return false;
-  return (CURRENCIES as readonly string[]).includes(value);
-}
+// isValidCurrency re-exported from @/utils/sanitize above
 
 /** Validate partner type against the allowed list */
 export function isValidPartnerType(

@@ -1,5 +1,7 @@
-import { APPROVAL_STATUSES, ApprovalStatus, PAGE_SIZE, FILTER_MAX_LENGTH } from '@/types/shared';
-export { APPROVAL_STATUSES, ApprovalStatus, PAGE_SIZE, FILTER_MAX_LENGTH };
+import { APPROVAL_STATUSES, ApprovalStatus, PAGE_SIZE, FILTER_MAX_LENGTH, CURRENCIES, NOTES_MAX_LENGTH } from '@/types/shared';
+import type { Currency } from '@/types/shared';
+export { APPROVAL_STATUSES, ApprovalStatus, PAGE_SIZE, FILTER_MAX_LENGTH, CURRENCIES, NOTES_MAX_LENGTH };
+export type { Currency };
 
 /** Tax quarter values */
 export const TAX_QUARTERS = ['Q1', 'Q2', 'Q3', 'Q4'] as const;
@@ -9,10 +11,6 @@ export type TaxQuarter = (typeof TAX_QUARTERS)[number];
 export const TAX_YEARS = ['2024', '2025', '2026', '2027'] as const;
 export type TaxYear = (typeof TAX_YEARS)[number];
 
-/** Currency values accepted by the API */
-export const CURRENCIES = ['ريال سعودي', 'دولار أمريكي'] as const;
-export type Currency = (typeof CURRENCIES)[number];
-
 /** Partner API-contract values — these are wire-format strings, not display labels */
 export const WALLET_PARTNER = 'المحفظة' as const;
 export const BALAD_CARD_PARTNER = 'بطاقة البلاد' as const;
@@ -20,9 +18,6 @@ export const BALAD_CARD_PARTNER = 'بطاقة البلاد' as const;
 /** Partner type values */
 export const PARTNER_TYPES = ['employee', 'wallet'] as const;
 export type PartnerType = (typeof PARTNER_TYPES)[number];
-
-/** Max length for notes field */
-export const NOTES_MAX_LENGTH = 1000;
 
 /** Max file size for receipt uploads (10 MB) */
 export const MAX_RECEIPT_FILE_SIZE = 10 * 1024 * 1024;
