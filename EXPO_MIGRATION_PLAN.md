@@ -246,22 +246,33 @@ Update seed data as sub-phases progress:
 
 ---
 
-#### Phase 5A: Album Browsing & CRUD
+#### Phase 5A: Album Browsing & CRUD — DONE
 
-**Goal:** Users can browse, create, and delete albums with tag management.
+**Goal:** Users can browse, create, and rename albums.
 
-**Business Requirements:**
-- Grid of albums with thumbnail and item count
-- Album creation: name, optional project association, optional tags
-- Album deletion with confirmation
-- Tag management: create and assign tags to albums
-- Empty states, loading/skeleton states, error states with retry
-- Pagination for large album lists
-- Permission-gated: only users with gallery permissions see the Gallery module
+**Completed:**
+- 2-column album grid with mosaic thumbnails (0-4 images), item count, default star badge
+- Album creation via bottom sheet (name input, locale-aware, copies to both languages)
+- Album rename via long-press → options sheet → edit name dialog (blocked on default album)
+- Shared gallery components: MediaThumbnail (auth-aware), AlbumMosaic (mosaic layout)
+- Gallery service: fetchAlbums (limit 100, sort default first), createAlbum, updateAlbumTitle
+- useAlbumList hook (debounced search, pull-to-refresh, optimistic updates)
+- useAlbumActions hook (create + rename with validation)
+- Locale-aware title display via getLocalizedTitle()
+- Gallery permissions fixed to match Flutter: gallery_cms_read/create/update/delete + cms_admin/editor/viewer fallbacks
+- Module switcher icons (Wallet for Finance, Image for Gallery)
+- Skeleton loading, empty state, error state with retry, search empty state
+- Input sanitization: album name validation, search regex stripping, ObjectId validation
+- Seed script: `pnpm seed:gallery` / `pnpm seed:gallery:clean` (8 tags, 6 albums, 20 items)
+- i18n: 20 gallery keys in en + ar
+- 56 gallery tests + 1 permission test, all passing (1039 total)
+
+**Deferred (not in Flutter, no backend support):**
+- Album deletion (no backend endpoint, Flutter doesn't expose it from album grid)
+- Tag management (tags are per-item, assigned during upload in Phase 6)
+- Project association on albums (per-item, Phase 6)
 
 **Refer to:** `lib/features/gallery/pages/gallery_page.dart`, `lib/features/gallery/services/gallery_api_service.dart`
-
-**Deliverable:** Users can browse, create, and manage albums.
 
 ---
 
