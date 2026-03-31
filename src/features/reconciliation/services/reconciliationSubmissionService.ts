@@ -1,7 +1,6 @@
-import { apiClient, uploadMultipart } from '@/services/apiClient';
-import { mapAxiosError, ApiError } from '@/services/errors';
+import { apiClient } from '@/services/apiClient';
+import { mapAxiosError } from '@/services/errors';
 import { sanitizeText } from '@/utils/sanitize';
-import { sanitizeFilename } from '@/features/transactions/components/ReceiptPickerSection';
 import { NOTES_MAX_LENGTH } from '@/types/shared';
 import { ReconciliationFormData, ReconciliationSubmissionResult } from '../types';
 
@@ -50,23 +49,10 @@ export async function submitReconciliation(
 ): Promise<ReconciliationSubmissionResult> {
   try {
     const payload = buildReconciliationPayload(form);
-    let response;
 
-    if (form.attachments.length > 0) {
-      const formData = new FormData();
-      formData.append('data', JSON.stringify(payload));
-      for (const att of form.attachments) {
-        const cleanName = sanitizeFilename(att.name ?? 'attachment');
-        formData.append('attachments', {
-          uri: att.uri,
-          type: att.mimeType ?? 'application/octet-stream',
-          name: cleanName,
-        } as any);
-      }
-      response = await uploadMultipart('/reconciliation', formData);
-    } else {
-      response = await apiClient.post('/reconciliation', payload);
-    }
+    // TODO: Enable multipart upload once backend supports attachments for reconciliation.
+    // For now, always send JSON — the backend only handles request.json().
+    const response = await apiClient.post('/reconciliation', payload);
 
     if (response.data?.success) {
       return {
