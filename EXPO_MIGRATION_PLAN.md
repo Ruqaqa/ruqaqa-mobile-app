@@ -227,6 +227,25 @@ Since video watermarking has no reliable client-side solution in React Native, c
 
 **Goal:** Users can browse photo/video albums, view media full-screen, and download media.
 
+#### Test Data Seeding
+
+Each sub-phase requires realistic gallery data for testing. Provide two scripts (run via `pnpm seed:gallery` and `pnpm seed:gallery:clean`) that seed and clean the following directly in MongoDB:
+
+- **Tags:** 5–10 tags (e.g. "site-visit", "warehouse", "office", "event", "marketing")
+- **Albums:** 8–10 albums with varying states — some with project associations, some with tags, some empty, some with 50+ items (for pagination testing)
+- **Media items:** Mix of images and videos across albums. Use placeholder/sample files uploaded to the backend (or reference existing media IDs). Include items with and without watermarked variants
+- **Projects:** Ensure 2–3 projects exist for album-project association testing
+
+Scripts should be idempotent (safe to re-run). Clean script removes only seeded data (identified by a `_seeded: true` flag or a known prefix like `[TEST]` in names).
+
+Update seed data as sub-phases progress:
+- **5A:** Albums, tags, projects
+- **5B:** Media items inside albums (images + videos, varying counts)
+- **5C:** Albums with enough items to test multi-select and reassignment
+- **5D:** Media items with and without watermarked variants for download format selection
+
+---
+
 #### Phase 5A: Album Browsing & CRUD
 
 **Goal:** Users can browse, create, and delete albums with tag management.
