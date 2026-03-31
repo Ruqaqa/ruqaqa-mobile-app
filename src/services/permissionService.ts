@@ -25,7 +25,14 @@ export function extractPermissions(
       has('reconciliation_read_own') ||
       has('reconciliation_read_all'),
 
-    canAccessGallery: has('gallery_read_all') || has('gallery_read_own'),
+    canAccessGallery:
+      has('gallery_cms_read') ||
+      has('gallery_cms_create') ||
+      has('gallery_cms_update') ||
+      has('gallery_cms_delete') ||
+      has('cms_admin') ||
+      has('cms_editor') ||
+      has('cms_viewer'),
 
     canCreateTransactions: has('transactions_create'),
     canViewTransactionHistory:
@@ -41,9 +48,23 @@ export function extractPermissions(
     canViewAllReconciliations: has('reconciliation_read_all'),
     canUpdateReconciliation: has('reconciliation_update'),
 
-    canViewGallery: has('gallery_read_all') || has('gallery_read_own'),
-    canCreateGallery: has('gallery_create'),
-    canDeleteGallery: has('gallery_delete'),
+    canViewGallery:
+      has('gallery_cms_read') ||
+      has('gallery_cms_create') ||
+      has('gallery_cms_update') ||
+      has('gallery_cms_delete') ||
+      has('cms_admin') ||
+      has('cms_editor') ||
+      has('cms_viewer'),
+    canCreateGallery:
+      has('gallery_cms_create') ||
+      has('cms_admin') ||
+      has('cms_editor'),
+    canUpdateGallery:
+      has('gallery_cms_update') ||
+      has('cms_admin') ||
+      has('cms_editor'),
+    canDeleteGallery: has('gallery_cms_delete'),
   };
 }
 

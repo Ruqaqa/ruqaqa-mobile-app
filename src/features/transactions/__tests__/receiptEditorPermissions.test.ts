@@ -21,6 +21,7 @@ const NO_PERMS: UserPermissions = {
   canUpdateReconciliation: false,
   canViewGallery: false,
   canCreateGallery: false,
+  canUpdateGallery: false,
   canDeleteGallery: false,
 };
 

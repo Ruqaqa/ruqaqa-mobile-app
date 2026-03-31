@@ -1,9 +1,15 @@
 import React from 'react';
 import { View, Text, Pressable, Modal, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { Wallet, Image as ImageIcon } from 'lucide-react-native';
 import { useTheme } from '../../theme';
 import { AppModule } from '../../types/permissions';
 import { withAlpha } from '../../utils/colorUtils';
+
+const MODULE_ICONS: Record<AppModule, typeof Wallet> = {
+  finance: Wallet,
+  gallery: ImageIcon,
+};
 
 interface Props {
   visible: boolean;
@@ -68,6 +74,7 @@ export function ModuleSwitcherSheet({
 
         {availableModules.map((mod) => {
           const isActive = mod === activeModule;
+          const Icon = MODULE_ICONS[mod];
           return (
             <Pressable
               key={mod}
@@ -75,30 +82,42 @@ export function ModuleSwitcherSheet({
               style={[
                 styles.option,
                 {
-                  backgroundColor: isActive ? withAlpha(colors.primary, 0.08) : 'transparent',
+                  backgroundColor: isActive ? withAlpha(colors.primary, 0.08) : withAlpha(colors.foregroundSecondary, 0.05),
                   borderRadius: radius.lg,
-                  borderWidth: isActive ? 1 : 0,
-                  borderColor: isActive ? withAlpha(colors.primary, 0.19) : 'transparent',
+                  borderWidth: isActive ? 1.5 : 1,
+                  borderColor: isActive ? withAlpha(colors.primary, 0.3) : withAlpha(colors.foregroundSecondary, 0.15),
                   paddingHorizontal: spacing.base,
                   paddingVertical: spacing.base,
                   marginBottom: spacing.sm,
                 },
               ]}
             >
-              <Text
-                style={[
-                  typography.bodyLarge,
-                  { color: isActive ? colors.primary : colors.foreground },
-                ]}
-              >
-                {labels[mod]}
-              </Text>
-              {isActive && (
+              <View style={styles.optionLeft}>
+                <Icon
+                  size={32}
+                  color={isActive ? colors.primary : colors.foregroundSecondary}
+                />
                 <Text
-                  style={[typography.bodySmall, { color: colors.foregroundSecondary }]}
+                  style={[
+                    typography.bodyLarge,
+                    {
+                      color: isActive ? colors.primary : colors.foreground,
+                      fontWeight: isActive ? '600' : '400',
+                      marginStart: spacing.base,
+                    },
+                  ]}
                 >
-                  {t('currentModule')}
+                  {labels[mod]}
                 </Text>
+              </View>
+              {isActive && (
+                <View style={[styles.badge, { backgroundColor: withAlpha(colors.primary, 0.12), borderRadius: radius.full }]}>
+                  <Text
+                    style={[typography.labelSmall, { color: colors.primary }]}
+                  >
+                    {t('currentModule')}
+                  </Text>
+                </View>
               )}
             </Pressable>
           );
@@ -126,5 +145,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  optionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  badge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
 });

@@ -241,6 +241,27 @@ export default {
   pleaseAllowAccess: 'Please allow access to {{permissionName}} to use this feature',
   openSettings: 'Open Settings',
 
+  // Gallery - Albums (shared)
+  albums: 'Albums',
+  createAlbum: 'Create Album',
+  albumName: 'Album Name',
+  editAlbumName: 'Edit Album Name',
+  albumCreated: 'Album created successfully',
+  albumNameUpdated: 'Album name updated',
+  failedToCreateAlbum: 'Failed to create album',
+  failedToUpdateAlbumName: 'Failed to update album name',
+  failedToLoadAlbums: 'Failed to load albums',
+  noAlbumsFound: 'No albums found',
+  uploadFirstMedia: 'Upload your first media to get started',
+  tryDifferentSearch: 'Try a different search term',
+  albumOptions: 'Album Options',
+  editingEnglishName: 'You are editing the English name',
+  editingArabicName: 'You are editing the Arabic name',
+  nameUsedForBothLanguages: 'This name will be used for both languages',
+  searchAlbums: 'Search albums',
+  items: 'items',
+  defaultAlbum: 'Default',
+
   // Gallery - Albums
   galleryAlbums: 'Albums',
   noAlbumsYet: 'No albums yet',
@@ -419,4 +440,6 @@ export default {
   partnerLocked: 'Partner (locked)',
   invalidFileType: 'Unsupported file type',
   fileTooLarge: 'File exceeds 10 MB limit',
+  save: 'Save',
+  back: 'Back',
 } as const;

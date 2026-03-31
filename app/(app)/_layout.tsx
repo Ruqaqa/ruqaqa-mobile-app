@@ -48,6 +48,7 @@ export default function AppLayout() {
     canUpdateReconciliation: false,
     canViewGallery: false,
     canCreateGallery: false,
+    canUpdateGallery: false,
     canDeleteGallery: false,
   };
 

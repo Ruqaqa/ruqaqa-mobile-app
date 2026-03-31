@@ -241,6 +241,27 @@ export default {
   pleaseAllowAccess: 'يرجى السماح بالوصول إلى {{permissionName}} لاستخدام هذه الميزة',
   openSettings: 'فتح الإعدادات',
 
+  // Gallery - Albums (shared)
+  albums: 'الألبومات',
+  createAlbum: 'إنشاء ألبوم',
+  albumName: 'اسم الألبوم',
+  editAlbumName: 'تعديل اسم الألبوم',
+  albumCreated: 'تم إنشاء الألبوم بنجاح',
+  albumNameUpdated: 'تم تحديث اسم الألبوم',
+  failedToCreateAlbum: 'تعذر إنشاء الألبوم',
+  failedToUpdateAlbumName: 'تعذر تحديث اسم الألبوم',
+  failedToLoadAlbums: 'تعذر تحميل الألبومات',
+  noAlbumsFound: 'لم يتم العثور على ألبومات',
+  uploadFirstMedia: 'ارفع أول ملف وسائط للبدء',
+  tryDifferentSearch: 'جرّب مصطلح بحث مختلف',
+  albumOptions: 'خيارات الألبوم',
+  editingEnglishName: 'أنت تقوم بتعديل الاسم الإنجليزي',
+  editingArabicName: 'أنت تقوم بتعديل الاسم العربي',
+  nameUsedForBothLanguages: 'سيُستخدم هذا الاسم لكلتا اللغتين',
+  searchAlbums: 'بحث في الألبومات',
+  items: 'عناصر',
+  defaultAlbum: 'افتراضي',
+
   // Gallery - Albums
   galleryAlbums: 'الألبومات',
   noAlbumsYet: 'لا توجد ألبومات بعد',
@@ -419,4 +440,6 @@ export default {
   partnerLocked: 'طرف الشريك (مقفل)',
   invalidFileType: 'نوع ملف غير مدعوم',
   fileTooLarge: 'الملف يتجاوز الحد الأقصى 10 ميغابايت',
+  save: 'حفظ',
+  back: 'رجوع',
 } as const;

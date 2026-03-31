@@ -21,6 +21,7 @@ function makePermissions(overrides: Partial<UserPermissions> = {}): UserPermissi
     canUpdateReconciliation: false,
     canViewGallery: false,
     canCreateGallery: false,
+    canUpdateGallery: false,
     canDeleteGallery: false,
     ...overrides,
   };

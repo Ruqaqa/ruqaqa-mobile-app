@@ -24,6 +24,7 @@ export interface UserPermissions {
   // Gallery
   canViewGallery: boolean;
   canCreateGallery: boolean;
+  canUpdateGallery: boolean;
   canDeleteGallery: boolean;
 }
 

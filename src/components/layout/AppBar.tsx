@@ -1,7 +1,7 @@
 import React, { useContext } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { Globe } from 'lucide-react-native';
+import { Globe, Wallet, Image as ImageIcon } from 'lucide-react-native';
 import { useTheme } from '../../theme';
 import { useAppModuleContext } from '../../navigation/AppModuleContext';
 import { AuthContext } from '../../services/authContext';
@@ -48,12 +48,17 @@ export function AppBar() {
           <Pressable
             onPress={openSwitcher}
             style={[
-              styles.iconButton,
+              styles.switcherButton,
               { backgroundColor: colors.muted, borderRadius: radius.md },
             ]}
             accessibilityLabel={t('switchModule')}
           >
-            <Text style={[typography.labelSmall, { color: colors.primary }]}>
+            {activeModule === 'finance' ? (
+              <Wallet size={16} color={colors.primary} />
+            ) : (
+              <ImageIcon size={16} color={colors.primary} />
+            )}
+            <Text style={[typography.labelSmall, { color: colors.primary, marginStart: 6 }]}>
               {activeModule === 'finance' ? t('finance') : t('gallery')}
             </Text>
           </Pressable>
@@ -79,5 +84,12 @@ const styles = StyleSheet.create({
     minHeight: 32,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  switcherButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    minHeight: 32,
   },
 });

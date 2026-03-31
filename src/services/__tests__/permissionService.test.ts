@@ -50,7 +50,7 @@ describe('extractPermissions', () => {
 
   it('extracts permissions from realm roles only', () => {
     const perms = extractPermissions(
-      buildPayload({ realmRoles: ['transactions_create', 'gallery_read_all'] }),
+      buildPayload({ realmRoles: ['transactions_create', 'gallery_cms_read'] }),
     );
     expect(perms.canCreateTransactions).toBe(true);
     expect(perms.canAccessFinance).toBe(true);
@@ -70,7 +70,7 @@ describe('extractPermissions', () => {
     const perms = extractPermissions(
       buildPayload({
         realmRoles: ['transactions_create'],
-        clientRoles: ['gallery_create'],
+        clientRoles: ['gallery_cms_create'],
       }),
     );
     expect(perms.canCreateTransactions).toBe(true);
@@ -79,7 +79,7 @@ describe('extractPermissions', () => {
 
   it('maintains cross-module isolation', () => {
     const perms = extractPermissions(
-      buildPayload({ realmRoles: ['gallery_read_all'] }),
+      buildPayload({ realmRoles: ['gallery_cms_read'] }),
     );
     // Gallery access should be granted
     expect(perms.canAccessGallery).toBe(true);
@@ -87,6 +87,16 @@ describe('extractPermissions', () => {
     // Finance access should NOT be granted
     expect(perms.canAccessFinance).toBe(false);
     expect(perms.canCreateTransactions).toBe(false);
+  });
+
+  it('grants gallery access via CMS admin/editor/viewer roles', () => {
+    const perms = extractPermissions(
+      buildPayload({ clientRoles: ['cms_admin'] }),
+    );
+    expect(perms.canAccessGallery).toBe(true);
+    expect(perms.canViewGallery).toBe(true);
+    expect(perms.canCreateGallery).toBe(true);
+    expect(perms.canUpdateGallery).toBe(true);
   });
 
   it('handles missing realm_access gracefully', () => {
@@ -120,6 +130,7 @@ const NO_ACCESS: UserPermissions = {
   canUpdateReconciliation: false,
   canViewGallery: false,
   canCreateGallery: false,
+  canUpdateGallery: false,
   canDeleteGallery: false,
 };
 
