@@ -388,7 +388,7 @@ export function TransactionFormScreen({
                 placeholder="0.00"
               />
             </View>
-            <View style={[styles.toggleGroup, { marginTop: spacing.lg }]}>
+            <View style={[styles.toggleGroup, { marginTop: spacing.xl }]}>
               <Pressable
                 onPress={() => updateField('isExpense', true)}
                 style={[

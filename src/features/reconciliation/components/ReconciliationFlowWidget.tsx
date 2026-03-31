@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { ArrowRight } from 'lucide-react-native';
+import { ArrowLeft } from 'lucide-react-native';
 import { useTheme } from '@/theme';
 import { withAlpha } from '@/utils/colorUtils';
 import { ReconciliationEmployee, ReconciliationChannel } from '../types';
@@ -44,54 +44,7 @@ export function ReconciliationFlowWidget({
         },
       ]}
     >
-      {/* From party (left) */}
-      <View
-        style={[
-          styles.partyBox,
-          {
-            backgroundColor: withAlpha(colors.info, 0.1),
-            borderRadius: radius.sm,
-            borderWidth: 1,
-            borderColor: withAlpha(colors.info, 0.3),
-            paddingHorizontal: spacing.md,
-            paddingVertical: spacing.sm,
-          },
-        ]}
-      >
-        <Text
-          style={[
-            typography.bodySmall,
-            {
-              color: colors.foreground,
-              fontWeight: '600',
-              textAlign: 'center',
-            },
-          ]}
-          numberOfLines={1}
-        >
-          {fromParty}
-        </Text>
-        <Text
-          style={[
-            typography.labelSmall,
-            {
-              color: colors.foregroundSecondary,
-              textAlign: 'center',
-              marginTop: 2,
-            },
-          ]}
-          numberOfLines={1}
-        >
-          {senderChannelName}
-        </Text>
-      </View>
-
-      {/* Arrow */}
-      <View style={{ paddingHorizontal: spacing.md }}>
-        <ArrowRight size={20} color={colors.primary} />
-      </View>
-
-      {/* To party (right) */}
+      {/* To party (left) */}
       <View
         style={[
           styles.partyBox,
@@ -130,6 +83,53 @@ export function ReconciliationFlowWidget({
           numberOfLines={1}
         >
           {receiverChannelName}
+        </Text>
+      </View>
+
+      {/* Arrow (points left: receiver ← sender) */}
+      <View style={{ paddingHorizontal: spacing.md }}>
+        <ArrowLeft size={20} color={colors.primary} />
+      </View>
+
+      {/* From party (right) */}
+      <View
+        style={[
+          styles.partyBox,
+          {
+            backgroundColor: withAlpha(colors.info, 0.1),
+            borderRadius: radius.sm,
+            borderWidth: 1,
+            borderColor: withAlpha(colors.info, 0.3),
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.sm,
+          },
+        ]}
+      >
+        <Text
+          style={[
+            typography.bodySmall,
+            {
+              color: colors.foreground,
+              fontWeight: '600',
+              textAlign: 'center',
+            },
+          ]}
+          numberOfLines={1}
+        >
+          {fromParty}
+        </Text>
+        <Text
+          style={[
+            typography.labelSmall,
+            {
+              color: colors.foregroundSecondary,
+              textAlign: 'center',
+              marginTop: 2,
+            },
+          ]}
+          numberOfLines={1}
+        >
+          {senderChannelName}
         </Text>
       </View>
     </View>

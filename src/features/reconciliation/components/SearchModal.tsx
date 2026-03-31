@@ -19,7 +19,6 @@ import { DatePickerField } from '@/components/ui/DatePickerField';
 import { SelectField } from '@/components/ui/SelectField';
 import { AutocompleteField, AutocompleteItem } from '@/components/ui/AutocompleteField';
 import { ApprovalStatusChips } from '@/components/finance/ApprovalStatusChips';
-import { AmountInput } from '@/components/finance/AmountInput';
 import { ReconciliationFilters, EMPTY_FILTERS, RECONCILIATION_TYPES, ENTITY_TYPES } from '../types';
 import { sanitizeFilters } from '../utils/sanitize';
 import { getFinanceChannels, CachedFinanceChannel } from '@/services/financeChannelService';
@@ -46,8 +45,6 @@ export function SearchModal({
   const [employees, setEmployees] = useState<CachedEmployee[]>([]);
   const [selectedFromEmployee, setSelectedFromEmployee] = useState<AutocompleteItem | null>(null);
   const [selectedToEmployee, setSelectedToEmployee] = useState<AutocompleteItem | null>(null);
-  const [minNegative, setMinNegative] = useState(false);
-  const [maxNegative, setMaxNegative] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -95,8 +92,6 @@ export function SearchModal({
   useEffect(() => {
     if (visible) {
       setLocalFilters(filters);
-      setMinNegative(filters.amountMin.startsWith('-'));
-      setMaxNegative(filters.amountMax.startsWith('-'));
       // Derive selected employee from filter text + cached employees
       if (filters.fromEmployee && filters.fromType === 'employee') {
         const match = employees.find((e) => e.id === filters.fromEmployee);
@@ -141,8 +136,6 @@ export function SearchModal({
     setLocalFilters(EMPTY_FILTERS);
     setSelectedFromEmployee(null);
     setSelectedToEmployee(null);
-    setMinNegative(false);
-    setMaxNegative(false);
   }, []);
 
   return (
@@ -297,39 +290,25 @@ export function SearchModal({
             />
           )}
 
-          {/* 5. Min Amount / Max Amount side by side with +/- toggles */}
+          {/* 5. Min Amount / Max Amount side by side (always positive for reconciliation) */}
           <View style={styles.dateRow}>
             <View style={{ flex: 1 }}>
-              <AmountInput
+              <Input
                 label={t('minAmount')}
                 placeholder={t('min')}
                 value={localFilters.amountMin}
-                isNegative={minNegative}
-                onChangeText={(v) => updateField('amountMin', (minNegative ? '-' : '') + v.replace(/[^0-9.]/g, ''))}
-                onToggleSign={() => {
-                  setMinNegative((prev) => {
-                    const raw = localFilters.amountMin.replace(/^-/, '');
-                    updateField('amountMin', !prev && raw ? `-${raw}` : raw);
-                    return !prev;
-                  });
-                }}
+                onChangeText={(v) => updateField('amountMin', v.replace(/[^0-9.]/g, ''))}
+                keyboardType="decimal-pad"
               />
             </View>
             <View style={{ width: spacing.sm }} />
             <View style={{ flex: 1 }}>
-              <AmountInput
+              <Input
                 label={t('maxAmount')}
                 placeholder={t('max')}
                 value={localFilters.amountMax}
-                isNegative={maxNegative}
-                onChangeText={(v) => updateField('amountMax', (maxNegative ? '-' : '') + v.replace(/[^0-9.]/g, ''))}
-                onToggleSign={() => {
-                  setMaxNegative((prev) => {
-                    const raw = localFilters.amountMax.replace(/^-/, '');
-                    updateField('amountMax', !prev && raw ? `-${raw}` : raw);
-                    return !prev;
-                  });
-                }}
+                onChangeText={(v) => updateField('amountMax', v.replace(/[^0-9.]/g, ''))}
+                keyboardType="decimal-pad"
               />
             </View>
           </View>

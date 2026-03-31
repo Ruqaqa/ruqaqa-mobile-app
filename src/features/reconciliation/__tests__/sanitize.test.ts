@@ -142,20 +142,20 @@ describe('sanitizeFilters', () => {
     expect(sanitizeFilters(filters).amountMax).toBe('1000');
   });
 
-  it('keeps negative amountMin', () => {
+  it('strips negative sign from amountMin (reconciliation amounts are always positive)', () => {
     const filters: ReconciliationFilters = {
       ...EMPTY_FILTERS,
       amountMin: '-250.00',
     };
-    expect(sanitizeFilters(filters).amountMin).toBe('-250.00');
+    expect(sanitizeFilters(filters).amountMin).toBe('250.00');
   });
 
-  it('keeps negative amountMax', () => {
+  it('strips negative sign from amountMax (reconciliation amounts are always positive)', () => {
     const filters: ReconciliationFilters = {
       ...EMPTY_FILTERS,
       amountMax: '-100',
     };
-    expect(sanitizeFilters(filters).amountMax).toBe('-100');
+    expect(sanitizeFilters(filters).amountMax).toBe('100');
   });
 
   it('drops invalid reconciliation type', () => {
