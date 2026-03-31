@@ -8,6 +8,8 @@ Expo (React Native + TypeScript) mobile app for Ruqaqa employees. It's a migrati
 
 App ID: `sa.ruqaqa.finance` | Version: 1.2.1 | Scheme: `ruqaqa://`
 
+**Migration status:** Phases 0–4 complete (auth, permissions, transactions, reconciliation). Phases 5–7 pending (gallery, upload, polish). See `EXPO_MIGRATION_PLAN.md` for details.
+
 ## Commands
 
 ```bash
@@ -17,7 +19,8 @@ pnpm android:build      # Build + install native APK on connected device
 pnpm ios:build          # Build + install on iOS device/sim
 pnpm android            # Start Metro for Android
 pnpm ios                # Start Metro for iOS
-pnpm test               # Jest unit tests (224 tests, 15 suites)
+pnpm test               # Jest unit tests
+pnpm test -- src/services/__tests__/foo.test.ts  # Run single test file
 pnpm test:e2e           # Clear app data, forward port, run all Maestro E2E tests
 pnpm test:e2e:flow      # Run a specific Maestro flow file
 ```
@@ -78,6 +81,8 @@ Key points:
 - `app/auth/callback.tsx` — OAuth redirect handler
 - `app/(app)/_layout.tsx` — Authenticated shell: Finance/Gallery module switcher with permission gating, ErrorBoundary around each shell
 
+**Note:** `app/(app)/(finance)/` and `app/(app)/(gallery)/` are empty route groups. Actual screens are rendered by `FinanceShell` and `GalleryShell` in `src/navigation/`.
+
 ### Auth flow
 
 1. `AuthProvider` (context) wraps entire app, restores session from secure storage on mount
@@ -95,21 +100,57 @@ Key points:
 - **GalleryShell**: tabs for Albums, Upload
 - Tabs are permission-gated via `getAvailableFinanceTabs()`
 - Module switching via `ModuleSwitcherSheet` bottom sheet
+- Context: `AppModuleContext` in `src/navigation/`
 
-### Transaction History (Phase 3 — Operations tab)
+### Feature structure convention
 
-Feature-driven structure under `src/features/transactions/`:
-- `types.ts` — `Transaction`, `TransactionFilters`, `ApprovalStatus`, `TaxQuarter`, `TaxYear` types + constants (`PAGE_SIZE=20`, `EMPTY_FILTERS`)
-- `services/transactionService.ts` — `fetchTransactions()`, `fetchTransactionById()`, `updateApprovalStatus()` + `TransactionError` class with error code mapping
-- `utils/sanitize.ts` — Input sanitization: `sanitizeText()` (trim + 200 char cap), `sanitizeFilters()`, `hasActiveFilters()`, enum validators
-- `utils/formatters.ts` — Date, amount, partner display formatting
-- `hooks/useTransactionList.ts` — Pagination, filters, own/all toggle, refresh, in-place updates
-- `hooks/useApprovalAction.ts` — Approval status change with loading state (no optimistic updates)
-- `components/` — TransactionHistoryScreen (orchestrator), FilterBar, TransactionCard, TransactionList, SearchModal, TransactionDetailSheet, ApprovalActions, ApprovalStatusChips, TransactionFlowWidget, ReceiptThumbnails
+Each feature under `src/features/` follows the same layout:
+- `types.ts` — Domain types and constants
+- `components/` — Screen + UI components
+- `hooks/` — Feature-specific React hooks
+- `services/` — API calls and business logic
+- `utils/` — Validation, sanitization, formatters
+- `__tests__/` — Unit tests
+
+### Transaction History (Phase 3)
+
+`src/features/transactions/` — Full CRUD with paginated list, advanced search/filters, receipt attachments (max 4), approval workflow, and share intent integration.
 
 **Search fields:** statement, transaction number, partner employee, other party, client, project, amount range (min/max with +/- sign toggle), tax quarter/year, approval status, date range
 
-**Security patterns:** All filter inputs sanitized before API calls. Error codes mapped to i18n strings (never raw API messages). `PAGE_SIZE` hardcoded. Defensive own/all toggle. Backend: regex escaping on all `contains` queries, limit capped at 100, page clamped ≥1.
+**Key patterns:** `useTransactionList` hook manages pagination + filters + own/all toggle. `TransactionHistoryScreen` is the orchestrator component. `TransactionFormScreen` handles creation with receipt attachment. `TransactionDetailSheet` is a bottom sheet for viewing details. `ReceiptEditorScreen` allows adding/removing receipts on submitted transactions.
+
+**Security:** All filter inputs sanitized before API calls. Error codes mapped to i18n strings (never raw API messages). `PAGE_SIZE` hardcoded. Backend: regex escaping on `contains` queries, limit capped at 100, page clamped ≥1.
+
+### Reconciliation (Phase 4)
+
+`src/features/reconciliation/` — Same patterns as transactions. 5-step creation form, paginated history, approval workflow, share intent integration.
+
+**Form steps:** (1) Basic info — statement, amount, currency, date, bank fees (2) Type — salary, bonus, normal (3) Sender — entity type, finance channel, employee (4) Receiver — entity type, finance channel, employee (5) Additional — notes, file attachments, summary preview
+
+**Key patterns:** `useReconciliationForm` manages multi-step form state. `useReconciliationList` mirrors transaction list hook. `ReconciliationFlowWidget` visualizes sender→receiver flow. 10-second preview with pause/resume before submission.
+
+### Share intent
+
+Cross-cutting concern — receives files from other apps and routes them to the correct feature form.
+
+- `src/services/shareIntent/` — Core logic: 4-state machine (idle → files_received → flow_selected → idle), validation (MIME types, file size, filename), extensible flow target registry (Transaction, Reconciliation, Gallery)
+- `src/components/share/` — UI: `ShareIntentBridge` (root integration), `FlowSelectorSheet` (choose target), `SharedFilesPreview`, `SharePendingBanner` (on login screen)
+- `src/hooks/useShareIntent.ts` — Consumer hook
+- Each feature has a `sharedFilesAdapter.ts` util to convert shared files to its attachment format
+
+### Component library
+
+`src/components/` is organized into categories:
+
+| Directory | Purpose |
+|-----------|---------|
+| `ui/` | Generic primitives: Button, Input, Card, Badge, StatusChip, BottomSheet, SelectField, DatePickerField, AutocompleteField, CurrencyAmount, EmptyState, ErrorState, SkeletonCard, ProfileAvatar |
+| `finance/` | Shared finance components reused by transactions & reconciliation: PaginatedList, ApprovalActions, ApprovalStatusChips, DetailRow, AmountInput, FilterBar |
+| `layout/` | App chrome: AppBar, ModuleSwitcherSheet, NoAccessScreen, ErrorBoundary |
+| `auth/` | SessionExpiredModal, LanguageSwitcher |
+| `share/` | ShareIntentBridge, FlowSelectorSheet, SharedFilesPreview, SharePendingBanner |
+| `version/` | VersionGate (forced/optional update + maintenance mode) |
 
 ### Services
 
@@ -119,12 +160,16 @@ Feature-driven structure under `src/features/transactions/`:
 | `authContext.ts` | React context: session state, login/logout, AppState listener for foreground refresh. Uses `deduplicatedRefresh` to prevent timer/foreground race |
 | `apiClient.ts` | Axios: auto Bearer, proactive refresh, 401 retry with dedup, `uploadMultipart()` helper |
 | `employeeService.ts` | Validates employee via `apiClient` post-login |
+| `employeeCacheService.ts` | 24-hour cache-first employee list for autocomplete fields |
+| `financeChannelService.ts` | 24-hour cache-first finance channel list |
 | `tokenStorage.ts` | `expo-secure-store` wrapper with chunking for large JWTs (1800-byte chunks), crash-safe write order (chunks first, count last) |
 | `permissionService.ts` | Extracts 15 permission flags from JWT roles using `keycloakConfig.clientId`. `getAvailableModules()`, `getAvailableFinanceTabs()` |
 | `versionCheckService.ts` | `/api/mobile/version-check` → forced update, optional update, maintenance mode. Download URL validated against trusted domains |
+| `soundService.ts` | Success sound playback via `expo-av` |
 | `appLifecycle.ts` | First-launch tracking via AsyncStorage |
 | `config.ts` | Dev/prod URLs keyed on `releaseChannel` from `app.json` |
-| `transactionService.ts` | Transaction CRUD: list (paginated + filters), get by ID, update approval status. Throws typed `TransactionError` |
+| `errors.ts` | Typed error classes: `NetworkError`, `AuthError` |
+| `shareIntent/*` | Share intent state machine, validation, flow target registry (see share intent section) |
 
 ### Utilities
 
@@ -133,6 +178,9 @@ Feature-driven structure under `src/features/transactions/`:
 | `utils/retry.ts` | `withRetry()` exponential backoff + `isRetryableError()` (network/5xx) |
 | `utils/deduplicatedRefresh.ts` | `createDeduplicatedRefresh()` — concurrent calls share one promise |
 | `utils/colorUtils.ts` | `withAlpha(color, alpha)` — safe hex alpha application. Use this instead of `+ '1A'` concatenation |
+| `utils/formatters.ts` | Date, currency, plural formatting |
+| `utils/sanitize.ts` | `sanitizeText()`, `sanitizeFilters()`, `hasActiveFilters()` |
+| `utils/mediaUrl.ts` | Build media URLs with auth tokens for private files |
 
 ### Theme & design system
 
@@ -146,7 +194,15 @@ Feature-driven structure under `src/features/transactions/`:
 
 ### i18n
 
-`i18next` + `react-i18next`. Arabic and English with runtime switching. RTL applied via `I18nManager.forceRTL()`. Keys are camelCase: `t('signInWithMicrosoft')`. Strings in `src/i18n/en.ts` and `src/i18n/ar.ts`.
+`i18next` + `react-i18next`. Arabic and English with runtime switching. RTL applied via `I18nManager.forceRTL()`. Keys are camelCase: `t('signInWithMicrosoft')`. Strings in `src/i18n/en.ts` and `src/i18n/ar.ts`. `DirectionProvider` in `src/i18n/` handles RTL context.
+
+### Global hooks
+
+| Hook | Role |
+|------|------|
+| `useAppModule.ts` | Get/set current module (Finance/Gallery) via `AppModuleContext` |
+| `usePagedList.ts` | Generic pagination hook — used by both `useTransactionList` and `useReconciliationList` |
+| `useShareIntent.ts` | Consume shared files from the share intent store |
 
 ### Testing
 
@@ -157,13 +213,19 @@ pnpm test                                    # Run all tests
 pnpm test -- src/services/__tests__/foo.test.ts  # Run single file
 ```
 
-Test files live next to source: `src/services/__tests__/`, `src/utils/__tests__/`, `src/features/transactions/__tests__/`. Mock `expo-secure-store` with in-memory Map, mock `axios` with `axios-mock-adapter` for service tests, use `jest.useFakeTimers()` for timing tests, `renderHook` from `@testing-library/react-native` for hook tests.
+Test files live next to source in `__tests__/` directories. Mock `expo-secure-store` with in-memory Map, mock `axios` with `axios-mock-adapter` for service tests, use `jest.useFakeTimers()` for timing tests, `renderHook` from `@testing-library/react-native` for hook tests.
+
+### Shared types
+
+`src/types/shared.ts` — Cross-feature constants: `APPROVAL_STATUSES`, `CURRENCIES`, `PAGE_SIZE` (20), `NOTES_MAX_LENGTH`, `FILTER_MAX_LENGTH`. Used by both transactions and reconciliation.
 
 ## Key references
 
 - **Flutter source:** `../finance_mobile/lib/` — read this for exact API contracts, request/response shapes, validation, error handling
-- **Migration plan:** `EXPO_MIGRATION_PLAN.md` — phases 0-8, business requirements, current status
+- **Migration plan:** `EXPO_MIGRATION_PLAN.md` — phases 0–8, business requirements, current status
 - **Design system:** `docs/design-system.md` — colors, typography, spacing, component specs
+- **Architecture docs:** `docs/architecture-transaction-history.md`, `docs/receipt-editor-architecture.md`, `docs/share-intent-architecture.md`
+- **Security reviews:** `docs/receipt-editor-security-review.md`, `docs/share-intent-security-review.md`
 - **API base:** dev `http://192.168.100.53:3000`, prod `https://ruqaqa.sa`. All mobile routes under `/api/mobile/`
 - **Auth:** Keycloak at `auth.ruqaqa.sa`, realm `ruqaqa`, client `ruqaqa-mobile-app`
 
@@ -175,3 +237,5 @@ Test files live next to source: `src/services/__tests__/`, `src/utils/__tests__/
 - Design system follows ruqaqa-website (not Flutter's old design)
 - i18n keys in camelCase
 - Client-side permission checks are UX-only — the backend is the security boundary
+- New features should follow the feature structure convention (types, components, hooks, services, utils, tests)
+- Shared finance UI goes in `src/components/finance/`, not duplicated per feature
