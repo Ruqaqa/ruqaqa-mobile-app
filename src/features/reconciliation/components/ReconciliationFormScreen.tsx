@@ -208,64 +208,6 @@ export function ReconciliationFormScreen({ onClose }: ReconciliationFormScreenPr
   // Show bankFeesCurrency only when bankFees has a value
   const showBankFeesCurrency = form.bankFees.trim().length > 0;
 
-  // Picker handlers for attachments
-  const handlePickCamera = useCallback(async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert(t('permissionRequired'), t('pleaseAllowAccess', { permissionName: t('camera') }));
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ['images'],
-      quality: 0.85,
-    });
-    if (!result.canceled && result.assets[0]) {
-      const asset = result.assets[0];
-      addAttachment(
-        asset.uri, 'image',
-        asset.fileName ?? `photo_${Date.now()}.jpg`,
-        asset.mimeType ?? 'image/jpeg',
-        asset.fileSize ?? undefined,
-      );
-    }
-  }, [addAttachment, t]);
-
-  const handlePickGallery = useCallback(async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.85,
-      allowsMultipleSelection: true,
-      selectionLimit: maxAttachments - form.attachments.length,
-    });
-    if (!result.canceled) {
-      for (const asset of result.assets) {
-        addAttachment(
-          asset.uri, 'image',
-          asset.fileName ?? `image_${Date.now()}.jpg`,
-          asset.mimeType ?? 'image/jpeg',
-          asset.fileSize ?? undefined,
-        );
-      }
-    }
-  }, [addAttachment, maxAttachments, form.attachments.length]);
-
-  const handlePickDocument = useCallback(async () => {
-    const result = await DocumentPicker.getDocumentAsync({
-      type: ['application/pdf'],
-      multiple: true,
-    });
-    if (!result.canceled) {
-      for (const asset of result.assets) {
-        addAttachment(
-          asset.uri, 'document',
-          asset.name,
-          asset.mimeType ?? 'application/pdf',
-          asset.size ?? undefined,
-        );
-      }
-    }
-  }, [addAttachment]);
-
   // Build preview data
   const previewFields = useMemo(() => {
     const payload = buildReconciliationPayload(form);
