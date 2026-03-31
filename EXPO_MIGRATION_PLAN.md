@@ -164,7 +164,7 @@ Since video watermarking has no reliable client-side solution in React Native, c
 
 ---
 
-### Phase 4: Reconciliation — IN PROGRESS
+### Phase 4: Reconciliation — DONE
 
 **Goal:** Users can create financial reconciliation records and browse reconciliation history.
 
@@ -207,10 +207,15 @@ Since video watermarking has no reliable client-side solution in React Native, c
 - Approve/Reject/Set to Pending action buttons on detail sheet with confirmation dialogs
 - No optimistic updates — waits for server confirmation, then refreshes in-place
 
-**Share Intent Integration:**
-- Enable the "Reconciliation" flow target in `src/services/shareIntent/flowTargets.ts` (currently registered but disabled with "Coming soon" badge)
-- When user shares files and selects Reconciliation, navigate to the reconciliation form with files pre-attached
-- Follow the same pattern as transactions: consume files via `useShareIntent()` hook + adapter on form mount
+**Share Intent Integration — DONE:**
+- Enabled the "Reconciliation" flow target in `src/services/shareIntent/flowTargets.ts` (was disabled with "Coming soon" badge)
+- When user shares files and selects Reconciliation, navigates to the reconciliation form with files pre-attached
+- Follows the same pattern as transactions: consume files via `useShareIntent()` hook + shared adapter on form mount
+- Extracted `convertSharedFilesToAttachments()` to shared `src/utils/sharedFilesAdapter.ts` (reusable across features)
+- ReceiptPickerSection added to Step 4 (Additional Info) for camera/gallery/document attachments
+- Auto-opens reconciliation form and switches tab when share intent targets reconciliation
+- Security: explicit `allowedMimeTypes` on flow target (was `null`), MIME validation at trust boundary
+- Note: file attachments are collected in the UI but not yet sent to backend (backend multipart support pending)
 
 **Refer to:** `lib/features/reconciliation/`
 
