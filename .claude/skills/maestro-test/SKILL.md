@@ -78,7 +78,7 @@ Prefer `id:` (maps to `testID` in React Native) over `text:` — it's faster and
 - tapOn:
     id: "sso-keycloak-button"
 - extendedWaitUntil:
-    visible: "Username or email|Operations|Reconciliation|Payroll"
+    visible: "Username or email|Operations|Reconciliation"
     timeout: 10000
 - runFlow:
     when:
@@ -94,7 +94,7 @@ Prefer `id:` (maps to `testID` in React Native) over `text:` — it's faster and
           direction: DOWN
       - tapOn: "Sign In"
 - extendedWaitUntil:
-    visible: "Operations|Reconciliation|Payroll"
+    visible: "Operations|Reconciliation"
     timeout: 10000
 ```
 

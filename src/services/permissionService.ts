@@ -21,10 +21,9 @@ export function extractPermissions(
       has('transactions_create') ||
       has('transactions_read_own') ||
       has('transactions_read_all') ||
+      has('reconciliation_create') ||
       has('reconciliation_read_own') ||
-      has('reconciliation_read_all') ||
-      has('payroll_read_own') ||
-      has('payroll_read_all'),
+      has('reconciliation_read_all'),
 
     canAccessGallery: has('gallery_read_all') || has('gallery_read_own'),
 
@@ -41,9 +40,6 @@ export function extractPermissions(
       has('reconciliation_read_own') || has('reconciliation_read_all'),
     canViewAllReconciliations: has('reconciliation_read_all'),
     canUpdateReconciliation: has('reconciliation_update'),
-
-    canViewPayrollHistory: has('payroll_read_own') || has('payroll_read_all'),
-    canViewAllPayroll: has('payroll_read_all'),
 
     canViewGallery: has('gallery_read_all') || has('gallery_read_own'),
     canCreateGallery: has('gallery_create'),
@@ -66,7 +62,7 @@ export function getAvailableModules(
 /**
  * Get the finance tabs the user can see.
  */
-export type FinanceTab = 'operations' | 'reconciliation' | 'payroll';
+export type FinanceTab = 'operations' | 'reconciliation';
 
 export function getAvailableFinanceTabs(
   permissions: UserPermissions,
@@ -80,9 +76,6 @@ export function getAvailableFinanceTabs(
     permissions.canViewReconciliationHistory
   ) {
     tabs.push('reconciliation');
-  }
-  if (permissions.canViewPayrollHistory) {
-    tabs.push('payroll');
   }
   return tabs;
 }

@@ -37,7 +37,6 @@ export default {
   // Navigation
   operations: 'Operations',
   reconciliation: 'Reconciliation',
-  payroll: 'Payroll',
   finance: 'Finance',
   gallery: 'Gallery',
   modules: 'Apps',
@@ -236,9 +235,6 @@ export default {
   normal: 'Normal',
   step: 'Step',
   stepOf: '{{current}} of {{total}}',
-
-  // Payroll
-  payrollOperations: 'Payroll Operations',
 
   // Permissions
   permissionRequired: 'Permission Required',

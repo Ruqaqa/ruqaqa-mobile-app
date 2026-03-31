@@ -18,8 +18,7 @@ function makePermissions(overrides: Partial<UserPermissions> = {}): UserPermissi
     canCreateReconciliation: false,
     canViewReconciliationHistory: false,
     canViewAllReconciliations: false,
-    canViewPayrollHistory: false,
-    canViewAllPayroll: false,
+    canUpdateReconciliation: false,
     canViewGallery: false,
     canCreateGallery: false,
     canDeleteGallery: false,
@@ -63,6 +62,16 @@ describe('reconciliation target', () => {
 
   it('is unavailable when canCreateReconciliation is false', () => {
     expect(target.isAvailable(makePermissions())).toBe(false);
+  });
+
+  it('has maxFiles of 4', () => {
+    expect(target.maxFiles).toBe(4);
+  });
+
+  it('has explicit allowedMimeTypes', () => {
+    expect(target.allowedMimeTypes).not.toBeNull();
+    expect(target.allowedMimeTypes).toContain('image/jpeg');
+    expect(target.allowedMimeTypes).toContain('application/pdf');
   });
 });
 

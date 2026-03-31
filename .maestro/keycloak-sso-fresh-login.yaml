@@ -54,5 +54,5 @@ tags:
 
 # Back in app — authenticated
 - extendedWaitUntil:
-    visible: "Operations|Reconciliation|Payroll"
+    visible: "Operations|Reconciliation"
     timeout: 10000

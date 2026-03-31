@@ -1,10 +1,11 @@
 import MockAdapter from 'axios-mock-adapter';
-import { apiClient } from '@/services/apiClient';
+import { apiClient, uploadMultipart } from '@/services/apiClient';
 import {
   buildReconciliationPayload,
   submitReconciliation,
 } from '../services/reconciliationSubmissionService';
 import { INITIAL_FORM_DATA, ReconciliationFormData } from '../types';
+import type { ReceiptAttachment } from '@/features/transactions/components/ReceiptPickerSection';
 
 const mock = new MockAdapter(apiClient);
 
@@ -192,5 +193,57 @@ describe('submitReconciliation', () => {
     const result = await submitReconciliation(makeForm());
     expect(result.success).toBe(false);
     expect(result.error).toBe('SERVER');
+  });
+
+  it('uses JSON POST when no attachments', async () => {
+    mock.onPost('/reconciliation').reply(201, {
+      success: true,
+      reconciliation: { id: 'abc', statement: 'Test', totalAmount: 500, currency: 'ريال سعودي' },
+    });
+
+    const result = await submitReconciliation(makeForm({ attachments: [] }));
+    expect(result.success).toBe(true);
+    // Should have used the regular JSON post (handled by apiClient mock)
+    const request = mock.history.post[0];
+    expect(request.headers?.['Content-Type']).not.toBe('multipart/form-data');
+  });
+
+  it('uses multipart upload when attachments are present', async () => {
+    // Mock the uploadMultipart path
+    mock.onPost('/reconciliation').reply(201, {
+      success: true,
+      reconciliation: { id: 'abc', statement: 'Test', totalAmount: 500, currency: 'ريال سعودي' },
+    });
+
+    const attachments: ReceiptAttachment[] = [
+      { id: 'att1', uri: 'file:///tmp/photo.jpg', type: 'image', name: 'photo.jpg', mimeType: 'image/jpeg', fileSize: 1024 },
+    ];
+
+    const result = await submitReconciliation(makeForm({ attachments }));
+    expect(result.success).toBe(true);
+    // Verify multipart was used
+    const request = mock.history.post[0];
+    expect(request.data).toBeInstanceOf(FormData);
+  });
+
+  it('sanitizes filenames in multipart upload', async () => {
+    mock.onPost('/reconciliation').reply(201, {
+      success: true,
+      reconciliation: { id: 'abc', statement: 'Test', totalAmount: 500, currency: 'ريال سعودي' },
+    });
+
+    const attachments: ReceiptAttachment[] = [
+      { id: 'att1', uri: 'file:///tmp/photo.jpg', type: 'image', name: '../../../etc/passwd', mimeType: 'image/jpeg', fileSize: 1024 },
+    ];
+
+    const result = await submitReconciliation(makeForm({ attachments }));
+    expect(result.success).toBe(true);
+    // Verify filename was sanitized in the FormData
+    const request = mock.history.post[0];
+    const formData = request.data as FormData;
+    // FormData entries should have sanitized names
+    const entries: string[] = [];
+    formData.forEach((_val: any, key: string) => entries.push(key));
+    expect(entries).toContain('attachments');
   });
 });

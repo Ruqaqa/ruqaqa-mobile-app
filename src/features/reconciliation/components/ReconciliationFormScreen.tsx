@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/theme';
 import { Input } from '@/components/ui/Input';
@@ -20,9 +22,12 @@ import { AutocompleteField, AutocompleteItem } from '@/components/ui/Autocomplet
 import { DatePickerField } from '@/components/ui/DatePickerField';
 import { Button } from '@/components/ui/Button';
 import { DetailRow } from '@/components/finance/DetailRow';
+import { ReceiptPickerSection, MAX_ATTACHMENTS } from '@/features/transactions/components/ReceiptPickerSection';
 import { ReconciliationFlowWidget } from './ReconciliationFlowWidget';
 import { ReconciliationPreviewDialog } from './ReconciliationPreviewDialog';
 import { useReconciliationForm } from '../hooks/useReconciliationForm';
+import { useShareIntent } from '@/hooks/useShareIntent';
+import { convertSharedFilesToAttachments } from '@/utils/sharedFilesAdapter';
 import { FORM_TOTAL_STEPS, ENTITY_TYPES } from '../types';
 import { buildReconciliationPayload } from '../services/reconciliationSubmissionService';
 import { formatDate } from '@/utils/formatters';
@@ -62,7 +67,29 @@ export function ReconciliationFormScreen({ onClose }: ReconciliationFormScreenPr
     employees,
     channels,
     totalSteps,
+    addAttachment,
+    removeAttachment,
+    canAddMore,
+    maxAttachments,
   } = useReconciliationForm({ onSuccess: onClose });
+
+  // Consume shared files targeted at reconciliation on mount
+  const { state: shareState, consumeFiles } = useShareIntent();
+  const consumedRef = useRef(false);
+  useEffect(() => {
+    if (
+      !consumedRef.current &&
+      shareState.status === 'flow_selected' &&
+      shareState.targetId === 'reconciliation'
+    ) {
+      consumedRef.current = true;
+      const sharedFiles = consumeFiles();
+      const { attachments } = convertSharedFilesToAttachments(sharedFiles, form.attachments.length, MAX_ATTACHMENTS);
+      for (const att of attachments) {
+        addAttachment(att.uri, att.type, att.name ?? 'attachment', att.mimeType ?? 'application/octet-stream', att.fileSize);
+      }
+    }
+  }, [shareState]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const scrollRef = useRef<ScrollView>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -86,6 +113,67 @@ export function ReconciliationFormScreen({ onClose }: ReconciliationFormScreenPr
   }, []);
 
   const errors = currentStepErrors;
+
+  // Receipt picker handlers
+  const handlePickCamera = useCallback(async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(t('permissionRequired'), t('pleaseAllowAccess', { permissionName: t('camera') }));
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      quality: 0.85,
+    });
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      addAttachment(
+        asset.uri,
+        'image',
+        asset.fileName ?? `photo_${Date.now()}.jpg`,
+        asset.mimeType ?? 'image/jpeg',
+        asset.fileSize ?? undefined,
+      );
+    }
+  }, [addAttachment, t]);
+
+  const handlePickGallery = useCallback(async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.85,
+      allowsMultipleSelection: true,
+      selectionLimit: maxAttachments - form.attachments.length,
+    });
+    if (!result.canceled) {
+      for (const asset of result.assets) {
+        addAttachment(
+          asset.uri,
+          'image',
+          asset.fileName ?? `image_${Date.now()}.jpg`,
+          asset.mimeType ?? 'image/jpeg',
+          asset.fileSize ?? undefined,
+        );
+      }
+    }
+  }, [addAttachment, maxAttachments, form.attachments.length]);
+
+  const handlePickDocument = useCallback(async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ['application/pdf'],
+      multiple: true,
+    });
+    if (!result.canceled) {
+      for (const asset of result.assets) {
+        addAttachment(
+          asset.uri,
+          'document',
+          asset.name,
+          asset.mimeType ?? 'application/pdf',
+          asset.size ?? undefined,
+        );
+      }
+    }
+  }, [addAttachment]);
 
   // Options derived from reference data
   const channelOptions = useMemo(
@@ -119,6 +207,64 @@ export function ReconciliationFormScreen({ onClose }: ReconciliationFormScreenPr
 
   // Show bankFeesCurrency only when bankFees has a value
   const showBankFeesCurrency = form.bankFees.trim().length > 0;
+
+  // Picker handlers for attachments
+  const handlePickCamera = useCallback(async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(t('permissionRequired'), t('pleaseAllowAccess', { permissionName: t('camera') }));
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      quality: 0.85,
+    });
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      addAttachment(
+        asset.uri, 'image',
+        asset.fileName ?? `photo_${Date.now()}.jpg`,
+        asset.mimeType ?? 'image/jpeg',
+        asset.fileSize ?? undefined,
+      );
+    }
+  }, [addAttachment, t]);
+
+  const handlePickGallery = useCallback(async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.85,
+      allowsMultipleSelection: true,
+      selectionLimit: maxAttachments - form.attachments.length,
+    });
+    if (!result.canceled) {
+      for (const asset of result.assets) {
+        addAttachment(
+          asset.uri, 'image',
+          asset.fileName ?? `image_${Date.now()}.jpg`,
+          asset.mimeType ?? 'image/jpeg',
+          asset.fileSize ?? undefined,
+        );
+      }
+    }
+  }, [addAttachment, maxAttachments, form.attachments.length]);
+
+  const handlePickDocument = useCallback(async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ['application/pdf'],
+      multiple: true,
+    });
+    if (!result.canceled) {
+      for (const asset of result.assets) {
+        addAttachment(
+          asset.uri, 'document',
+          asset.name,
+          asset.mimeType ?? 'application/pdf',
+          asset.size ?? undefined,
+        );
+      }
+    }
+  }, [addAttachment]);
 
   // Build preview data
   const previewFields = useMemo(() => {
@@ -427,6 +573,16 @@ export function ReconciliationFormScreen({ onClose }: ReconciliationFormScreenPr
                 style={{ height: 80, textAlignVertical: 'top', paddingTop: 12 }}
               />
 
+              <SectionTitle title={t('attachments')} />
+              <ReceiptPickerSection
+                attachments={form.attachments}
+                onPickCamera={handlePickCamera}
+                onPickGallery={handlePickGallery}
+                onPickDocument={handlePickDocument}
+                onRemove={removeAttachment}
+                maxAttachments={maxAttachments}
+              />
+
               <SectionTitle title={t('reconciliationSummary')} />
 
               <View style={[
@@ -531,6 +687,7 @@ export function ReconciliationFormScreen({ onClose }: ReconciliationFormScreenPr
         toType={form.toType}
         toEmployee={toEmployeeObj}
         receiverChannel={receiverChannelObj}
+        attachmentCount={form.attachments.length}
         onConfirm={handleConfirmSubmit}
         onCancel={handleCancelPreview}
       />

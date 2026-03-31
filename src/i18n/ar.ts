@@ -37,7 +37,6 @@ export default {
   // Navigation
   operations: 'العمليات',
   reconciliation: 'التسوية',
-  payroll: 'المرتبات',
   finance: 'المالية',
   gallery: 'المعرض',
   modules: 'التطبيقات',
@@ -236,9 +235,6 @@ export default {
   normal: 'عادي',
   step: 'خطوة',
   stepOf: '{{current}} من {{total}}',
-
-  // Payroll
-  payrollOperations: 'عمليات المرتبات',
 
   // Permissions
   permissionRequired: 'صلاحية مطلوبة',

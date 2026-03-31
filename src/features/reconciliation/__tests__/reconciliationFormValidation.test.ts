@@ -291,6 +291,24 @@ describe('Step 4 — Additional Info', () => {
     const errors = validateStep(4, makeForm({ notes: 'some notes' }));
     expect(Object.keys(errors)).toHaveLength(0);
   });
+
+  it('is valid with attachments', () => {
+    const errors = validateStep(4, makeForm({
+      attachments: [
+        { id: 'att_1', uri: 'file:///photo.jpg', type: 'image', name: 'photo.jpg', mimeType: 'image/jpeg' },
+      ],
+    }));
+    expect(Object.keys(errors)).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// INITIAL_FORM_DATA defaults
+// ---------------------------------------------------------------------------
+describe('INITIAL_FORM_DATA', () => {
+  it('has empty attachments array by default', () => {
+    expect(INITIAL_FORM_DATA.attachments).toEqual([]);
+  });
 });
 
 // ---------------------------------------------------------------------------

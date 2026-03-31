@@ -54,10 +54,10 @@ export function FlowSelectorSheet({
     },
     {
       target: 'reconciliation',
-      icon: <Scale size={22} color={colors.foregroundSecondary} />,
+      icon: <Scale size={22} color={colors.secondary} />,
       titleKey: 'shareFlowReconciliation',
       descriptionKey: 'shareFlowReconciliationDesc',
-      enabled: false,
+      enabled: true,
     },
     {
       target: 'gallery',

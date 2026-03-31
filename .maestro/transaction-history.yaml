@@ -8,7 +8,7 @@ env:
 # --- Login (handles already-authenticated state) ---
 - launchApp
 - extendedWaitUntil:
-    visible: "Sign in with SSO|Update now|Operations|Reconciliation|Payroll"
+    visible: "Sign in with SSO|Update now|Operations|Reconciliation"
     timeout: 10000
 - tapOn:
     id: "dev-skip-update"
@@ -20,7 +20,7 @@ env:
       - tapOn:
           id: "sso-keycloak-button"
       - extendedWaitUntil:
-          visible: "Username or email|Operations|Reconciliation|Payroll"
+          visible: "Username or email|Operations|Reconciliation"
           timeout: 10000
       - runFlow:
           when:
@@ -38,7 +38,7 @@ env:
 
 # --- 1. Transaction list loads ---
 - extendedWaitUntil:
-    visible: "Operations|Reconciliation|Payroll"
+    visible: "Operations|Reconciliation"
     timeout: 10000
 # Dismiss debugger warning bar if present
 - tapOn:

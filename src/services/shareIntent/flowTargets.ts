@@ -18,7 +18,7 @@ export const SHARE_FLOW_TARGETS: ShareFlowTarget[] = [
     descriptionKey: 'shareFlowReconciliationDesc',
     icon: 'ArrowLeftRight',
     maxFiles: 4,
-    allowedMimeTypes: null,
+    allowedMimeTypes: ALLOWED_MIME_TYPES as unknown as string[],
     isAvailable: (p: UserPermissions) => p.canCreateReconciliation,
   },
   {

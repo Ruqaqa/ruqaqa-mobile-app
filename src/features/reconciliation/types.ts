@@ -1,5 +1,6 @@
 import { APPROVAL_STATUSES, ApprovalStatus, PAGE_SIZE, FILTER_MAX_LENGTH, CURRENCIES } from '@/types/shared';
 import type { Currency } from '@/types/shared';
+import type { ReceiptAttachment } from '@/features/transactions/components/ReceiptPickerSection';
 export { APPROVAL_STATUSES, ApprovalStatus, PAGE_SIZE, FILTER_MAX_LENGTH, CURRENCIES };
 export type { Currency };
 
@@ -106,6 +107,7 @@ export interface ReconciliationFormData {
   toEmployee: string | null; // ObjectId
   receiverChannel: string | null; // ObjectId
   notes: string;
+  attachments: ReceiptAttachment[];
 }
 
 /** Default form state */
@@ -124,6 +126,7 @@ export const INITIAL_FORM_DATA: ReconciliationFormData = {
   toEmployee: null,
   receiverChannel: null,
   notes: '',
+  attachments: [],
 };
 
 /** Data shape returned by the submission service on success */

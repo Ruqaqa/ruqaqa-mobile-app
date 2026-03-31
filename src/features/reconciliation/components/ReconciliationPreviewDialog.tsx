@@ -39,6 +39,7 @@ interface ReconciliationPreviewDialogProps {
   toEmployee: ReconciliationEmployee | null;
   receiverChannel: ReconciliationChannel | null;
   countdownSeconds?: number;
+  attachmentCount?: number;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -55,6 +56,7 @@ export function ReconciliationPreviewDialog({
   toEmployee,
   receiverChannel,
   countdownSeconds = 10,
+  attachmentCount = 0,
   onConfirm,
   onCancel,
 }: ReconciliationPreviewDialogProps) {
@@ -344,6 +346,45 @@ export function ReconciliationPreviewDialog({
                 </View>
               );
             })}
+
+            {/* Attachment count */}
+            {attachmentCount > 0 && (
+              <View
+                style={[
+                  styles.fieldRow,
+                  {
+                    backgroundColor: colors.muted,
+                    borderRadius: radius.sm,
+                    padding: spacing.sm,
+                    marginBottom: spacing.sm,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    typography.bodySmall,
+                    {
+                      color: colors.foregroundSecondary,
+                      fontWeight: '500',
+                    },
+                  ]}
+                >
+                  {t('attachments')}
+                </Text>
+                <Text
+                  style={[
+                    typography.bodyMedium,
+                    {
+                      color: colors.foreground,
+                      fontWeight: '600',
+                      marginTop: 2,
+                    },
+                  ]}
+                >
+                  {String(attachmentCount)}
+                </Text>
+              </View>
+            )}
 
             {/* Reconciliation flow */}
             <View style={{ marginTop: spacing.sm, marginBottom: spacing.sm }}>

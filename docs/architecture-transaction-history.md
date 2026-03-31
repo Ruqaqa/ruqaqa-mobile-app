@@ -630,7 +630,7 @@ interface DatePickerFieldProps {
 | Error icon shake animation | **Rejected.** Adds complexity for minimal UX value. A static icon with retry button is clear enough. |
 | Spring animation for search modal | **Modified.** Use `BottomSheet` from `@gorhom/bottom-sheet` (already needed for detail sheet). It provides spring animations out of the box. No need for custom spring config — use the library defaults. |
 | Accent green line on filter bar | **Rejected.** The filter bar is a utility element, not a brand surface. Adding a decorative green line creates visual noise on a screen that's already dense with transaction cards. The accent green should appear in meaningful contexts (success states, positive amounts), not as decoration. |
-| CurrencyBadge as separate component | **Rejected as a standalone `src/components/ui/` component.** A currency badge is specific to financial features, not general UI. It will be a styled `View`+`Text` inside `TransactionCard` directly. If reconciliation/payroll need it later, extract then. |
+| CurrencyBadge as separate component | **Rejected as a standalone `src/components/ui/` component.** A currency badge is specific to financial features, not general UI. It will be a styled `View`+`Text` inside `TransactionCard` directly. If reconciliation needs it later, extract then. |
 | ApprovalStatusChips as `src/components/ui/` | **Moved to feature.** `ApprovalStatusChips` is used only in the search modal within transactions. It is a feature-internal widget, not a reusable UI primitive. It lives in `src/features/transactions/components/ApprovalStatusChips.tsx`. If reconciliation reuses it later, promote it then. |
 
 ### Security item #7 (PII in server logs)

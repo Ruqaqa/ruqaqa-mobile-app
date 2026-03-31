@@ -91,7 +91,7 @@ Key points:
 
 `app/(app)/_layout.tsx` uses an IndexedStack pattern — both `FinanceShell` and `GalleryShell` are always mounted (preserves state). Only the active module is displayed via `display: flex/none`.
 
-- **FinanceShell**: tabs for Operations (Transaction History), Reconciliation, Payroll
+- **FinanceShell**: tabs for Operations (Transaction History), Reconciliation
 - **GalleryShell**: tabs for Albums, Upload
 - Tabs are permission-gated via `getAvailableFinanceTabs()`
 - Module switching via `ModuleSwitcherSheet` bottom sheet
@@ -120,7 +120,7 @@ Feature-driven structure under `src/features/transactions/`:
 | `apiClient.ts` | Axios: auto Bearer, proactive refresh, 401 retry with dedup, `uploadMultipart()` helper |
 | `employeeService.ts` | Validates employee via `apiClient` post-login |
 | `tokenStorage.ts` | `expo-secure-store` wrapper with chunking for large JWTs (1800-byte chunks), crash-safe write order (chunks first, count last) |
-| `permissionService.ts` | Extracts 16 permission flags from JWT roles using `keycloakConfig.clientId`. `getAvailableModules()`, `getAvailableFinanceTabs()` |
+| `permissionService.ts` | Extracts 15 permission flags from JWT roles using `keycloakConfig.clientId`. `getAvailableModules()`, `getAvailableFinanceTabs()` |
 | `versionCheckService.ts` | `/api/mobile/version-check` → forced update, optional update, maintenance mode. Download URL validated against trusted domains |
 | `appLifecycle.ts` | First-launch tracking via AsyncStorage |
 | `config.ts` | Dev/prod URLs keyed on `releaseChannel` from `app.json` |

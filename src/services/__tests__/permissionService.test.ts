@@ -60,10 +60,9 @@ describe('extractPermissions', () => {
 
   it('extracts permissions from client roles only', () => {
     const perms = extractPermissions(
-      buildPayload({ clientRoles: ['reconciliation_create', 'payroll_read_all'] }),
+      buildPayload({ clientRoles: ['reconciliation_create'] }),
     );
     expect(perms.canCreateReconciliation).toBe(true);
-    expect(perms.canViewAllPayroll).toBe(true);
     expect(perms.canAccessFinance).toBe(true);
   });
 
@@ -88,7 +87,6 @@ describe('extractPermissions', () => {
     // Finance access should NOT be granted
     expect(perms.canAccessFinance).toBe(false);
     expect(perms.canCreateTransactions).toBe(false);
-    expect(perms.canViewPayrollHistory).toBe(false);
   });
 
   it('handles missing realm_access gracefully', () => {
@@ -119,8 +117,7 @@ const NO_ACCESS: UserPermissions = {
   canCreateReconciliation: false,
   canViewReconciliationHistory: false,
   canViewAllReconciliations: false,
-  canViewPayrollHistory: false,
-  canViewAllPayroll: false,
+  canUpdateReconciliation: false,
   canViewGallery: false,
   canCreateGallery: false,
   canDeleteGallery: false,
@@ -200,14 +197,6 @@ describe('getAvailableFinanceTabs', () => {
     expect(tabs).toContain('reconciliation');
   });
 
-  it('includes payroll for canViewPayrollHistory', () => {
-    const tabs = getAvailableFinanceTabs({
-      ...NO_ACCESS,
-      canViewPayrollHistory: true,
-    });
-    expect(tabs).toContain('payroll');
-  });
-
   it('returns all tabs for full access in correct order', () => {
     const tabs = getAvailableFinanceTabs({
       ...NO_ACCESS,
@@ -215,9 +204,7 @@ describe('getAvailableFinanceTabs', () => {
       canViewTransactionHistory: true,
       canCreateReconciliation: true,
       canViewReconciliationHistory: true,
-      canViewPayrollHistory: true,
-      canViewAllPayroll: true,
     });
-    expect(tabs).toEqual(['operations', 'reconciliation', 'payroll']);
+    expect(tabs).toEqual(['operations', 'reconciliation']);
   });
 });

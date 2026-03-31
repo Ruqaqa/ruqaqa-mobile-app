@@ -17,25 +17,10 @@ import { ReconciliationHistoryScreen } from '../features/reconciliation/componen
 import { ReconciliationFormScreen } from '../features/reconciliation/components/ReconciliationFormScreen';
 import { useShareIntent } from '../hooks/useShareIntent';
 
-// Placeholder tab content — replaced per-feature in later phases
-function PlaceholderTab({ label }: { label: string }) {
-  const { colors, typography, spacing } = useTheme();
-  return (
-    <View style={[styles.placeholder, { backgroundColor: colors.background }]}>
-      <Text style={[typography.headingMedium, { color: colors.foregroundSecondary }]}>
-        {label}
-      </Text>
-      <Text style={[typography.bodySmall, { color: colors.foregroundSecondary, marginTop: spacing.sm }]}>
-        Coming in Phase 3-5
-      </Text>
-    </View>
-  );
-}
-
 /**
  * Finance module shell with bottom tab navigation.
  *
- * Tabs: Operations, Reconciliation, Payroll (permission-gated).
+ * Tabs: Operations, Reconciliation (permission-gated).
  * FAB on Operations tab opens the Transaction Form as a full-screen modal.
  */
 export function FinanceShell() {
@@ -53,23 +38,26 @@ export function FinanceShell() {
   const [reconciliationFormVisible, setReconciliationFormVisible] = useState(false);
   const { state: shareState } = useShareIntent();
 
-  // Auto-open transaction form when share intent targets transactions
+  // Auto-open form when share intent targets a finance flow
   useEffect(() => {
-    if (shareState.status === 'flow_selected' && shareState.targetId === 'transaction') {
-      setFormVisible(true);
+    if (shareState.status === 'flow_selected') {
+      if (shareState.targetId === 'transaction') {
+        setFormVisible(true);
+      } else if (shareState.targetId === 'reconciliation') {
+        setActiveTab('reconciliation');
+        setReconciliationFormVisible(true);
+      }
     }
   }, [shareState]);
 
   const tabLabels: Record<FinanceTab, string> = {
     operations: t('operations'),
     reconciliation: t('reconciliation'),
-    payroll: t('payroll'),
   };
 
   const tabIcons: Record<FinanceTab, string> = {
     operations: 'receipt',
     reconciliation: 'arrow-left-right',
-    payroll: 'banknote',
   };
 
   const openForm = useCallback(() => setFormVisible(true), []);
@@ -106,10 +94,8 @@ export function FinanceShell() {
           >
             {tab === 'operations' ? (
               <TransactionHistoryScreen permissions={permissions} />
-            ) : tab === 'reconciliation' ? (
-              <ReconciliationHistoryScreen permissions={permissions} />
             ) : (
-              <PlaceholderTab label={tabLabels[tab]} />
+              <ReconciliationHistoryScreen permissions={permissions} />
             )}
           </View>
         ))}

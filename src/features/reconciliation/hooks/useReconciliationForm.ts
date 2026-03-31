@@ -7,6 +7,11 @@ import {
 } from '@/services/financeChannelService';
 import { playSuccessSound } from '@/services/soundService';
 import {
+  MAX_ATTACHMENTS,
+  validateReceiptFile,
+  sanitizeFilename,
+} from '@/features/transactions/components/ReceiptPickerSection';
+import {
   ReconciliationFormData,
   INITIAL_FORM_DATA,
   FORM_TOTAL_STEPS,
@@ -118,6 +123,41 @@ export function useReconciliationForm({ onSuccess }: UseReconciliationFormOption
     }
   }, [form, isSubmitting, t, onSuccess]);
 
+  // Attachments
+  const addAttachment = useCallback((
+    uri: string,
+    type: 'image' | 'document',
+    name: string,
+    mimeType: string,
+    fileSize?: number,
+  ): string | null => {
+    const validationError = validateReceiptFile(mimeType, fileSize);
+    if (validationError) return validationError;
+
+    setForm((prev) => {
+      if (prev.attachments.length >= MAX_ATTACHMENTS) return prev;
+      const attachment = {
+        id: `recon_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        uri,
+        type,
+        name: sanitizeFilename(name),
+        mimeType,
+        fileSize,
+      };
+      return { ...prev, attachments: [...prev.attachments, attachment] };
+    });
+    return null;
+  }, []);
+
+  const removeAttachment = useCallback((id: string) => {
+    setForm((prev) => ({
+      ...prev,
+      attachments: prev.attachments.filter((a) => a.id !== id),
+    }));
+  }, []);
+
+  const canAddMore = form.attachments.length < MAX_ATTACHMENTS;
+
   // Reset
   const reset = useCallback(() => {
     setForm({ ...INITIAL_FORM_DATA });
@@ -143,5 +183,9 @@ export function useReconciliationForm({ onSuccess }: UseReconciliationFormOption
     employees,
     channels,
     totalSteps: FORM_TOTAL_STEPS,
+    addAttachment,
+    removeAttachment,
+    canAddMore,
+    maxAttachments: MAX_ATTACHMENTS,
   };
 }

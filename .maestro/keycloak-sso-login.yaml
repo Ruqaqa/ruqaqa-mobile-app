@@ -21,7 +21,7 @@ env:
 
 # Keycloak login form — may not appear if browser has active session
 - extendedWaitUntil:
-    visible: "Username or email|Operations|Reconciliation|Payroll"
+    visible: "Username or email|Operations|Reconciliation"
     timeout: 10000
 
 # Fill credentials only if Keycloak form appeared
@@ -41,5 +41,5 @@ env:
 
 # Should land in authenticated shell
 - extendedWaitUntil:
-    visible: "Operations|Reconciliation|Payroll"
+    visible: "Operations|Reconciliation"
     timeout: 10000

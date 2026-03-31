@@ -5,7 +5,7 @@
 
 ## Current State
 
-The Flutter app (`finance_mobile`) is a financial management mobile app for Ruqaqa employees. It has 6 feature domains: Transactions, Reconciliation, Payroll, Gallery, Permissions, and Main Navigation. It authenticates via Keycloak SSO, communicates with the Payload CMS backend at `ruqaqa.sa/api/mobile/*`, and supports Arabic/English with full RTL.
+The Flutter app (`finance_mobile`) is a financial management mobile app for Ruqaqa employees. It has 5 feature domains: Transactions, Reconciliation, Gallery, Permissions, and Main Navigation. It authenticates via Keycloak SSO, communicates with the Payload CMS backend at `ruqaqa.sa/api/mobile/*`, and supports Arabic/English with full RTL.
 
 The implementing AI should refer to the Flutter codebase at `finance_mobile/lib/` for exact business logic, API contracts, validation rules, and UI behavior.
 
@@ -48,7 +48,7 @@ Since video watermarking has no reliable client-side solution in React Native, c
 
 **Completed:**
 - Expo project initialized with TypeScript, targeting Android and iOS
-- Navigation: module switcher (Finance vs Gallery), tab navigation within Finance (Operations, Reconciliation, Payroll), Gallery (Albums, Upload) — all permission-gated
+- Navigation: module switcher (Finance vs Gallery), tab navigation within Finance (Operations, Reconciliation), Gallery (Albums, Upload) — all permission-gated
 - Design system based on ruqaqa-website (not Flutter): documented in `docs/design-system.md`, implemented in `src/theme/`
 - Arabic/English localization with runtime switching and RTL support: `src/i18n/`
 - Authenticated HTTP client with auto Bearer token, proactive refresh, 401 retry, multipart upload: `src/services/apiClient.ts`
@@ -89,7 +89,7 @@ Since video watermarking has no reliable client-side solution in React Native, c
 - Extract permissions and roles from the JWT token (both realm roles and client-specific roles)
 - The permission system controls:
   - Which modules are visible (Finance, Gallery, or both)
-  - Within Finance, which tabs appear (Transactions, Reconciliation, Payroll)
+  - Within Finance, which tabs appear (Transactions, Reconciliation)
   - Within each feature, what actions are allowed (create, read own, read all, update)
   - Special permissions like selecting a partner in transactions or adding receipts to submitted transactions
 - Cache permissions in memory; clear on logout
@@ -218,24 +218,7 @@ Since video watermarking has no reliable client-side solution in React Native, c
 
 ---
 
-### Phase 5: Payroll
-
-**Goal:** Users can view payroll records.
-
-**Business Requirements:**
-- Paginated list of payroll records (20 per page)
-- Filter by: employee name, status, entry type, date range
-- Toggle between "my payroll" and "all payroll" (permission-dependent)
-- Active filter count indicator
-- Detail view for individual payroll records
-
-**Refer to:** `lib/features/payroll/`
-
-**Deliverable:** Payroll history with filtering.
-
----
-
-### Phase 6: Gallery — Albums & Media Viewing
+### Phase 5: Gallery — Albums & Media Viewing
 
 **Goal:** Users can browse photo/video albums, view media full-screen, and download media.
 
@@ -270,7 +253,7 @@ Since video watermarking has no reliable client-side solution in React Native, c
 
 ---
 
-### Phase 7: Gallery — Upload & Processing
+### Phase 6: Gallery — Upload & Processing
 
 **Goal:** Users can upload photos and videos with optimization and optional watermarking.
 
@@ -320,7 +303,7 @@ Since video watermarking has no reliable client-side solution in React Native, c
 
 ---
 
-### Phase 8: Shared Components & Polish
+### Phase 7: Shared Components & Polish
 
 **Goal:** Ensure all cross-cutting concerns are solid.
 
@@ -349,12 +332,11 @@ Since video watermarking has no reliable client-side solution in React Native, c
 | 2 | Permissions & Role-Based Access | Phase 1 |
 | 3 | Transactions | Phase 2 |
 | 4 | Reconciliation | Phase 2 |
-| 5 | Payroll | Phase 2 |
-| 6 | Gallery — Albums & Viewing | Phase 2 |
-| 7 | Gallery — Upload & Processing | Phase 6 |
-| 8 | Shared Components & Polish | All phases |
+| 5 | Gallery — Albums & Viewing | Phase 2 |
+| 6 | Gallery — Upload & Processing | Phase 5 |
+| 7 | Shared Components & Polish | All phases |
 
-Phases 3, 4, 5, and 6 can be worked on in parallel once Phase 2 is complete.
+Phases 3, 4, and 5 can be worked on in parallel once Phase 2 is complete.
 
 ---
 
