@@ -170,22 +170,27 @@ Since video watermarking has no reliable client-side solution in React Native, c
 
 **Business Requirements:**
 
-**Reconciliation Creation Form:**
+**Reconciliation Creation Form — DONE:**
 - Multi-step form (5 steps) with page-by-page navigation and a progress indicator:
-  1. Basic info: statement, total amount, date, currency
+  1. Basic info: statement, total amount, date, currency, bank fees (required, with separate currency selector)
   2. Type selection: salary, bonus, or normal
-  3. Sender details: entity type (wallet/employee/bilad card), finance channel, employee selection (if employee type)
-  4. Receiver details: entity type (wallet/employee/bilad card), optional finance channel, employee selection (if employee type)
-  5. Additional info: bank fees (with separate currency selector), notes
+  3. Sender details: entity type (wallet/employee/bilad card), finance channel (required), employee selection (searchable autocomplete, if employee type)
+  4. Receiver details: entity type (wallet/employee/bilad card), finance channel (required), employee selection (searchable autocomplete, if employee type)
+  5. Additional info: notes, summary card with ReconciliationFlowWidget and DetailRow
 - Validation per step: cannot advance to the next step until current step is valid
 - Finance channels are fetched from the backend and cached for 24 hours
-- Employee selection uses the same cached employee list as transactions
-- Success feedback on submission
+- Employee selection uses searchable AutocompleteField with cached employee list (minChars=0, shows all on focus)
+- 10-second countdown preview dialog with pause/resume, animated entrance, flow widget
+- Success sound feedback on submission
+- Permission-gated FAB on reconciliation tab (canCreateReconciliation)
+- Shared constants promoted: CURRENCIES, NOTES_MAX_LENGTH, validators moved to @/types/shared.ts and @/utils/sanitize.ts
+- Security: input sanitization (sanitizeText, isValidObjectId, isValidEntityType, isValidReconciliationType), error code mapping (never raw API errors)
+- 66 new tests (44 validation + 22 service), all passing
 
 **Reconciliation History — DONE:**
 - Paginated list of reconciliation records (20 per page) with pull-to-refresh
 - Toggle between "my reconciliations" and "all reconciliations" (permission-dependent)
-- Search by: statement, reconciliation number, amount range (min/max with +/- sign toggle), date range, sender/receiver entity type (wallet/employee/bilad card), sender/receiver employee (autocomplete dropdown with ObjectId-based filtering), sender/receiver channel, reconciliation type (salary/bonus/normal)
+- Search by: statement, reconciliation number, amount range (min/max, always positive — no sign toggle), date range, sender/receiver entity type (wallet/employee/bilad card), sender/receiver employee (autocomplete dropdown with ObjectId-based filtering), sender/receiver channel, reconciliation type (salary/bonus/normal)
 - Filter by approval status (Pending, Approved, Rejected)
 - Employee autocomplete shows all cached employees on focus (`minChars=0`), sends ObjectId for precise matching
 - Conditional employee fields: only visible when the corresponding entity type is set to "employee"
