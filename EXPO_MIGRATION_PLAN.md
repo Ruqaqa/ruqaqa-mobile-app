@@ -241,6 +241,7 @@ Since video watermarking has no reliable client-side solution in React Native, c
 - Video playback support in the viewer
 - Multi-select mode: long-press to enter selection mode, select multiple items for bulk actions
 - Bulk delete with confirmation dialog
+- Reassign media: move/copy selected items to a different album, reassign tags, or change project association
 - Pagination for large albums
 
 **Downloading:**
