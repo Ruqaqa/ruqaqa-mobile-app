@@ -15,6 +15,7 @@ type AuthHeaders = { Authorization: string } | undefined;
 export function useAuthHeaders(): AuthHeaders {
   const [headers, setHeaders] = useState<AuthHeaders>(undefined);
   const isMountedRef = useRef(true);
+  const lastTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -22,6 +23,10 @@ export function useAuthHeaders(): AuthHeaders {
     const loadToken = async () => {
       const token = await tokenStorage.getAccessToken();
       if (!isMountedRef.current) return;
+      // Only update state when the token actually changes to avoid
+      // unnecessary re-renders (and thumbnail flickering) every interval.
+      if (token === lastTokenRef.current) return;
+      lastTokenRef.current = token;
       if (token) {
         setHeaders({ Authorization: `Bearer ${token}` });
       } else {

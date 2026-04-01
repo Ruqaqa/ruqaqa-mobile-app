@@ -21,7 +21,7 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/payloa
 // Collection names as Payload stores them (slug-based)
 const TAGS_COLLECTION = 'gallery-tags';
 const ALBUMS_COLLECTION = 'gallery-albums';
-const GALLERY_COLLECTION = 'gallery';
+const GALLERY_COLLECTION = 'galleries';
 
 // ---------------------------------------------------------------------------
 // Helpers
