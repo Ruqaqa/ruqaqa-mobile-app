@@ -42,6 +42,7 @@ export default {
   modules: 'Apps',
   switchModule: 'Switch App',
   currentModule: 'Current',
+  pressBackAgainToExit: 'Press back again to exit',
   galleryTab: 'Albums',
   upload: 'Upload',
 

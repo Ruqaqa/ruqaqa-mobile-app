@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Redirect } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppModule } from '../../src/types/permissions';
 import { getAvailableModules } from '../../src/services/permissionService';
@@ -16,6 +17,7 @@ import { useShareIntent } from '../../src/hooks/useShareIntent';
 import { FlowSelectorSheet } from '../../src/components/share';
 import type { ShareFlowTarget } from '../../src/components/share';
 import { shareIntentStore } from '../../src/services/shareIntent';
+import { useDoubleBackExit } from '../../src/hooks/useDoubleBackExit';
 
 /**
  * Main authenticated app layout.
@@ -72,6 +74,10 @@ export default function AppLayout() {
     },
     [],
   );
+
+  // Double-back-to-exit on Android
+  const { t } = useTranslation();
+  useDoubleBackExit(t('pressBackAgainToExit'));
 
   // Share intent: show flow selector when files arrive
   const { hasPendingFiles, pendingFiles, selectFlow, clear: clearShareIntent } = useShareIntent();

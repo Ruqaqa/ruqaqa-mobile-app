@@ -1,5 +1,5 @@
-import React, { useCallback, useState } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, Text, Pressable, StyleSheet, BackHandler, Platform } from 'react-native';
 import { ArrowLeft } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/theme';
@@ -21,6 +21,16 @@ export function AlbumDetailScreen({ album, onBack }: AlbumDetailScreenProps) {
   const { colors, typography, spacing } = useTheme();
   const { t, i18n } = useTranslation();
   const displayTitle = getLocalizedTitle(album, i18n.language);
+
+  // Android back button → go back to album grid
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+      onBack();
+      return true;
+    });
+    return () => handler.remove();
+  }, [onBack]);
 
   const {
     items,

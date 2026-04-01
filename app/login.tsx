@@ -7,6 +7,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../src/theme';
 import { withAlpha } from '../src/utils/colorUtils';
@@ -20,11 +21,20 @@ import { SharePendingBanner } from '../src/components/share';
 export default function LoginScreen() {
   const { t } = useTranslation();
   const { colors, typography, spacing, radius } = useTheme();
-  const { login, logoutMessage, clearLogoutMessage } = useAuth();
+  const { isAuthenticated, login, logoutMessage, clearLogoutMessage } = useAuth();
   const { hasPendingFiles, pendingFileCount, clear: clearShareIntent } = useShareIntent();
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
+
+  // Navigate to authenticated area when login succeeds.
+  // Using router.replace ensures /login is removed from the back stack,
+  // so the Android back button won't return here.
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace('/(app)');
+    }
+  }, [isAuthenticated]);
 
   // Show logout message as banner if present
   useEffect(() => {

@@ -42,6 +42,7 @@ export default {
   modules: 'التطبيقات',
   switchModule: 'تبديل التطبيق',
   currentModule: 'الحالي',
+  pressBackAgainToExit: 'اضغط مرة أخرى للخروج',
   galleryTab: 'الألبومات',
   upload: 'رفع',
 
