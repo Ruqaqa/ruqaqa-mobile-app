@@ -1,8 +1,10 @@
 /**
- * Gallery test data seed script for Phase 5A development.
+ * Gallery test data seed script for Phase 5A/5B development.
  *
  * Seeds MongoDB directly with gallery-tags, gallery-albums, and gallery items
  * that match the Payload CMS document shapes.
+ *
+ * Includes a large album with 55 items for pagination testing (3 pages at 20/page).
  *
  * Usage:
  *   pnpm seed:gallery          # seed data (idempotent — cleans first)
@@ -13,7 +15,7 @@
 
 import { MongoClient, ObjectId } from 'mongodb';
 
-const SEED_MARKER = 'gallery-phase5a';
+const SEED_MARKER = 'gallery-phase5b';
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/payload';
 
 // Collection names as Payload stores them (slug-based)
@@ -111,11 +113,26 @@ const ALBUM_DEFS: AlbumDef[] = [
     isDefault: false,
     itemCount: 0,
   },
+  {
+    titleEn: 'Large Project Gallery',
+    titleAr: 'معرض المشروع الكبير',
+    descEn: 'Large album with 55 items for pagination testing (3 pages at 20/page)',
+    descAr: 'ألبوم كبير يحتوي على 55 عنصراً لاختبار التصفح',
+    isDefault: false,
+    itemCount: 55,
+  },
 ];
 
 // Mime types to cycle through for variety
 const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp'];
 const VIDEO_MIMES = ['video/mp4', 'video/quicktime'];
+
+// Fake uploader data for realistic media items
+const UPLOADERS = [
+  { id: oid(), firstName: 'Ahmed', lastName: 'Al-Rashidi' },
+  { id: oid(), firstName: 'Sara', lastName: 'Al-Otaibi' },
+  { id: oid(), firstName: 'Mohammed', lastName: 'Al-Harbi' },
+];
 
 // ---------------------------------------------------------------------------
 // Build documents
@@ -135,20 +152,21 @@ function buildTags() {
 function buildGalleryItems(tagIds: ObjectId[]) {
   const timestamp = now();
   const items: Record<string, unknown>[] = [];
-  let itemIndex = 0;
 
-  // Total 20 items distributed: 8 + 5 + 4 + 2 + 1 + 0 = 20
+  // Total items: 8 + 5 + 4 + 2 + 1 + 0 + 55 = 75
   const totalItems = ALBUM_DEFS.reduce((sum, a) => sum + a.itemCount, 0);
 
   for (let i = 0; i < totalItems; i++) {
+    const itemId = oid();
     // Every 4th item is a video
     const isVideo = i % 4 === 3;
     const mimeType = isVideo
       ? VIDEO_MIMES[i % VIDEO_MIMES.length]
       : IMAGE_MIMES[i % IMAGE_MIMES.length];
     const ext = isVideo ? 'mp4' : mimeType === 'image/png' ? 'png' : 'jpg';
-    const filename = `seed-gallery-${String(i + 1).padStart(2, '0')}.${ext}`;
-    const thumbnailFilename = `seed-gallery-${String(i + 1).padStart(2, '0')}-thumb.jpg`;
+    const filename = `seed-gallery-${String(i + 1).padStart(3, '0')}.${ext}`;
+    const thumbnailFilename = `seed-gallery-${String(i + 1).padStart(3, '0')}-thumb.jpg`;
+    const mediaType = isVideo ? 'video' : 'image';
 
     // Assign 1-3 random tags per item
     const tagCount = 1 + (i % 3); // cycles 1, 2, 3
@@ -159,16 +177,26 @@ function buildGalleryItems(tagIds: ObjectId[]) {
         ? [...assignedTags, ...tagIds.slice(0, tagCount - assignedTags.length)]
         : assignedTags;
 
+    // Cycle through uploaders
+    const uploader = UPLOADERS[i % UPLOADERS.length];
+
     items.push({
-      _id: oid(),
+      _id: itemId,
       filename,
       mimeType,
+      mediaType,
       // Payload upload collections store filesize and dimensions
       filesize: isVideo ? 5_000_000 + i * 100_000 : 200_000 + i * 50_000,
       width: isVideo ? 1920 : 1200 + (i % 3) * 200,
       height: isVideo ? 1080 : 800 + (i % 3) * 200,
       thumbnailFilename,
+      // Some items have thumbnailUrl pre-set, others rely on fallback
+      ...(i % 3 !== 0
+        ? { thumbnailUrl: `/api/mobile/gallery/media/${itemId.toHexString()}?thumb=true` }
+        : {}),
       noWatermarkNeeded: i % 5 === 0, // every 5th item needs no watermark
+      watermarkedVariantAvailable: !isVideo || i % 3 === 0, // videos sometimes lack watermarked variant
+      uploadedBy: uploader.id,
       tags: finalTags,
       // Some items have watermark overrides to test the group field
       watermarkOverrides:
@@ -176,11 +204,9 @@ function buildGalleryItems(tagIds: ObjectId[]) {
           ? { x: 50, y: 50, width: 30, opacity: 40 }
           : {},
       _seedMarker: SEED_MARKER,
-      createdAt: timestamp,
+      createdAt: new Date(Date.now() - (totalItems - i) * 60_000).toISOString(), // Stagger creation times
       updatedAt: timestamp,
     });
-
-    itemIndex++;
   }
 
   return items;
@@ -213,7 +239,8 @@ function buildAlbums(galleryItemIds: ObjectId[]) {
 
 async function clean(client: MongoClient) {
   const db = client.db();
-  const filter = { _seedMarker: SEED_MARKER };
+  // Clean both current and previous seed markers
+  const filter = { _seedMarker: { $in: [SEED_MARKER, 'gallery-phase5a'] } };
 
   const tagResult = await db.collection(TAGS_COLLECTION).deleteMany(filter);
   console.log(`  Removed ${tagResult.deletedCount} tags`);
@@ -235,14 +262,15 @@ async function seed(client: MongoClient) {
   console.log('  Done.');
 
   // Step 2: Gallery items (need tag IDs for relationship)
-  console.log('Seeding 20 gallery items...');
+  const totalItemCount = ALBUM_DEFS.reduce((sum, a) => sum + a.itemCount, 0);
+  console.log(`Seeding ${totalItemCount} gallery items...`);
   const tagIds = tags.map((t) => t._id);
   const galleryItems = buildGalleryItems(tagIds);
   await db.collection(GALLERY_COLLECTION).insertMany(galleryItems);
   console.log('  Done.');
 
   // Step 3: Albums (need gallery item IDs for relationship)
-  console.log('Seeding 6 albums...');
+  console.log(`Seeding ${ALBUM_DEFS.length} albums...`);
   const galleryItemIds = galleryItems.map((g) => g._id);
   const albums = buildAlbums(galleryItemIds);
   await db.collection(ALBUMS_COLLECTION).insertMany(albums);

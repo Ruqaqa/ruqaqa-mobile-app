@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { ArrowLeft, ImageIcon } from 'lucide-react-native';
+import { ArrowLeft } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/theme';
-import { EmptyState } from '@/components/ui/EmptyState';
 import { GalleryAlbum, getLocalizedTitle } from '../types';
+import { useAlbumMedia } from '../hooks/useAlbumMedia';
+import { MediaGrid } from './MediaGrid';
+import { FullScreenMediaViewer } from './FullScreenMediaViewer';
 
 interface AlbumDetailScreenProps {
   album: GalleryAlbum;
@@ -12,16 +14,52 @@ interface AlbumDetailScreenProps {
 }
 
 /**
- * Stub for Phase 5A. Will be replaced with full media browsing in Phase 5B.
+ * Album detail screen showing a grid of media items with full-screen viewer.
+ * Replaces the Phase 5A stub with actual media browsing.
  */
 export function AlbumDetailScreen({ album, onBack }: AlbumDetailScreenProps) {
   const { colors, typography, spacing } = useTheme();
   const { t, i18n } = useTranslation();
   const displayTitle = getLocalizedTitle(album, i18n.language);
 
+  const {
+    items,
+    isLoading,
+    isLoadingMore,
+    isRefreshing,
+    error,
+    hasMore,
+    refresh,
+    loadMore,
+    retry,
+  } = useAlbumMedia({ albumId: album.id });
+
+  // Full-screen viewer state
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
+
+  const handleItemPress = useCallback((index: number) => {
+    setViewerIndex(index);
+    setViewerVisible(true);
+  }, []);
+
+  const handleViewerClose = useCallback(() => {
+    setViewerVisible(false);
+  }, []);
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { paddingHorizontal: spacing.base, paddingVertical: spacing.md }]}>
+      {/* Header */}
+      <View
+        style={[
+          styles.header,
+          {
+            paddingHorizontal: spacing.base,
+            paddingVertical: spacing.md,
+            borderBottomColor: colors.border,
+          },
+        ]}
+      >
         <Pressable
           onPress={onBack}
           style={styles.backButton}
@@ -38,9 +76,26 @@ export function AlbumDetailScreen({ album, onBack }: AlbumDetailScreenProps) {
         </Text>
       </View>
 
-      <EmptyState
-        icon={<ImageIcon size={48} color={colors.foregroundSecondary} />}
-        title={t('albumsComingSoon')}
+      {/* Media grid */}
+      <MediaGrid
+        items={items}
+        isLoading={isLoading}
+        isLoadingMore={isLoadingMore}
+        isRefreshing={isRefreshing}
+        error={error}
+        hasMore={hasMore}
+        onItemPress={handleItemPress}
+        onRefresh={refresh}
+        onLoadMore={loadMore}
+        onRetry={retry}
+      />
+
+      {/* Full-screen media viewer */}
+      <FullScreenMediaViewer
+        visible={viewerVisible}
+        items={items}
+        initialIndex={viewerIndex}
+        onClose={handleViewerClose}
       />
     </View>
   );
@@ -53,6 +108,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    borderBottomWidth: 1,
   },
   backButton: {
     width: 40,

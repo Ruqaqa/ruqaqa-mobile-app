@@ -1,5 +1,8 @@
 /**
- * Tests for normalizeMediaUrl — URL normalization with trusted domain validation.
+ * Tests for normalizeMediaUrl — URL normalization with scheme + credential validation.
+ *
+ * No domain allowlist: React Native <Image> cannot execute scripts or navigate,
+ * so domain-gating provides no security benefit. Only scheme and credential checks matter.
  */
 
 // Mock config to avoid expo-constants dependency
@@ -9,30 +12,7 @@ jest.mock('../../services/config', () => ({
   },
 }));
 
-import { normalizeMediaUrl, isTrustedDomain } from '../mediaUrl';
-
-describe('isTrustedDomain', () => {
-  it('accepts exact match', () => {
-    expect(isTrustedDomain('ruqaqa.sa')).toBe(true);
-  });
-
-  it('accepts subdomain', () => {
-    expect(isTrustedDomain('auth.ruqaqa.sa')).toBe(true);
-    expect(isTrustedDomain('cdn.media.ruqaqa.sa')).toBe(true);
-  });
-
-  it('rejects unrelated domain', () => {
-    expect(isTrustedDomain('evil.com')).toBe(false);
-  });
-
-  it('rejects suffix-match that is not a subdomain', () => {
-    expect(isTrustedDomain('notruqaqa.sa')).toBe(false);
-  });
-
-  it('rejects domain that wraps trusted name as subdomain prefix', () => {
-    expect(isTrustedDomain('ruqaqa.sa.evil.com')).toBe(false);
-  });
-});
+import { normalizeMediaUrl } from '../mediaUrl';
 
 describe('normalizeMediaUrl', () => {
   // --- null / empty ---
@@ -53,21 +33,31 @@ describe('normalizeMediaUrl', () => {
     expect(normalizeMediaUrl('   ')).toBeNull();
   });
 
-  // --- absolute URLs ---
+  // --- absolute URLs (any http/https accepted) ---
 
-  it('returns trusted absolute https URL as-is', () => {
+  it('returns absolute https URL as-is', () => {
     const url = 'https://ruqaqa.sa/media/photo.jpg';
     expect(normalizeMediaUrl(url)).toBe(url);
   });
 
-  it('returns trusted subdomain URL as-is', () => {
+  it('returns subdomain URL as-is', () => {
     const url = 'https://cdn.ruqaqa.sa/images/avatar.png';
     expect(normalizeMediaUrl(url)).toBe(url);
   });
 
-  it('rejects untrusted absolute URL', () => {
-    expect(normalizeMediaUrl('https://evil.com/malicious.jpg')).toBeNull();
+  it('accepts any http/https URL (no domain check)', () => {
+    expect(normalizeMediaUrl('https://example.com/photo.jpg')).toBe(
+      'https://example.com/photo.jpg',
+    );
   });
+
+  it('accepts private IP URLs (dev server)', () => {
+    expect(normalizeMediaUrl('http://192.168.100.53:3000/photo.jpg')).toBe(
+      'http://192.168.100.53:3000/photo.jpg',
+    );
+  });
+
+  // --- scheme rejection ---
 
   it('rejects non-http scheme', () => {
     expect(normalizeMediaUrl('javascript:alert(1)')).toBeNull();
@@ -102,12 +92,15 @@ describe('normalizeMediaUrl', () => {
     expect(normalizeMediaUrl('blob:https://ruqaqa.sa/some-uuid')).toBeNull();
   });
 
+  // --- credential rejection ---
+
   it('rejects URL with embedded credentials', () => {
-    // Credentials in URL can leak via Referer headers or server logs
     expect(normalizeMediaUrl('https://admin:password@ruqaqa.sa/photo.jpg')).toBeNull();
   });
 
-  it('returns trusted absolute http URL (not just https)', () => {
+  // --- http variants ---
+
+  it('returns absolute http URL (not just https)', () => {
     expect(normalizeMediaUrl('http://ruqaqa.sa/photo.jpg')).toBe(
       'http://ruqaqa.sa/photo.jpg',
     );
@@ -117,10 +110,6 @@ describe('normalizeMediaUrl', () => {
     expect(normalizeMediaUrl('  https://ruqaqa.sa/photo.jpg  ')).toBe(
       'https://ruqaqa.sa/photo.jpg',
     );
-  });
-
-  it('rejects absolute URL to private IP', () => {
-    expect(normalizeMediaUrl('http://192.168.1.1:3000/photo.jpg')).toBeNull();
   });
 
   // --- relative paths ---

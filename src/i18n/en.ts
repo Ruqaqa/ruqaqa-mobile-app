@@ -262,6 +262,18 @@ export default {
   items: 'items',
   defaultAlbum: 'Default',
 
+  // Gallery - Media Viewing (Phase 5B)
+  noItemsInAlbum: 'No items in this album',
+  failedToLoadMedia: 'Failed to load media',
+  mediaCounter: '{{current}} / {{total}}',
+  video: 'Video',
+  image: 'Image',
+  close: 'Close',
+  loadingMedia: 'Loading...',
+  failedToLoadImage: 'Failed to load image',
+  failedToPlayVideo: 'Failed to play video',
+  tapToPlayVideo: 'Tap to play video',
+
   // Gallery - Albums
   galleryAlbums: 'Albums',
   noAlbumsYet: 'No albums yet',

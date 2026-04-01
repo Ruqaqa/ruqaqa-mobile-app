@@ -42,3 +42,26 @@ export function getLocalizedTitle(album: GalleryAlbum, locale: string): string {
     ? album.titleAr || album.titleEn
     : album.titleEn || album.titleAr;
 }
+
+// --- Phase 5B: Media types ---
+
+export type MediaType = 'image' | 'video';
+
+export interface MediaItem {
+  id: string;
+  filename: string | null;
+  mediaType: MediaType;
+  thumbnailUrl: string | null;
+  noWatermarkNeeded: boolean;
+  watermarkedVariantAvailable: boolean;
+  uploadedById: string | null;
+  uploadedByName: string | null;
+  createdAt: string;
+}
+
+export interface FetchAlbumMediaResult {
+  items: MediaItem[];
+  pagination: GalleryPagination;
+}
+
+export const MEDIA_PAGE_SIZE = 20;

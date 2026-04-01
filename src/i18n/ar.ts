@@ -262,6 +262,18 @@ export default {
   items: 'عناصر',
   defaultAlbum: 'افتراضي',
 
+  // Gallery - Media Viewing (Phase 5B)
+  noItemsInAlbum: 'لا توجد عناصر في هذا الألبوم',
+  failedToLoadMedia: 'تعذر تحميل الوسائط',
+  mediaCounter: '{{current}} / {{total}}',
+  video: 'فيديو',
+  image: 'صورة',
+  close: 'إغلاق',
+  loadingMedia: 'جاري التحميل...',
+  failedToLoadImage: 'تعذر تحميل الصورة',
+  failedToPlayVideo: 'تعذر تشغيل الفيديو',
+  tapToPlayVideo: 'اضغط لتشغيل الفيديو',
+
   // Gallery - Albums
   galleryAlbums: 'الألبومات',
   noAlbumsYet: 'لا توجد ألبومات بعد',

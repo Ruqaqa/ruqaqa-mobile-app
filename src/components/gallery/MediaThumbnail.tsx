@@ -3,7 +3,7 @@ import { Animated, Image, StyleSheet, View, ViewStyle } from 'react-native';
 import { ImageIcon } from 'lucide-react-native';
 import { useTheme } from '../../theme';
 import { normalizeMediaUrl } from '../../utils/mediaUrl';
-import { tokenStorage } from '../../services/tokenStorage';
+import { useAuthHeaders } from '../../hooks/useAuthHeaders';
 import { withAlpha } from '../../utils/colorUtils';
 
 interface MediaThumbnailProps {
@@ -16,19 +16,19 @@ export function MediaThumbnail({ uri, style, resizeMode = 'cover' }: MediaThumbn
   const { colors, radius } = useTheme();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [token, setToken] = useState<string | null>(null);
+  const authHeaders = useAuthHeaders();
   const shimmerAnim = useRef(new Animated.Value(0)).current;
 
   const resolvedUri = useMemo(() => normalizeMediaUrl(uri), [uri]);
 
+  // Reset error/loading when the URI changes or when auth headers become
+  // available. Without the authHeaders dependency, a 401 that fires before
+  // the token loads would set `error` permanently (the "blank thumbnails
+  // after clearing app data" bug).
   useEffect(() => {
     setError(false);
     setLoading(true);
-  }, [uri]);
-
-  useEffect(() => {
-    tokenStorage.getAccessToken().then(setToken);
-  }, []);
+  }, [uri, authHeaders]);
 
   useEffect(() => {
     const animation = Animated.loop(
@@ -61,7 +61,7 @@ export function MediaThumbnail({ uri, style, resizeMode = 'cover' }: MediaThumbn
 
   return (
     <View style={[styles.container, { borderRadius: radius.md }, style]}>
-      {loading && (
+      {(loading || !authHeaders) && (
         <Animated.View
           style={[
             StyleSheet.absoluteFill,
@@ -69,18 +69,20 @@ export function MediaThumbnail({ uri, style, resizeMode = 'cover' }: MediaThumbn
           ]}
         />
       )}
-      <Image
-        source={{
-          uri: resolvedUri,
-          ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
-        }}
-        style={[StyleSheet.absoluteFill, { resizeMode }]}
-        onLoad={() => setLoading(false)}
-        onError={() => {
-          setLoading(false);
-          setError(true);
-        }}
-      />
+      {authHeaders && (
+        <Image
+          source={{
+            uri: resolvedUri,
+            headers: authHeaders,
+          }}
+          style={[StyleSheet.absoluteFill, { resizeMode }]}
+          onLoad={() => setLoading(false)}
+          onError={() => {
+            setLoading(false);
+            setError(true);
+          }}
+        />
+      )}
     </View>
   );
 }
