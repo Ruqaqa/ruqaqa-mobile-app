@@ -301,16 +301,29 @@ Update seed data as sub-phases progress:
 
 ---
 
-#### Phase 5C: Multi-Select & Bulk Actions
+#### Phase 5C: Multi-Select & Bulk Actions — DONE
 
 **Goal:** Users can select multiple media items and perform bulk operations.
 
-**Business Requirements:**
+**Completed:**
 - Long-press to enter selection mode, tap to toggle selection
-- Select all / deselect all
-- Bulk delete with confirmation dialog
-- Reassign media: move/copy selected items to a different album, reassign tags, or change project association
+- Select all / deselect all with selection header showing count
+- Bulk delete with confirmation dialog (permission-gated: `gallery_cms_delete`)
+- Bulk manage sheet: unified tri-state UI for album assignment, tag assignment, and project association
+- Selection action bar with permission-gated buttons (delete, manage)
 - Exit selection mode on action completion or explicit cancel
+- `useMediaSelection` hook (Set-based, O(1) lookups)
+- `useMediaBulkActions` hook (sequential processing, progress tracking)
+- Gallery service: `deleteMediaItem`, `fetchMediaItemDetail`, `manageMediaItem`
+- `validateBulkIds` utility (ObjectId validation, dedup, max 50 cap)
+- Backend: `PUT /gallery/[id]/manage` endpoint for full item management
+- Backend: `afterDelete` hook cleans up album references on delete
+- Backend: permission checks added to PATCH and POST `/albums` endpoints
+- Backend: `GET /gallery/[id]` augmented with album memberships
+- Fix: FAB hidden when inside album detail
+- Fix: RTL-aware back arrow using `i18n.dir()`
+- i18n: 23 new keys in en + ar
+- 49 new tests (1142 total, all passing)
 
 **Refer to:** `lib/features/gallery/pages/album_detail_page.dart`
 
