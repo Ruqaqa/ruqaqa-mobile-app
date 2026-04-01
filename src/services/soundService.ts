@@ -1,18 +1,17 @@
-import { Audio } from 'expo-av';
+import { createAudioPlayer, AudioPlayer } from 'expo-audio';
 
 const successSound = require('../../assets/sounds/success.mp3');
 
-let loaded: Audio.Sound | null = null;
+let player: AudioPlayer | null = null;
 
 export async function playSuccessSound(): Promise<void> {
   try {
-    if (!loaded) {
-      const { sound } = await Audio.Sound.createAsync(successSound);
-      loaded = sound;
+    if (!player) {
+      player = createAudioPlayer(successSound);
     } else {
-      await loaded.setPositionAsync(0);
+      player.seekTo(0);
     }
-    await loaded.playAsync();
+    player.play();
   } catch {
     // Sound is never critical — silent fail
   }

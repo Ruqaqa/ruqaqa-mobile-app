@@ -165,7 +165,7 @@ Cross-cutting concern — receives files from other apps and routes them to the 
 | `tokenStorage.ts` | `expo-secure-store` wrapper with chunking for large JWTs (1800-byte chunks), crash-safe write order (chunks first, count last) |
 | `permissionService.ts` | Extracts 15 permission flags from JWT roles using `keycloakConfig.clientId`. `getAvailableModules()`, `getAvailableFinanceTabs()` |
 | `versionCheckService.ts` | `/api/mobile/version-check` → forced update, optional update, maintenance mode. Download URL validated against trusted domains |
-| `soundService.ts` | Success sound playback via `expo-av` |
+| `soundService.ts` | Success sound playback via `expo-audio` |
 | `appLifecycle.ts` | First-launch tracking via AsyncStorage |
 | `config.ts` | Dev/prod URLs keyed on `releaseChannel` from `app.json` |
 | `errors.ts` | Typed error classes: `NetworkError`, `AuthError` |

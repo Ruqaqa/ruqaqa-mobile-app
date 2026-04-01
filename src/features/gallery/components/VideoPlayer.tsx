@@ -1,14 +1,14 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Pressable,
-  ActivityIndicator,
   StyleSheet,
   Dimensions,
   Image,
   Text,
 } from 'react-native';
-import { Video, ResizeMode, AVPlaybackStatusSuccess } from 'expo-av';
+import { useVideoPlayer, VideoView } from 'expo-video';
+import { useEvent } from 'expo';
 import { Play, AlertCircle, RefreshCw } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { normalizeMediaUrl } from '@/utils/mediaUrl';
@@ -24,15 +24,13 @@ interface VideoPlayerProps {
 
 /**
  * Video player for the full-screen media viewer.
- * Shows a thumbnail with play overlay initially, then streams the video inline using expo-av.
+ * Shows a thumbnail with play overlay initially, then streams the video inline using expo-video.
  * Handles loading, error, and playback states.
  */
 export function VideoPlayer({ item }: VideoPlayerProps) {
   const { t } = useTranslation();
-  const videoRef = useRef<Video>(null);
   const authHeaders = useAuthHeaders();
   const [playRequested, setPlayRequested] = useState(false);
-  const [isBuffering, setIsBuffering] = useState(false);
   const [error, setError] = useState(false);
 
   const thumbnailUri = useMemo(
@@ -42,29 +40,44 @@ export function VideoPlayer({ item }: VideoPlayerProps) {
 
   const videoUri = useMemo(() => getFullResMediaUrl(item.id), [item.id]);
 
+  // Stabilize the source: only rebuild when the URI changes, not on every
+  // authHeaders refresh (every 30s). useVideoPlayer recreates the player when
+  // its source reference changes, which would interrupt playback.
+  const authHeadersRef = useRef(authHeaders);
+  authHeadersRef.current = authHeaders;
+
+  const videoSource = useMemo(
+    () => videoUri ? { uri: videoUri, headers: authHeadersRef.current } : null,
+    [videoUri],
+  );
+
+  const player = useVideoPlayer(videoSource, (p) => {
+    if (playRequested) {
+      p.play();
+    }
+  });
+
+  // Listen for player errors via statusChange event
+  const { status, error: playerError } = useEvent(player, 'statusChange', {
+    status: player.status,
+    error: undefined,
+  });
+
+  useEffect(() => {
+    if (status === 'error' && playRequested) {
+      setError(true);
+    }
+  }, [status, playRequested]);
+
   const handlePlay = useCallback(() => {
     setPlayRequested(true);
     setError(false);
-    setIsBuffering(true);
-  }, []);
+    player.play();
+  }, [player]);
 
   const handleRetry = useCallback(() => {
     setError(false);
     setPlayRequested(false);
-  }, []);
-
-  const handlePlaybackStatusUpdate = useCallback(
-    (status: AVPlaybackStatusSuccess | any) => {
-      if (status.isLoaded) {
-        setIsBuffering(status.isBuffering);
-      }
-    },
-    [],
-  );
-
-  const handleError = useCallback(() => {
-    setError(true);
-    setIsBuffering(false);
   }, []);
 
   if (!videoUri || error) {
@@ -123,23 +136,11 @@ export function VideoPlayer({ item }: VideoPlayerProps) {
   // Streaming video player
   return (
     <View style={styles.container}>
-      {isBuffering && (
-        <View style={styles.bufferingOverlay}>
-          <ActivityIndicator size="large" color="#ffffff" />
-        </View>
-      )}
-      <Video
-        ref={videoRef}
-        source={{
-          uri: videoUri,
-          headers: authHeaders,
-        }}
+      <VideoView
+        player={player}
         style={styles.video}
-        resizeMode={ResizeMode.CONTAIN}
-        useNativeControls
-        shouldPlay
-        onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
-        onError={handleError}
+        nativeControls
+        contentFit="contain"
       />
     </View>
   );
@@ -176,12 +177,6 @@ const styles = StyleSheet.create({
   video: {
     width: SCREEN_WIDTH,
     height: SCREEN_HEIGHT * 0.75,
-  },
-  bufferingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1,
   },
   errorText: {
     color: 'rgba(255, 255, 255, 0.7)',

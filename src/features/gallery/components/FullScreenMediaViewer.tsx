@@ -32,7 +32,7 @@ interface FullScreenMediaViewerProps {
 
 /**
  * Full-screen media viewer with horizontal swiping between items.
- * Images support pinch-to-zoom via ScrollView. Videos play inline via expo-av.
+ * Images support pinch-to-zoom via ScrollView. Videos play inline via expo-video.
  * Dark background with media counter and close button.
  */
 export function FullScreenMediaViewer({

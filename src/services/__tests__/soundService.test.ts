@@ -2,53 +2,87 @@
  * Tests for soundService — success sound playback.
  */
 
-const mockPlayAsync = jest.fn().mockResolvedValue({});
-const mockSetPositionAsync = jest.fn().mockResolvedValue({});
-const mockSound = { playAsync: mockPlayAsync, setPositionAsync: mockSetPositionAsync };
-const mockCreateAsync = jest.fn().mockResolvedValue({ sound: mockSound });
+const mockPlay = jest.fn();
+const mockSeekTo = jest.fn();
+const mockPlayer = { play: mockPlay, seekTo: mockSeekTo };
+const mockCreateAudioPlayer = jest.fn().mockReturnValue(mockPlayer);
 
-jest.mock('expo-av', () => ({
-  Audio: {
-    Sound: {
-      createAsync: mockCreateAsync,
-    },
-  },
+jest.mock('expo-audio', () => ({
+  createAudioPlayer: mockCreateAudioPlayer,
 }));
 
 describe('playSuccessSound', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockCreateAsync.mockResolvedValue({ sound: mockSound });
+    mockCreateAudioPlayer.mockReturnValue(mockPlayer);
   });
 
-  it('calls Audio.Sound.createAsync on first call', async () => {
-    // Re-import to get fresh module-level state
+  it('creates a player on first call', async () => {
     jest.resetModules();
     const { playSuccessSound } = require('../soundService');
 
     await playSuccessSound();
 
-    expect(mockCreateAsync).toHaveBeenCalledTimes(1);
-    expect(mockPlayAsync).toHaveBeenCalledTimes(1);
+    expect(mockCreateAudioPlayer).toHaveBeenCalledTimes(1);
+    expect(mockPlay).toHaveBeenCalledTimes(1);
   });
 
-  it('reuses loaded sound on subsequent calls', async () => {
+  it('reuses player and seeks to start on subsequent calls', async () => {
     jest.resetModules();
     const { playSuccessSound } = require('../soundService');
 
     await playSuccessSound();
     await playSuccessSound();
 
-    expect(mockCreateAsync).toHaveBeenCalledTimes(1);
-    expect(mockSetPositionAsync).toHaveBeenCalledWith(0);
-    expect(mockPlayAsync).toHaveBeenCalledTimes(2);
+    expect(mockCreateAudioPlayer).toHaveBeenCalledTimes(1);
+    expect(mockSeekTo).toHaveBeenCalledWith(0);
+    expect(mockPlay).toHaveBeenCalledTimes(2);
   });
 
-  it('never throws even if Audio fails', async () => {
+  it('never throws even if createAudioPlayer fails', async () => {
     jest.resetModules();
-    mockCreateAsync.mockRejectedValueOnce(new Error('Audio unavailable'));
+    mockCreateAudioPlayer.mockImplementationOnce(() => {
+      throw new Error('Audio unavailable');
+    });
     const { playSuccessSound } = require('../soundService');
 
     await expect(playSuccessSound()).resolves.toBeUndefined();
+  });
+
+  it('never throws if play() throws', async () => {
+    jest.resetModules();
+    mockPlay.mockImplementationOnce(() => {
+      throw new Error('Playback failed');
+    });
+    const { playSuccessSound } = require('../soundService');
+
+    await expect(playSuccessSound()).resolves.toBeUndefined();
+  });
+
+  it('never throws if seekTo() throws on replay', async () => {
+    jest.resetModules();
+    const { playSuccessSound } = require('../soundService');
+
+    await playSuccessSound(); // first call — creates player
+    mockSeekTo.mockImplementationOnce(() => {
+      throw new Error('Seek failed');
+    });
+
+    await expect(playSuccessSound()).resolves.toBeUndefined();
+  });
+
+  it('retries creating player after a previous creation failure', async () => {
+    jest.resetModules();
+    mockCreateAudioPlayer.mockImplementationOnce(() => {
+      throw new Error('Audio unavailable');
+    });
+    const { playSuccessSound } = require('../soundService');
+
+    await playSuccessSound(); // fails to create
+    mockCreateAudioPlayer.mockReturnValue(mockPlayer);
+    await playSuccessSound(); // should retry creation
+
+    expect(mockCreateAudioPlayer).toHaveBeenCalledTimes(2);
+    expect(mockPlay).toHaveBeenCalledTimes(1);
   });
 });
