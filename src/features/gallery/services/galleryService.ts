@@ -1,8 +1,8 @@
 import { apiClient } from '@/services/apiClient';
 import { ApiError, mapAxiosError } from '@/services/errors';
 import { isValidObjectId } from '@/utils/sanitize';
-import { GalleryAlbum, ALBUM_PAGE_SIZE, FetchAlbumMediaResult, MEDIA_PAGE_SIZE } from '../types';
-import { parseAlbum, parseMediaItem } from '../utils/parsers';
+import { GalleryAlbum, ALBUM_PAGE_SIZE, FetchAlbumMediaResult, MEDIA_PAGE_SIZE, MediaItemDetail, ManageItemPayload } from '../types';
+import { parseAlbum, parseMediaItem, parseMediaItemDetail } from '../utils/parsers';
 
 interface FetchAlbumsParams {
   search?: string;
@@ -109,6 +109,58 @@ export async function fetchAlbumMedia(
         hasPrevPage: response.data.hasPrevPage ?? false,
       },
     };
+  } catch (error) {
+    throw mapAxiosError(error);
+  }
+}
+
+// --- Phase 5C: Single-item operations for bulk orchestration ---
+
+export async function deleteMediaItem(itemId: string): Promise<boolean> {
+  if (!isValidObjectId(itemId) || !itemId) {
+    throw new ApiError('UNKNOWN', 'Invalid item ID');
+  }
+
+  try {
+    await apiClient.delete(`/gallery/${itemId}`);
+    return true;
+  } catch (error) {
+    throw mapAxiosError(error);
+  }
+}
+
+export async function fetchMediaItemDetail(itemId: string): Promise<MediaItemDetail> {
+  if (!isValidObjectId(itemId) || !itemId) {
+    throw new ApiError('UNKNOWN', 'Invalid item ID');
+  }
+
+  try {
+    const response = await apiClient.get(`/gallery/${itemId}`);
+    return parseMediaItemDetail(response.data);
+  } catch (error) {
+    throw mapAxiosError(error);
+  }
+}
+
+export async function manageMediaItem(
+  itemId: string,
+  payload: ManageItemPayload,
+): Promise<boolean> {
+  if (!isValidObjectId(itemId) || !itemId) {
+    throw new ApiError('UNKNOWN', 'Invalid item ID');
+  }
+
+  const body: Record<string, any> = {};
+  if (payload.tagIds !== undefined) body.tags = payload.tagIds;
+  if (payload.albumIds !== undefined) body.albums = payload.albumIds;
+  if (payload.noWatermarkNeeded !== undefined) {
+    body.noWatermarkNeeded = payload.noWatermarkNeeded;
+    body.alreadyWatermarked = payload.noWatermarkNeeded;
+  }
+
+  try {
+    await apiClient.patch(`/gallery/${itemId}`, body);
+    return true;
   } catch (error) {
     throw mapAxiosError(error);
   }

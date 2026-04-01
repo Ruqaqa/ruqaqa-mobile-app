@@ -16,6 +16,7 @@ export interface UseAlbumMediaReturn {
   loadMore: () => void;
   refresh: () => void;
   retry: () => void;
+  removeItemsLocally: (idsToRemove: string[]) => void;
 }
 
 export function useAlbumMedia({ albumId }: UseAlbumMediaParams): UseAlbumMediaReturn {
@@ -102,6 +103,11 @@ export function useAlbumMedia({ albumId }: UseAlbumMediaParams): UseAlbumMediaRe
     });
   }, [albumId, doFetch]);
 
+  const removeItemsLocally = useCallback((idsToRemove: string[]) => {
+    const removeSet = new Set(idsToRemove);
+    setItems((prev) => prev.filter((item) => !removeSet.has(item.id)));
+  }, []);
+
   return {
     items,
     isLoading,
@@ -112,5 +118,6 @@ export function useAlbumMedia({ albumId }: UseAlbumMediaParams): UseAlbumMediaRe
     loadMore,
     refresh,
     retry,
+    removeItemsLocally,
   };
 }

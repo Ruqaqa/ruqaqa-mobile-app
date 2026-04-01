@@ -2,8 +2,9 @@ import {
   validateAlbumName,
   sanitizeAlbumSearch,
   hasActiveAlbumFilters,
+  validateBulkIds,
 } from '../utils/validation';
-import { ALBUM_TITLE_MAX_LENGTH, AlbumFilters, EMPTY_ALBUM_FILTERS } from '../types';
+import { ALBUM_TITLE_MAX_LENGTH, AlbumFilters, EMPTY_ALBUM_FILTERS, MAX_BULK_SELECTION } from '../types';
 
 describe('validateAlbumName', () => {
   it('accepts a valid album name', () => {
@@ -83,5 +84,56 @@ describe('hasActiveAlbumFilters', () => {
 
   it('returns true for non-empty search', () => {
     expect(hasActiveAlbumFilters({ search: 'photos' })).toBe(true);
+  });
+});
+
+describe('validateBulkIds', () => {
+  const VALID_ID_1 = '507f1f77bcf86cd799439011';
+  const VALID_ID_2 = '507f1f77bcf86cd799439022';
+  const VALID_ID_3 = '507f1f77bcf86cd799439033';
+
+  it('rejects empty array', () => {
+    const result = validateBulkIds([]);
+    expect(result.valid).toBe(false);
+    expect(result.error).toBeDefined();
+  });
+
+  it('rejects array exceeding max count', () => {
+    const ids = Array.from({ length: MAX_BULK_SELECTION + 1 }, (_, i) =>
+      `507f1f77bcf86cd7994390${String(i).padStart(2, '0')}`,
+    );
+    const result = validateBulkIds(ids);
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain(String(MAX_BULK_SELECTION));
+  });
+
+  it('deduplicates IDs and validates unique set', () => {
+    const result = validateBulkIds([VALID_ID_1, VALID_ID_1, VALID_ID_2]);
+    expect(result.valid).toBe(true);
+    expect(result.ids).toEqual([VALID_ID_1, VALID_ID_2]);
+  });
+
+  it('rejects invalid ObjectId format', () => {
+    const result = validateBulkIds([VALID_ID_1, 'bad-id!', VALID_ID_2]);
+    expect(result.valid).toBe(false);
+    expect(result.error).toBeDefined();
+  });
+
+  it('accepts valid array of ObjectIds', () => {
+    const result = validateBulkIds([VALID_ID_1, VALID_ID_2, VALID_ID_3]);
+    expect(result.valid).toBe(true);
+    expect(result.ids).toEqual([VALID_ID_1, VALID_ID_2, VALID_ID_3]);
+  });
+
+  it('rejects empty string IDs', () => {
+    const result = validateBulkIds(['', VALID_ID_1]);
+    expect(result.valid).toBe(false);
+    expect(result.error).toBeDefined();
+  });
+
+  it('accepts custom maxCount', () => {
+    const result = validateBulkIds([VALID_ID_1, VALID_ID_2, VALID_ID_3], 2);
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain('2');
   });
 });

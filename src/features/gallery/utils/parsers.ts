@@ -1,5 +1,5 @@
 import { normalizeMediaUrl } from '@/utils/mediaUrl';
-import { GalleryAlbum, MediaItem, MediaType } from '../types';
+import { GalleryAlbum, MediaItem, MediaItemDetail, MediaType } from '../types';
 
 /**
  * Extract localized strings from a value that is either a plain string
@@ -132,4 +132,33 @@ export function parseMediaItem(raw: Record<string, any>): MediaItem {
     uploadedByName: uploader.name,
     createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : '',
   };
+}
+
+/**
+ * Parse a raw API response into a MediaItemDetail (extends MediaItem with tags/albums).
+ * Used for the manage sheet pre-fetch.
+ */
+export function parseMediaItemDetail(raw: Record<string, any>): MediaItemDetail {
+  const base = parseMediaItem(raw);
+
+  const rawTags = Array.isArray(raw.tags) ? raw.tags : [];
+  const tags = rawTags
+    .filter((t: any) => t && typeof t === 'object' && t.id)
+    .map((t: any) => ({
+      id: String(t.id),
+      name: typeof t.name === 'string' ? t.name : '',
+    }));
+
+  const rawAlbums = Array.isArray(raw.albums) ? raw.albums : [];
+  const albums = rawAlbums
+    .filter((a: any) => a && typeof a === 'object' && a.id)
+    .map((a: any) => {
+      const titles = extractLocalizedString(a.title);
+      return {
+        id: String(a.id),
+        title: titles.en || titles.ar,
+      };
+    });
+
+  return { ...base, tags, albums };
 }

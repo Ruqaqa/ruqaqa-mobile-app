@@ -65,3 +65,42 @@ export interface FetchAlbumMediaResult {
 }
 
 export const MEDIA_PAGE_SIZE = 20;
+
+// --- Phase 5C: Multi-Select & Bulk Actions ---
+
+export const MAX_BULK_SELECTION = 50;
+
+export type BulkOutcome = 'allSucceeded' | 'partialFailure' | 'allFailed';
+
+export interface BulkActionResult {
+  outcome: BulkOutcome;
+  succeededIds: string[];
+  failedIds: string[];
+}
+
+export interface BulkActionProgress {
+  completed: number;
+  total: number;
+}
+
+/** Tri-state for a checkbox in the manage sheet. */
+export type CheckState = 'checked' | 'unchecked' | 'mixed';
+
+/** State for the manage bottom sheet: current tags/albums for selected items. */
+export interface ManageSheetState {
+  tags: { id: string; name: string; state: CheckState }[];
+  albums: { id: string; title: string; state: CheckState }[];
+}
+
+/** Payload sent to the manage endpoint for a single item. */
+export interface ManageItemPayload {
+  tagIds?: string[];
+  albumIds?: string[];
+  noWatermarkNeeded?: boolean;
+}
+
+/** Extended media item detail (for manage sheet pre-fetch). */
+export interface MediaItemDetail extends MediaItem {
+  tags: { id: string; name: string }[];
+  albums: { id: string; title: string }[];
+}

@@ -1,4 +1,4 @@
-import { ALBUM_TITLE_MAX_LENGTH, AlbumFilters } from '../types';
+import { ALBUM_TITLE_MAX_LENGTH, AlbumFilters, MAX_BULK_SELECTION } from '../types';
 
 // Control characters regex (C0 + C1 ranges, excluding common whitespace)
 const CONTROL_CHARS_RE = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g;
@@ -28,4 +28,33 @@ export function sanitizeAlbumSearch(query: string): string {
 
 export function hasActiveAlbumFilters(filters: AlbumFilters): boolean {
   return filters.search.trim().length > 0;
+}
+
+// ---------------------------------------------------------------------------
+// Bulk ID validation (Phase 5C)
+// ---------------------------------------------------------------------------
+
+const OBJECT_ID_RE = /^[a-f\d]{24}$/i;
+
+export function validateBulkIds(
+  ids: string[],
+  maxCount: number = MAX_BULK_SELECTION,
+): { valid: boolean; ids?: string[]; error?: string } {
+  if (ids.length === 0) {
+    return { valid: false, error: 'No items selected' };
+  }
+
+  const unique = [...new Set(ids)];
+
+  if (unique.length > maxCount) {
+    return { valid: false, error: `Cannot select more than ${maxCount} items` };
+  }
+
+  for (const id of unique) {
+    if (id.length === 0 || !OBJECT_ID_RE.test(id)) {
+      return { valid: false, error: 'Invalid item ID' };
+    }
+  }
+
+  return { valid: true, ids: unique };
 }

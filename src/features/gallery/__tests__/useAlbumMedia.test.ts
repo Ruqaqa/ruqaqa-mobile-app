@@ -292,4 +292,40 @@ describe('useAlbumMedia', () => {
       expect(result.current.items[0].id).toBe('2');
     });
   });
+
+  it('removeItemsLocally removes items by ID from current list', async () => {
+    mockFetch.mockResolvedValue({
+      items: [makeItem('1'), makeItem('2'), makeItem('3')],
+      pagination: makePagination({ totalDocs: 3 }),
+    });
+
+    const { result } = renderHook(() => useAlbumMedia({ albumId: 'album-1' }));
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.items).toHaveLength(3);
+
+    act(() => {
+      result.current.removeItemsLocally(['1', '3']);
+    });
+
+    expect(result.current.items).toHaveLength(1);
+    expect(result.current.items[0].id).toBe('2');
+  });
+
+  it('removeItemsLocally is a no-op for IDs not in the list', async () => {
+    mockFetch.mockResolvedValue({
+      items: [makeItem('1'), makeItem('2')],
+      pagination: makePagination({ totalDocs: 2 }),
+    });
+
+    const { result } = renderHook(() => useAlbumMedia({ albumId: 'album-1' }));
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    act(() => {
+      result.current.removeItemsLocally(['nonexistent']);
+    });
+
+    expect(result.current.items).toHaveLength(2);
+  });
 });

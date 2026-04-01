@@ -30,6 +30,14 @@ interface MediaGridProps {
   onRefresh: () => void;
   onLoadMore: () => void;
   onRetry: () => void;
+  /** Whether multi-select mode is active (Phase 5C) */
+  isSelectionMode?: boolean;
+  /** Set of selected item IDs (Phase 5C) */
+  selectedIds?: ReadonlySet<string>;
+  /** Called when user long-presses an item to enter selection mode (Phase 5C) */
+  onItemLongPress?: (itemId: string) => void;
+  /** Called when user taps an item to toggle its selection (Phase 5C) */
+  onItemSelect?: (itemId: string) => void;
 }
 
 /**
@@ -47,6 +55,10 @@ export function MediaGrid({
   onRefresh,
   onLoadMore,
   onRetry,
+  isSelectionMode = false,
+  selectedIds,
+  onItemLongPress,
+  onItemSelect,
 }: MediaGridProps) {
   const { t } = useTranslation();
   const { colors, spacing } = useTheme();
@@ -58,10 +70,17 @@ export function MediaGrid({
   const renderItem = useCallback(
     ({ item, index }: { item: MediaItem; index: number }) => (
       <View style={styles.gridCell}>
-        <MediaGridItem item={item} onPress={() => onItemPress(index)} />
+        <MediaGridItem
+          item={item}
+          onPress={() => onItemPress(index)}
+          isSelectionMode={isSelectionMode}
+          isSelected={selectedIds?.has(item.id) ?? false}
+          onLongPress={onItemLongPress ? () => onItemLongPress(item.id) : undefined}
+          onSelect={onItemSelect ? () => onItemSelect(item.id) : undefined}
+        />
       </View>
     ),
-    [onItemPress],
+    [onItemPress, isSelectionMode, selectedIds, onItemLongPress, onItemSelect],
   );
 
   const keyExtractor = useCallback((item: MediaItem) => item.id, []);
@@ -103,6 +122,7 @@ export function MediaGrid({
       data={items}
       renderItem={renderItem}
       keyExtractor={keyExtractor}
+      extraData={selectedIds}
       numColumns={NUM_COLUMNS}
       columnWrapperStyle={styles.columnWrapper}
       contentContainerStyle={{ padding: spacing.xs }}

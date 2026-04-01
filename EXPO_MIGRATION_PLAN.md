@@ -276,15 +276,24 @@ Update seed data as sub-phases progress:
 
 ---
 
-#### Phase 5B: Media Viewing
+#### Phase 5B: Media Viewing — DONE
 
 **Goal:** Users can view media inside albums with full-screen viewer.
 
-**Business Requirements:**
-- Media grid inside album showing thumbnails (images and videos distinguished visually)
-- Tap to open full-screen media viewer with pinch-to-zoom for images
-- Video playback support in the viewer
-- Pagination for large albums
+**Completed:**
+- Media grid inside album detail showing authenticated thumbnails (images and videos distinguished with play icon overlay)
+- Tap to open full-screen media viewer with pinch-to-zoom (ZoomableImage via react-native-gesture-handler)
+- Video playback support in the viewer (VideoPlayer via expo-av)
+- Paginated media loading for large albums (20 per page, infinite scroll)
+- MediaThumbnail component with shimmer loading, auth header gating (prevents 401 race), error/placeholder states
+- useAuthHeaders hook with 30s auto-refresh and stable object reference (no unnecessary re-renders)
+- Gallery service: fetchAlbumMedia with pagination
+- useAlbumMedia hook with loadMore, refresh, loading states
+- Full-screen viewer with horizontal swipe navigation, RTL-aware, counter overlay
+- Media URL utilities: normalizeMediaUrl (no domain allowlist), getFullResMediaUrl
+- Seed script updated: correct MongoDB collection name (galleries), real file references
+- 4 MediaThumbnail auth race regression tests, useAuthHeaders tests, mediaUrls tests
+- i18n: media viewing keys in en + ar
 
 **Refer to:** `lib/features/gallery/pages/album_detail_page.dart`, `lib/features/gallery/pages/media_viewer_page.dart`
 

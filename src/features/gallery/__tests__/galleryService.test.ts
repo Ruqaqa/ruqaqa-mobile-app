@@ -4,6 +4,9 @@ import {
   fetchAlbums,
   createAlbum,
   updateAlbumTitle,
+  deleteMediaItem,
+  fetchMediaItemDetail,
+  manageMediaItem,
 } from '../services/galleryService';
 
 jest.mock('@/services/apiClient', () => {
@@ -251,5 +254,163 @@ describe('updateAlbumTitle', () => {
     await expect(
       updateAlbumTitle('507f1f77bcf86cd799439011', 'Title', 'en'),
     ).rejects.toThrow(expect.objectContaining({ code: 'FORBIDDEN' }));
+  });
+});
+
+// --- Phase 5C: deleteMediaItem, fetchMediaItemDetail, manageMediaItem ---
+
+const ITEM_ID = '507f1f77bcf86cd799439011';
+
+const mockMediaItemDetailRaw = {
+  id: ITEM_ID,
+  filename: 'photo-001.jpg',
+  mediaType: 'image',
+  mimeType: 'image/jpeg',
+  thumbnailUrl: '/api/mobile/gallery/media/' + ITEM_ID + '?thumb=true',
+  thumbnailFilename: 'photo-001-thumb.jpg',
+  noWatermarkNeeded: false,
+  watermarkedVariantAvailable: true,
+  uploadedBy: { id: 'emp-1', firstName: 'Ahmed', lastName: 'Ali' },
+  createdAt: '2025-06-01T00:00:00Z',
+  tags: [{ id: 'tag-1', name: 'Nature' }],
+  albums: [{ id: 'album-1', title: { en: 'My Album', ar: 'ألبومي' } }],
+};
+
+describe('deleteMediaItem', () => {
+  it('sends DELETE to /gallery/{id} and returns true on 200', async () => {
+    mock.onDelete(`/gallery/${ITEM_ID}`).reply(200);
+
+    const result = await deleteMediaItem(ITEM_ID);
+
+    expect(result).toBe(true);
+    expect(mock.history.delete).toHaveLength(1);
+  });
+
+  it('rejects invalid itemId before making API call', async () => {
+    await expect(deleteMediaItem('bad-id!')).rejects.toThrow(
+      expect.objectContaining({ code: 'UNKNOWN' }),
+    );
+    expect(mock.history.delete).toHaveLength(0);
+  });
+
+  it('throws FORBIDDEN on 403', async () => {
+    mock.onDelete(`/gallery/${ITEM_ID}`).reply(403);
+
+    await expect(deleteMediaItem(ITEM_ID)).rejects.toThrow(
+      expect.objectContaining({ code: 'FORBIDDEN' }),
+    );
+  });
+
+  it('throws SERVER on 500', async () => {
+    mock.onDelete(`/gallery/${ITEM_ID}`).reply(500);
+
+    await expect(deleteMediaItem(ITEM_ID)).rejects.toThrow(
+      expect.objectContaining({ code: 'SERVER' }),
+    );
+  });
+
+  it('throws NETWORK on network error', async () => {
+    mock.onDelete(`/gallery/${ITEM_ID}`).networkError();
+
+    await expect(deleteMediaItem(ITEM_ID)).rejects.toThrow(
+      expect.objectContaining({ code: 'NETWORK' }),
+    );
+  });
+});
+
+describe('fetchMediaItemDetail', () => {
+  it('sends GET to /gallery/{id} and returns parsed detail', async () => {
+    mock.onGet(`/gallery/${ITEM_ID}`).reply(200, mockMediaItemDetailRaw);
+
+    const result = await fetchMediaItemDetail(ITEM_ID);
+
+    expect(result.id).toBe(ITEM_ID);
+    expect(result.filename).toBe('photo-001.jpg');
+    expect(result.tags).toEqual([{ id: 'tag-1', name: 'Nature' }]);
+    expect(result.albums).toHaveLength(1);
+    expect(result.albums[0].id).toBe('album-1');
+  });
+
+  it('rejects invalid itemId before making API call', async () => {
+    await expect(fetchMediaItemDetail('bad-id!')).rejects.toThrow(
+      expect.objectContaining({ code: 'UNKNOWN' }),
+    );
+    expect(mock.history.get).toHaveLength(0);
+  });
+
+  it('throws NOT_FOUND on 404', async () => {
+    mock.onGet(`/gallery/${ITEM_ID}`).reply(404);
+
+    await expect(fetchMediaItemDetail(ITEM_ID)).rejects.toThrow(
+      expect.objectContaining({ code: 'NOT_FOUND' }),
+    );
+  });
+
+  it('throws FORBIDDEN on 403', async () => {
+    mock.onGet(`/gallery/${ITEM_ID}`).reply(403);
+
+    await expect(fetchMediaItemDetail(ITEM_ID)).rejects.toThrow(
+      expect.objectContaining({ code: 'FORBIDDEN' }),
+    );
+  });
+
+  it('returns empty tags and albums when not present in response', async () => {
+    const rawWithoutRelations = {
+      ...mockMediaItemDetailRaw,
+      tags: undefined,
+      albums: undefined,
+    };
+    mock.onGet(`/gallery/${ITEM_ID}`).reply(200, rawWithoutRelations);
+
+    const result = await fetchMediaItemDetail(ITEM_ID);
+
+    expect(result.tags).toEqual([]);
+    expect(result.albums).toEqual([]);
+  });
+});
+
+describe('manageMediaItem', () => {
+  it('sends PATCH to /gallery/{id} with payload and returns true', async () => {
+    mock.onPatch(`/gallery/${ITEM_ID}`).reply(200);
+
+    const result = await manageMediaItem(ITEM_ID, { tagIds: ['tag-1', 'tag-2'] });
+
+    expect(result).toBe(true);
+    const body = JSON.parse(mock.history.patch[0].data);
+    expect(body.tags).toEqual(['tag-1', 'tag-2']);
+  });
+
+  it('sends noWatermarkNeeded and alreadyWatermarked together', async () => {
+    mock.onPatch(`/gallery/${ITEM_ID}`).reply(200);
+
+    await manageMediaItem(ITEM_ID, { noWatermarkNeeded: true });
+
+    const body = JSON.parse(mock.history.patch[0].data);
+    expect(body.noWatermarkNeeded).toBe(true);
+    expect(body.alreadyWatermarked).toBe(true);
+  });
+
+  it('rejects invalid itemId before making API call', async () => {
+    await expect(
+      manageMediaItem('bad-id!', { tagIds: ['tag-1'] }),
+    ).rejects.toThrow(expect.objectContaining({ code: 'UNKNOWN' }));
+
+    expect(mock.history.patch).toHaveLength(0);
+  });
+
+  it('throws FORBIDDEN on 403', async () => {
+    mock.onPatch(`/gallery/${ITEM_ID}`).reply(403);
+
+    await expect(
+      manageMediaItem(ITEM_ID, { tagIds: ['tag-1'] }),
+    ).rejects.toThrow(expect.objectContaining({ code: 'FORBIDDEN' }));
+  });
+
+  it('throws SERVER on 500', async () => {
+    mock.onPatch(`/gallery/${ITEM_ID}`).reply(500);
+
+    await expect(
+      manageMediaItem(ITEM_ID, { tagIds: ['tag-1'] }),
+    ).rejects.toThrow(expect.objectContaining({ code: 'SERVER' }));
   });
 });

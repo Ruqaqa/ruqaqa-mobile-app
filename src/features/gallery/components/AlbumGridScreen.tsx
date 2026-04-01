@@ -26,6 +26,7 @@ interface AlbumGridScreenProps {
   permissions: UserPermissions;
   showCreateSheet: boolean;
   onCreateSheetClose: () => void;
+  onDetailVisibleChange?: (visible: boolean) => void;
 }
 
 const SKELETON_DATA = [1, 2, 3, 4, 5, 6];
@@ -34,6 +35,7 @@ export function AlbumGridScreen({
   permissions,
   showCreateSheet,
   onCreateSheetClose,
+  onDetailVisibleChange,
 }: AlbumGridScreenProps) {
   const { t, i18n } = useTranslation();
   const { colors, typography, spacing } = useTheme();
@@ -67,7 +69,8 @@ export function AlbumGridScreen({
   const handleAlbumPress = useCallback((album: GalleryAlbum) => {
     setSelectedAlbum(album);
     setDetailVisible(true);
-  }, []);
+    onDetailVisibleChange?.(true);
+  }, [onDetailVisibleChange]);
 
   const handleAlbumLongPress = useCallback((album: GalleryAlbum) => {
     if (album.isDefault) return; // Default album cannot be renamed
@@ -78,7 +81,8 @@ export function AlbumGridScreen({
   const handleDetailBack = useCallback(() => {
     setDetailVisible(false);
     setSelectedAlbum(null);
-  }, []);
+    onDetailVisibleChange?.(false);
+  }, [onDetailVisibleChange]);
 
   const handleOptionsClose = useCallback(() => {
     setOptionsVisible(false);

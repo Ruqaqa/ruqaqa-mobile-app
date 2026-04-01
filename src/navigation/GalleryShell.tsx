@@ -34,6 +34,7 @@ export function GalleryShell() {
   const { permissions } = useAppModuleContext();
   const [activeTab, setActiveTab] = useState<GalleryTab>('albums');
   const [showCreateSheet, setShowCreateSheet] = useState(false);
+  const [isInAlbumDetail, setIsInAlbumDetail] = useState(false);
 
   const tabs: GalleryTab[] = permissions.canCreateGallery
     ? ['albums', 'upload']
@@ -47,7 +48,7 @@ export function GalleryShell() {
   const openCreateSheet = useCallback(() => setShowCreateSheet(true), []);
   const closeCreateSheet = useCallback(() => setShowCreateSheet(false), []);
 
-  const showFab = activeTab === 'albums' && permissions.canCreateGallery;
+  const showFab = activeTab === 'albums' && permissions.canCreateGallery && !isInAlbumDetail;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -59,6 +60,7 @@ export function GalleryShell() {
             permissions={permissions}
             showCreateSheet={showCreateSheet}
             onCreateSheetClose={closeCreateSheet}
+            onDetailVisibleChange={setIsInAlbumDetail}
           />
         </View>
         {permissions.canCreateGallery && (
