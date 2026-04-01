@@ -4,7 +4,14 @@
 
 const mockPlay = jest.fn();
 const mockSeekTo = jest.fn();
-const mockPlayer = { play: mockPlay, seekTo: mockSeekTo };
+const mockRemove = jest.fn();
+const mockAddListener = jest.fn().mockReturnValue({ remove: mockRemove });
+const mockPlayer = {
+  play: mockPlay,
+  seekTo: mockSeekTo,
+  isLoaded: true,
+  addListener: mockAddListener,
+};
 const mockCreateAudioPlayer = jest.fn().mockReturnValue(mockPlayer);
 
 jest.mock('expo-audio', () => ({
@@ -14,6 +21,7 @@ jest.mock('expo-audio', () => ({
 describe('playSuccessSound', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockPlayer.isLoaded = true;
     mockCreateAudioPlayer.mockReturnValue(mockPlayer);
   });
 
@@ -84,5 +92,27 @@ describe('playSuccessSound', () => {
 
     expect(mockCreateAudioPlayer).toHaveBeenCalledTimes(2);
     expect(mockPlay).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits for isLoaded when player is not immediately ready', async () => {
+    jest.resetModules();
+    const notYetLoaded = {
+      ...mockPlayer,
+      isLoaded: false,
+      addListener: jest.fn((_event: string, cb: () => void) => {
+        // Simulate async load — fire callback on next tick
+        setTimeout(() => {
+          notYetLoaded.isLoaded = true;
+          cb();
+        }, 10);
+        return { remove: jest.fn() };
+      }),
+    };
+    mockCreateAudioPlayer.mockReturnValue(notYetLoaded);
+    const { playSuccessSound } = require('../soundService');
+
+    await playSuccessSound();
+
+    expect(notYetLoaded.play).toHaveBeenCalledTimes(1);
   });
 });
