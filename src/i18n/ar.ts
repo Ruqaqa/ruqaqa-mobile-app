@@ -480,4 +480,29 @@ export default {
   fileTooLarge: 'الملف يتجاوز الحد الأقصى 10 ميغابايت',
   save: 'حفظ',
   back: 'رجوع',
+
+  // Gallery - Download (Phase 5D)
+  downloadAs: 'تحميل بصيغة',
+  downloadOriginal: 'النسخة الأصلية',
+  downloadWatermarked: 'مع العلامة المائية',
+  downloadFormatMixedNote: '��عض العناصر المحددة ستُحمَّل بعلامة مائية والبعض دونها.',
+  downloadFormatNoWatermarkedNote: 'لا توجد نسخة بعلامة مائية للعناصر المحددة.',
+  downloadingItems: 'جاري تحميل {{completed}} من {{total}}...',
+  downloadComplete: 'تم تحميل {{completed}} من {{total}}',
+  downloadFailed_count: 'فشل {{count}}',
+  downloadStarted_one: 'جاري تحميل عنصر واحد...',
+  downloadStarted_other: 'جاري تحميل {{count}} عناصر...',
+  downloadSingleItem: 'تحميل',
+  downloadSelected: 'تحميل',
+  downloadPermissionDenied: 'صلاحية التخزين مطلوبة لحفظ التحميلات',
+
+  // Gallery - Download Notifications
+  downloadNotificationChannelName: 'تحميلات المعرض',
+  downloadNotificationTitle: 'تحميل المعرض',
+  downloadNotificationProgress: 'جاري تحميل {{completed}} من {{total}}...',
+  downloadNotificationComplete_one: 'تم تحميل عنصر واحد بنجاح',
+  downloadNotificationComplete_other: 'تم تحميل {{count}} عناصر بنجاح',
+  downloadNotificationAllFailed_one: 'فشل تحميل عنصر واحد',
+  downloadNotificationAllFailed_other: 'فشل تحميل {{count}} عناصر',
+  downloadNotificationPartialFailure: 'تم تحميل {{completed}} من {{total}}، فشل {{failed}}',
 } as const;

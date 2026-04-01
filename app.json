@@ -35,6 +35,15 @@
       "expo-secure-store",
       "expo-web-browser",
       "expo-sharing",
+      ["expo-media-library", {
+        "photosPermission": "Allow Ruqaqa to save downloaded media to your photo library.",
+        "savePhotosPermission": "Allow Ruqaqa to save downloaded media to your photo library.",
+        "isAccessMediaLocationEnabled": true
+      }],
+      ["expo-notifications", {
+        "icon": "./assets/icon.png",
+        "color": "#1428a0"
+      }],
       ["expo-share-intent", {
         "iosActivationRules": {
           "NSExtensionActivationSupportsImageWithMaxCount": 4,

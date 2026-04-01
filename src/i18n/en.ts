@@ -480,4 +480,29 @@ export default {
   fileTooLarge: 'File exceeds 10 MB limit',
   save: 'Save',
   back: 'Back',
+
+  // Gallery - Download (Phase 5D)
+  downloadAs: 'Download As',
+  downloadOriginal: 'Original',
+  downloadWatermarked: 'Watermarked',
+  downloadFormatMixedNote: 'Some selected items will download with a watermark; others without.',
+  downloadFormatNoWatermarkedNote: 'None of the selected items have a watermarked version.',
+  downloadingItems: 'Downloading {{completed}} of {{total}}...',
+  downloadComplete: 'Downloaded {{completed}} of {{total}}',
+  downloadFailed_count: '{{count}} failed',
+  downloadStarted_one: 'Downloading 1 item...',
+  downloadStarted_other: 'Downloading {{count}} items...',
+  downloadSingleItem: 'Download',
+  downloadSelected: 'Download',
+  downloadPermissionDenied: 'Storage permission is required to save downloads',
+
+  // Gallery - Download Notifications
+  downloadNotificationChannelName: 'Gallery Downloads',
+  downloadNotificationTitle: 'Gallery Download',
+  downloadNotificationProgress: 'Downloading {{completed}} of {{total}}...',
+  downloadNotificationComplete_one: '1 item downloaded successfully',
+  downloadNotificationComplete_other: '{{count}} items downloaded successfully',
+  downloadNotificationAllFailed_one: '1 download failed',
+  downloadNotificationAllFailed_other: '{{count}} downloads failed',
+  downloadNotificationPartialFailure: 'Downloaded {{completed}} of {{total}}, {{failed}} failed',
 } as const;

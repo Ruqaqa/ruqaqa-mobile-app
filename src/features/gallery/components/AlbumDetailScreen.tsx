@@ -11,16 +11,20 @@ import {
   ManageItemPayload,
   MediaItemDetail,
   CheckState,
+  DownloadFormat,
 } from '../types';
 import { useAlbumMedia } from '../hooks/useAlbumMedia';
 import { useMediaSelection } from '../hooks/useMediaSelection';
 import { useMediaBulkActions } from '../hooks/useMediaBulkActions';
+import { useDownload } from '../hooks/useDownload';
 import { MediaGrid } from './MediaGrid';
 import { FullScreenMediaViewer } from './FullScreenMediaViewer';
 import { SelectionHeader } from './SelectionHeader';
 import { SelectionActionBar } from './SelectionActionBar';
 import { BulkDeleteConfirmDialog } from './BulkDeleteConfirmDialog';
 import { BulkManageSheet, type ManageSheetChanges } from './BulkManageSheet';
+import { DownloadFormatSheet, type WatermarkNote } from './DownloadFormatSheet';
+import { DownloadProgressBar } from './DownloadProgressBar';
 
 interface AlbumDetailScreenProps {
   album: GalleryAlbum;
@@ -151,6 +155,7 @@ export function AlbumDetailScreen({ album, onBack }: AlbumDetailScreenProps) {
 
   const selection = useMediaSelection({ enabled: canBulkAction });
   const bulkActions = useMediaBulkActions();
+  const download = useDownload();
 
   // Full-screen viewer state
   const [viewerVisible, setViewerVisible] = useState(false);
@@ -160,6 +165,15 @@ export function AlbumDetailScreen({ album, onBack }: AlbumDetailScreenProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showManageSheet, setShowManageSheet] = useState(false);
   const [manageState, setManageState] = useState<ManageSheetState | null>(null);
+
+  // Download format sheet state
+  const [showFormatSheet, setShowFormatSheet] = useState(false);
+  const [downloadTarget, setDownloadTarget] = useState<'bulk' | 'single'>(
+    'bulk',
+  );
+  const [singleDownloadItem, setSingleDownloadItem] = useState<number | null>(
+    null,
+  );
 
   // Cache fetched item details for per-item resolution on manage confirm
   const itemDetailsRef = useRef<MediaItemDetail[]>([]);
@@ -324,6 +338,101 @@ export function AlbumDetailScreen({ album, onBack }: AlbumDetailScreenProps) {
     [bulkActions, selection, refresh],
   );
 
+  // --- Download handlers ---
+
+  const handleBulkDownloadPress = useCallback(() => {
+    if (selection.selectedCount === 0) return;
+    const selectedItems = items.filter((item) =>
+      selection.selectedIds.has(item.id),
+    );
+    const anyWatermarked = selectedItems.some(
+      (item) => item.watermarkedVariantAvailable,
+    );
+
+    if (!anyWatermarked) {
+      // No watermarked variants — skip format sheet, download originals directly
+      download.startDownload(selectedItems, 'original');
+      selection.exitSelectionMode();
+      return;
+    }
+
+    setDownloadTarget('bulk');
+    setShowFormatSheet(true);
+  }, [selection, items, download]);
+
+  const handleSingleDownloadPress = useCallback(
+    (itemIndex: number) => {
+      const item = items[itemIndex];
+      if (!item) return;
+
+      if (!item.watermarkedVariantAvailable) {
+        download.startDownload([item], 'original');
+        return;
+      }
+
+      setSingleDownloadItem(itemIndex);
+      setDownloadTarget('single');
+      setShowFormatSheet(true);
+    },
+    [items, download],
+  );
+
+  const handleFormatSelect = useCallback(
+    (format: DownloadFormat) => {
+      setShowFormatSheet(false);
+
+      if (downloadTarget === 'bulk') {
+        const selectedItems = items.filter((item) =>
+          selection.selectedIds.has(item.id),
+        );
+        download.startDownload(selectedItems, format);
+        selection.exitSelectionMode();
+      } else if (downloadTarget === 'single' && singleDownloadItem !== null) {
+        const item = items[singleDownloadItem];
+        if (item) {
+          download.startDownload([item], format);
+        }
+        setSingleDownloadItem(null);
+      }
+    },
+    [downloadTarget, items, selection, download, singleDownloadItem],
+  );
+
+  const handleFormatSheetClose = useCallback(() => {
+    setShowFormatSheet(false);
+    setSingleDownloadItem(null);
+  }, []);
+
+  // Compute watermark note for format sheet
+  const formatSheetWatermarkNote: WatermarkNote = (() => {
+    if (downloadTarget === 'single') return 'none';
+    const selectedItems = items.filter((item) =>
+      selection.selectedIds.has(item.id),
+    );
+    const anyWatermarked = selectedItems.some(
+      (item) => item.watermarkedVariantAvailable,
+    );
+    const allWatermarked = selectedItems.every(
+      (item) => item.watermarkedVariantAvailable,
+    );
+    if (!anyWatermarked) return 'noWatermarkedForSelection';
+    if (anyWatermarked && !allWatermarked) return 'mixedSelection';
+    return 'none';
+  })();
+
+  const formatSheetWatermarkedEnabled = (() => {
+    if (downloadTarget === 'single' && singleDownloadItem !== null) {
+      return items[singleDownloadItem]?.watermarkedVariantAvailable ?? false;
+    }
+    const selectedItems = items.filter((item) =>
+      selection.selectedIds.has(item.id),
+    );
+    return selectedItems.some((item) => item.watermarkedVariantAvailable);
+  })();
+
+  const formatSheetItemCount =
+    downloadTarget === 'single' ? 1 : selection.selectedCount;
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header — swap between normal and selection header */}
@@ -367,6 +476,13 @@ export function AlbumDetailScreen({ album, onBack }: AlbumDetailScreenProps) {
         </View>
       )}
 
+      {/* Download progress bar */}
+      <DownloadProgressBar
+        snapshot={download.snapshot}
+        onCancel={download.cancelAll}
+        onClear={download.clearCompleted}
+      />
+
       {/* Media grid */}
       <MediaGrid
         items={items}
@@ -391,9 +507,11 @@ export function AlbumDetailScreen({ album, onBack }: AlbumDetailScreenProps) {
           selectedCount={selection.selectedCount}
           canDelete={permissions.canDeleteGallery}
           canUpdate={permissions.canUpdateGallery}
+          canDownload={permissions.canViewGallery}
           isProcessing={bulkActions.isProcessing}
           onDelete={handleDeletePress}
           onManage={handleManagePress}
+          onDownload={handleBulkDownloadPress}
         />
       )}
 
@@ -403,6 +521,7 @@ export function AlbumDetailScreen({ album, onBack }: AlbumDetailScreenProps) {
         items={items}
         initialIndex={viewerIndex}
         onClose={handleViewerClose}
+        onDownload={handleSingleDownloadPress}
       />
 
       {/* Bulk delete confirmation dialog */}
@@ -426,6 +545,16 @@ export function AlbumDetailScreen({ album, onBack }: AlbumDetailScreenProps) {
         progress={bulkActions.progress}
         onConfirm={handleManageConfirm}
         onClose={handleManageClose}
+      />
+
+      {/* Download format sheet */}
+      <DownloadFormatSheet
+        visible={showFormatSheet}
+        itemCount={formatSheetItemCount}
+        watermarkedEnabled={formatSheetWatermarkedEnabled}
+        watermarkNote={formatSheetWatermarkNote}
+        onSelect={handleFormatSelect}
+        onClose={handleFormatSheetClose}
       />
     </View>
   );

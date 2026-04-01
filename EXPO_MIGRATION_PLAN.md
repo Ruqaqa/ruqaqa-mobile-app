@@ -394,9 +394,18 @@ Update seed data as sub-phases progress:
 - Create new albums or tags inline during the upload flow
 - Associate albums with projects
 
+**Share Intent Integration:**
+- Enable the "Gallery" flow target in `src/services/shareIntent/flowTargets.ts` (currently disabled with "Coming soon" badge)
+- When user shares files from another app and selects Gallery, navigate to the upload flow with files pre-attached
+- Follow the same pattern as Transactions and Reconciliation: consume files via `useShareIntent()` hook + shared adapter on form mount
+- Shared files skip the device gallery/camera picker step and go directly into the upload pipeline
+- Validate shared files against gallery-specific constraints (allowed MIME types: image/*, video/*, max file size)
+- Auto-open the upload screen and switch to Gallery module when share intent targets Gallery
+- Security: explicit `allowedMimeTypes` on flow target, MIME validation at trust boundary
+
 **Refer to:** `lib/features/gallery/services/upload_pipeline.dart`, `lib/features/gallery/services/image_optimization_service.dart`, `lib/features/gallery/services/video_optimization_service.dart`, `lib/features/gallery/services/watermark_applicator.dart`, `lib/features/gallery/pages/gallery_upload_page.dart`, `lib/features/gallery/pages/watermark_editor_screen.dart`
 
-**Deliverable:** Full media upload pipeline with optimization, watermarking, and duplicate detection.
+**Deliverable:** Full media upload pipeline with optimization, watermarking, duplicate detection, and share intent integration.
 
 ---
 

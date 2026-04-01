@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { Trash2, FolderCog } from 'lucide-react-native';
+import { Trash2, FolderCog, Download } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/theme';
@@ -9,9 +9,11 @@ interface SelectionActionBarProps {
   selectedCount: number;
   canDelete: boolean;
   canUpdate: boolean;
+  canDownload?: boolean;
   isProcessing: boolean;
   onDelete: () => void;
   onManage: () => void;
+  onDownload?: () => void;
 }
 
 /**
@@ -22,9 +24,11 @@ export function SelectionActionBar({
   selectedCount,
   canDelete,
   canUpdate,
+  canDownload,
   isProcessing,
   onDelete,
   onManage,
+  onDownload,
 }: SelectionActionBarProps) {
   const { t } = useTranslation();
   const { colors, typography, spacing } = useTheme();
@@ -45,6 +49,30 @@ export function SelectionActionBar({
       ]}
     >
       <View style={styles.buttonRow}>
+        {canDownload && onDownload && (
+          <Pressable
+            onPress={onDownload}
+            disabled={isDisabled}
+            style={({ pressed }) => [
+              styles.actionButton,
+              { opacity: isDisabled ? 0.5 : pressed ? 0.7 : 1 },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={t('downloadSelected')}
+            accessibilityState={{ disabled: isDisabled }}
+          >
+            <Download size={20} color={colors.green} />
+            <Text
+              style={[
+                typography.labelSmall,
+                { color: colors.green, marginTop: spacing.xxs },
+              ]}
+            >
+              {t('downloadSelected')}
+            </Text>
+          </Pressable>
+        )}
+
         {canUpdate && (
           <Pressable
             onPress={onManage}

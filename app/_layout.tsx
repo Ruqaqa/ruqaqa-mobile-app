@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Slot, SplashScreen } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as Notifications from 'expo-notifications';
 import { ThemeProvider } from '../src/theme';
 import { initI18n } from '../src/i18n';
 import { DirectionProvider } from '../src/i18n/DirectionProvider';
@@ -10,6 +11,17 @@ import { SessionExpiredModal } from '../src/components/auth/SessionExpiredModal'
 import { ShareIntentBridge } from '../src/components/share/ShareIntentBridge';
 
 SplashScreen.preventAutoHideAsync();
+
+// Show download progress notifications even when app is foregrounded
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+  }),
+});
 
 export default function RootLayout() {
   const [ready, setReady] = useState(false);

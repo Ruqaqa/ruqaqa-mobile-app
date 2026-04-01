@@ -104,3 +104,39 @@ export interface MediaItemDetail extends MediaItem {
   tags: { id: string; name: string }[];
   albums: { id: string; title: string }[];
 }
+
+// --- Phase 5D: Download types ---
+
+export type DownloadFormat = 'original' | 'watermarked';
+
+export type DownloadStatus = 'queued' | 'running' | 'completed' | 'failed' | 'canceled';
+
+export interface DownloadJob {
+  id: string;
+  sourceUrl: string;
+  destinationUri: string;
+  displayFilename: string;
+  status: DownloadStatus;
+  progress: number; // 0.0 – 1.0
+  error?: string;
+}
+
+export interface DownloadSnapshot {
+  jobs: DownloadJob[];
+  totalCount: number;
+  completedCount: number;
+  failedCount: number;
+  isActive: boolean;
+  batchProgress: number; // 0.0 – 1.0
+}
+
+export const EMPTY_DOWNLOAD_SNAPSHOT: DownloadSnapshot = {
+  jobs: [],
+  totalCount: 0,
+  completedCount: 0,
+  failedCount: 0,
+  isActive: false,
+  batchProgress: 0,
+};
+
+export const MAX_CONCURRENT_DOWNLOADS = 2;

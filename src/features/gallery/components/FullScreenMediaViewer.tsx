@@ -13,7 +13,7 @@ import {
   Modal,
   ViewToken,
 } from 'react-native';
-import { X, ImageOff, RefreshCw } from 'lucide-react-native';
+import { X, ImageOff, RefreshCw, Download } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthHeaders } from '@/hooks/useAuthHeaders';
@@ -28,6 +28,7 @@ interface FullScreenMediaViewerProps {
   items: MediaItem[];
   initialIndex: number;
   onClose: () => void;
+  onDownload?: (index: number) => void;
 }
 
 /**
@@ -40,6 +41,7 @@ export function FullScreenMediaViewer({
   items,
   initialIndex,
   onClose,
+  onDownload,
 }: FullScreenMediaViewerProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -126,6 +128,18 @@ export function FullScreenMediaViewer({
             <Text style={styles.counter} allowFontScaling={false}>
               {`${currentIndex + 1} / ${items.length}`}
             </Text>
+          )}
+
+          {onDownload && (
+            <Pressable
+              onPress={() => onDownload(currentIndex)}
+              style={styles.downloadButton}
+              accessibilityRole="button"
+              accessibilityLabel={t('downloadSingleItem')}
+              hitSlop={12}
+            >
+              <Download size={22} color="#ffffff" />
+            </Pressable>
           )}
         </View>
 
@@ -237,6 +251,12 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   closeButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  downloadButton: {
     width: 44,
     height: 44,
     alignItems: 'center',
