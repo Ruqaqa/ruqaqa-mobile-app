@@ -174,21 +174,19 @@ describe('downloadNotificationService', () => {
   });
 
   describe('completion notification', () => {
-    it('dismisses progress and shows success when all downloads complete', async () => {
+    it('replaces progress with success notification using same ID', async () => {
       downloadNotificationObserver(
         makeSnapshot({ isActive: false, totalCount: 3, completedCount: 3, failedCount: 0 }),
       );
       await flush();
 
-      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledWith(
-        'gallery-download-progress',
-      );
       expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(
         expect.objectContaining({
-          identifier: 'gallery-download-result',
+          identifier: 'gallery-download-progress',
           trigger: null,
           content: expect.objectContaining({
             body: 'downloadNotificationComplete',
+            sticky: false,
           }),
         }),
       );
@@ -204,7 +202,7 @@ describe('downloadNotificationService', () => {
 
       expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(
         expect.objectContaining({
-          identifier: 'gallery-download-result',
+          identifier: 'gallery-download-progress',
           content: expect.objectContaining({
             body: 'downloadNotificationAllFailed',
           }),
@@ -220,7 +218,7 @@ describe('downloadNotificationService', () => {
 
       expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(
         expect.objectContaining({
-          identifier: 'gallery-download-result',
+          identifier: 'gallery-download-progress',
           content: expect.objectContaining({
             body: 'downloadNotificationPartialFailure',
           }),
@@ -246,7 +244,7 @@ describe('downloadNotificationService', () => {
 
       // scheduleNotificationAsync should only be called once for the result
       const resultCalls = (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls.filter(
-        (call: any[]) => call[0].identifier === 'gallery-download-result',
+        (call: any[]) => call[0].content?.sticky === false,
       );
       expect(resultCalls).toHaveLength(1);
     });
@@ -272,23 +270,20 @@ describe('downloadNotificationService', () => {
 
       // Should have two result notifications (one per batch)
       const resultCalls = (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls.filter(
-        (call: any[]) => call[0].identifier === 'gallery-download-result',
+        (call: any[]) => call[0].content?.sticky === false,
       );
       expect(resultCalls).toHaveLength(2);
     });
   });
 
   describe('dismissDownloadNotifications', () => {
-    it('dismisses both progress and result notification IDs', async () => {
+    it('dismisses the download notification', async () => {
       await dismissDownloadNotifications();
 
       expect(Notifications.dismissNotificationAsync).toHaveBeenCalledWith(
         'gallery-download-progress',
       );
-      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledWith(
-        'gallery-download-result',
-      );
-      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledTimes(2);
+      expect(Notifications.dismissNotificationAsync).toHaveBeenCalledTimes(1);
     });
 
     it('resets dedup key so next result notification is shown', async () => {
@@ -308,7 +303,7 @@ describe('downloadNotificationService', () => {
       await flush();
 
       const resultCalls = (Notifications.scheduleNotificationAsync as jest.Mock).mock.calls.filter(
-        (call: any[]) => call[0].identifier === 'gallery-download-result',
+        (call: any[]) => call[0].content?.sticky === false,
       );
       expect(resultCalls).toHaveLength(2);
     });

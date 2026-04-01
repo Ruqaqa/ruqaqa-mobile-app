@@ -90,57 +90,37 @@ async function dismissProgressAndShowResult(snapshot: DownloadSnapshot): Promise
   if (lastResultKey === resultKey) return;
   lastResultKey = resultKey;
 
-  // Cancel the sticky progress notification (dismiss alone doesn't clear sticky on Android)
-  await Notifications.cancelScheduledNotificationAsync(PROGRESS_NOTIFICATION_ID);
-  await Notifications.dismissNotificationAsync(PROGRESS_NOTIFICATION_ID);
-
   const allowed = await ensurePermissionAndChannel();
   if (!allowed) return;
 
+  let body: string;
   if (snapshot.failedCount > 0 && snapshot.completedCount === 0) {
-    // All failed
-    await Notifications.scheduleNotificationAsync({
-      identifier: 'gallery-download-result',
-      content: {
-        title: t('downloadNotificationTitle'),
-        body: t('downloadNotificationAllFailed', { count: snapshot.failedCount }),
-        ...(Platform.OS === 'android' && {
-          channelId: CHANNEL_ID,
-        }),
-      },
-      trigger: null,
-    });
+    body = t('downloadNotificationAllFailed', { count: snapshot.failedCount });
   } else if (snapshot.failedCount > 0) {
-    // Partial failure
-    await Notifications.scheduleNotificationAsync({
-      identifier: 'gallery-download-result',
-      content: {
-        title: t('downloadNotificationTitle'),
-        body: t('downloadNotificationPartialFailure', {
-          completed: snapshot.completedCount,
-          total: snapshot.totalCount,
-          failed: snapshot.failedCount,
-        }),
-        ...(Platform.OS === 'android' && {
-          channelId: CHANNEL_ID,
-        }),
-      },
-      trigger: null,
+    body = t('downloadNotificationPartialFailure', {
+      completed: snapshot.completedCount,
+      total: snapshot.totalCount,
+      failed: snapshot.failedCount,
     });
   } else {
-    // All succeeded
-    await Notifications.scheduleNotificationAsync({
-      identifier: 'gallery-download-result',
-      content: {
-        title: t('downloadNotificationTitle'),
-        body: t('downloadNotificationComplete', { count: snapshot.completedCount }),
-        ...(Platform.OS === 'android' && {
-          channelId: CHANNEL_ID,
-        }),
-      },
-      trigger: null,
-    });
+    body = t('downloadNotificationComplete', { count: snapshot.completedCount });
   }
+
+  // Re-use the same notification ID so the result replaces the sticky progress
+  // notification atomically — avoids the dismiss-then-create race that leaves
+  // a stale "جاري تحميل" notification on Android.
+  await Notifications.scheduleNotificationAsync({
+    identifier: PROGRESS_NOTIFICATION_ID,
+    content: {
+      title: t('downloadNotificationTitle'),
+      body,
+      sticky: false,
+      ...(Platform.OS === 'android' && {
+        channelId: CHANNEL_ID,
+      }),
+    },
+    trigger: null,
+  });
 }
 
 /**
@@ -151,6 +131,4 @@ export async function dismissDownloadNotifications(): Promise<void> {
   lastResultKey = null;
   await Notifications.cancelScheduledNotificationAsync(PROGRESS_NOTIFICATION_ID);
   await Notifications.dismissNotificationAsync(PROGRESS_NOTIFICATION_ID);
-  await Notifications.cancelScheduledNotificationAsync('gallery-download-result');
-  await Notifications.dismissNotificationAsync('gallery-download-result');
 }
