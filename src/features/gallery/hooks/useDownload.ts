@@ -39,6 +39,8 @@ export function useDownload(): UseDownloadReturn {
     return () => {
       mountedRef.current = false;
       unsubscribe();
+      // Clear finished downloads when leaving the album so the bar disappears
+      clearCompletedDownloads();
     };
   }, []);
 

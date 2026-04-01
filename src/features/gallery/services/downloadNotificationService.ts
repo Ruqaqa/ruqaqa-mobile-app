@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { i18next } from '@/i18n';
+import { playSuccessSound } from '@/services/soundService';
 import { DownloadSnapshot } from '../types';
 
 // Stable notification ID so we update in-place rather than stacking
@@ -104,6 +105,11 @@ async function dismissProgressAndShowResult(snapshot: DownloadSnapshot): Promise
     });
   } else {
     body = t('downloadNotificationComplete', { count: snapshot.completedCount });
+  }
+
+  // Play success sound if at least one download completed
+  if (snapshot.completedCount > 0) {
+    playSuccessSound(); // fire-and-forget
   }
 
   // Re-use the same notification ID so the result replaces the sticky progress

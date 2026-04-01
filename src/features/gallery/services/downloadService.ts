@@ -165,6 +165,8 @@ export async function downloadItems(
   }
 
   if (jobs.length > 0) {
+    // Clear stale completed/failed jobs so the counter resets for the new batch
+    queue.clearCompleted();
     await queue.enqueue(jobs);
   }
 }

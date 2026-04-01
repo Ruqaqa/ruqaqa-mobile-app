@@ -16,6 +16,10 @@ jest.mock('@/i18n', () => ({
   i18next: { t: (key: string, opts?: any) => key },
 }));
 
+jest.mock('@/services/soundService', () => ({
+  playSuccessSound: jest.fn(),
+}));
+
 jest.mock('react-native', () => ({
   Platform: { OS: 'android' },
 }));
