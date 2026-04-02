@@ -12,20 +12,27 @@ import {
   createProject,
 } from '../services/galleryService';
 import { useUploadForm } from '../hooks/useUploadForm';
+import { useUploadPipeline } from '../hooks/useUploadPipeline';
 import { UploadScreen } from './UploadScreen';
 import { SearchablePickerSheet } from './SearchablePickerSheet';
+import { DuplicateSheet } from './DuplicateSheet';
+import { UploadProgressCard } from './UploadProgressCard';
 
 /**
  * Container that wires the UploadScreen UI with:
  * - useUploadForm hook (state management)
+ * - useUploadPipeline hook (upload pipeline orchestrator)
  * - expo-image-picker (media selection)
  * - SearchablePickerSheet (album, tag, project pickers)
+ * - DuplicateSheet (duplicate detection during upload)
+ * - UploadProgressCard (pipeline progress display)
  *
  * This is the component that GalleryShell renders for the Upload tab.
  */
 export function UploadTabContainer() {
   const { t, i18n } = useTranslation();
   const form = useUploadForm();
+  const pipeline = useUploadPipeline();
   const locale = (i18n.language === 'ar' ? 'ar' : 'en') as 'ar' | 'en';
 
   // Picker sheet visibility
@@ -36,10 +43,14 @@ export function UploadTabContainer() {
   // Video loading state
   const [isLoadingVideo, setIsLoadingVideo] = useState(false);
 
+  // Use pipeline stage to determine lock state (overrides form stage)
+  const effectiveStage = pipeline.stage !== 'idle' ? pipeline.stage : form.state.stage;
   const isLocked =
-    form.state.stage === 'processing' ||
-    form.state.stage === 'done' ||
-    form.state.stage === 'error';
+    effectiveStage === 'processing' ||
+    effectiveStage === 'done' ||
+    effectiveStage === 'error';
+
+  const pipelineFinished = pipeline.stage === 'done' || pipeline.stage === 'error';
 
   // --- Media picking ---
 
@@ -83,10 +94,6 @@ export function UploadTabContainer() {
   const handleRemoveVideo = useCallback(() => form.setVideo(null), [form]);
 
   const handleRemoveAllImages = useCallback(() => {
-    // Remove all images by setting state through addImages pattern
-    // Actually, there's no removeAll in useUploadForm. We need to remove one by one
-    // or reset. Since reset clears everything including metadata, let's remove images
-    // by index from the end to avoid index shifting.
     const count = form.state.images.length;
     for (let i = count - 1; i >= 0; i--) {
       form.removeImage(i);
@@ -146,15 +153,49 @@ export function UploadTabContainer() {
     [],
   );
 
-  // --- Upload (placeholder — actual pipeline is Phase 6B) ---
+  // --- Upload pipeline ---
 
   const handleUpload = useCallback(() => {
-    // Phase 6A: just validate that canUpload is true.
-    // The actual upload pipeline will be wired in Phase 6B.
     if (!form.canUpload) return;
-    // For now, this is a no-op placeholder.
-    // Phase 6B will: open watermark editor → run upload pipeline.
-  }, [form.canUpload]);
+
+    pipeline.startUpload({
+      images: form.state.images,
+      video: form.state.video,
+      albums: form.state.albums,
+      tags: form.state.tags,
+      project: form.state.project,
+      watermarkDrafts: form.state.watermarkDrafts,
+    });
+
+    form.setStage('processing');
+  }, [form, pipeline]);
+
+  // --- Duplicate resolution ---
+
+  const handleDuplicateResult = useCallback(
+    (result: { action: 'addToAlbums' | 'skip'; applyToAll: boolean }) => {
+      pipeline.resolveDuplicate(result.action, result.applyToAll);
+    },
+    [pipeline],
+  );
+
+  // --- Reset after completion ---
+
+  const handleReset = useCallback(() => {
+    pipeline.reset();
+    form.reset();
+  }, [pipeline, form]);
+
+  // --- Pipeline progress content (injected into UploadScreen) ---
+
+  const pipelineContent =
+    pipeline.pipelineStatus && pipeline.stage !== 'idle' ? (
+      <UploadProgressCard
+        status={pipeline.pipelineStatus}
+        result={pipeline.result}
+        errorMessage={pipeline.errorMessage}
+      />
+    ) : null;
 
   return (
     <>
@@ -178,7 +219,10 @@ export function UploadTabContainer() {
         onAlbumsChange={form.setAlbums}
         onTagsChange={form.setTags}
         onProjectChange={form.setProject}
-        onUpload={handleUpload}
+        onUpload={pipelineFinished ? handleReset : handleUpload}
+        uploadButtonTitle={pipelineFinished ? t('galleryUploadNewUpload') : undefined}
+        showButtonWhenLocked={pipelineFinished}
+        pipelineContent={pipelineContent}
       />
 
       {/* Album Picker Sheet */}
@@ -240,6 +284,15 @@ export function UploadTabContainer() {
         emptyLabel={t('galleryNoProjectsFound')}
         persistentCreateLabel={t('galleryNew')}
       />
+
+      {/* Duplicate Sheet — shown when pipeline pauses for duplicate decision */}
+      {pipeline.pendingDuplicate && (
+        <DuplicateSheet
+          visible={!!pipeline.pendingDuplicate}
+          info={pipeline.pendingDuplicate.info}
+          onResult={handleDuplicateResult}
+        />
+      )}
     </>
   );
 }

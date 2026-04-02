@@ -48,6 +48,10 @@ interface UploadScreenProps {
   onTagsChange: (tags: PickerItem[]) => void;
   onProjectChange: (project: PickerItem | null) => void;
   onUpload: () => void;
+  /** Override the upload button label (e.g. "New Upload" after completion). */
+  uploadButtonTitle?: string;
+  /** Show the upload/reset button even when the form is locked (for done/error states). */
+  showButtonWhenLocked?: boolean;
   pipelineContent?: React.ReactNode;
 }
 
@@ -86,6 +90,8 @@ export function UploadScreen({
   onTagsChange,
   onProjectChange,
   onUpload,
+  uploadButtonTitle,
+  showButtonWhenLocked,
   pipelineContent,
 }: UploadScreenProps) {
   const { t } = useTranslation();
@@ -351,15 +357,15 @@ export function UploadScreen({
       {/* Pipeline progress (injected from parent) */}
       {pipelineContent}
 
-      {/* Upload Button */}
-      {!isLocked && (
+      {/* Upload / Reset Button */}
+      {(!isLocked || showButtonWhenLocked) && (
         <View style={{ marginTop: spacing.lg }}>
           <Button
-            title={t('upload')}
+            title={uploadButtonTitle ?? t('upload')}
             onPress={onUpload}
-            variant="default"
+            variant={showButtonWhenLocked && isLocked ? 'outline' : 'default'}
             size="lg"
-            disabled={!canUpload}
+            disabled={!showButtonWhenLocked && !canUpload}
             testID="upload-button"
           />
         </View>

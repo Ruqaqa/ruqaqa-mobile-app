@@ -1,4 +1,4 @@
-import { apiClient } from '@/services/apiClient';
+import { apiClient, uploadMultipart } from '@/services/apiClient';
 import { ApiError, mapAxiosError } from '@/services/errors';
 import { isValidObjectId } from '@/utils/sanitize';
 import {
@@ -6,6 +6,7 @@ import {
   MediaItemDetail, ManageItemPayload, PickerItem,
   CheckHashResult, CheckHashItem, CheckHashRelation, CheckHashAlbum,
   AddToAlbumsResult, TAG_NAME_MAX_LENGTH,
+  UploadItemResult, WatermarkDraft, MediaItem,
 } from '../types';
 import { parseAlbum, parseMediaItem, parseMediaItemDetail, extractLocalizedString } from '../utils/parsers';
 
@@ -370,6 +371,110 @@ export async function addItemToAlbums(
     };
   } catch {
     return null;
+  }
+}
+
+// --- Phase 6B: Upload item (multipart) ---
+
+const BASE36 = '0123456789abcdefghijklmnopqrstuvwxyz';
+
+/**
+ * Generate a privacy-safe filename: 13-char random base36 ID + extension.
+ * Defense-in-depth: backend also generates its own canonical name.
+ * Mirrors Flutter's `_privacySafeFilename`.
+ */
+function privacySafeFilename(uri: string): string {
+  const lastDot = uri.lastIndexOf('.');
+  // Extract extension, strip query params and path separators
+  const rawExt = lastDot !== -1 ? uri.substring(lastDot).toLowerCase().split(/[?#]/)[0] : '';
+  const ext = rawExt.replace(/[/\\\0]/g, '').slice(0, 10);
+  let id = '';
+  for (let i = 0; i < 13; i++) {
+    id += BASE36[Math.floor(Math.random() * 36)];
+  }
+  return `${id}${ext}`;
+}
+
+export interface UploadItemParams {
+  fileUri: string;
+  alreadyOptimized?: boolean;
+  noWatermarkNeeded?: boolean;
+  albumIds?: string[];
+  tagIds?: string[];
+  projectId?: string;
+  originalSourceHash?: string;
+  watermarkDraft?: WatermarkDraft;
+}
+
+/**
+ * Upload a single media item via multipart POST to `/gallery`.
+ * Mirrors Flutter's `GalleryApiService.uploadItem`.
+ *
+ * Returns an `UploadItemResult` that distinguishes success, duplicate (409),
+ * file-too-large (413), and generic failure.
+ */
+export async function uploadItem(params: UploadItemParams): Promise<UploadItemResult> {
+  try {
+    const formData = new FormData();
+
+    // Primary file
+    const filename = privacySafeFilename(params.fileUri);
+    formData.append('file', {
+      uri: params.fileUri,
+      name: filename,
+      type: 'application/octet-stream',
+    } as any);
+
+    if (params.alreadyOptimized) {
+      formData.append('alreadyOptimized', 'true');
+    }
+    if (params.noWatermarkNeeded) {
+      formData.append('noWatermarkNeeded', 'true');
+      formData.append('alreadyWatermarked', 'true');
+    }
+    if (params.watermarkDraft) {
+      formData.append('watermarkOverrides', JSON.stringify(params.watermarkDraft));
+    }
+    // Validate all IDs are ObjectId format before including in form data
+    if (params.albumIds && params.albumIds.length > 0) {
+      const validAlbumIds = params.albumIds.filter((id) => id && isValidObjectId(id));
+      if (validAlbumIds.length > 0) {
+        formData.append('albumIds', JSON.stringify(validAlbumIds));
+      }
+    }
+    if (params.tagIds && params.tagIds.length > 0) {
+      const validTagIds = params.tagIds.filter((id) => id && isValidObjectId(id));
+      if (validTagIds.length > 0) {
+        formData.append('tags', JSON.stringify(validTagIds));
+      }
+    }
+    if (params.projectId && isValidObjectId(params.projectId)) {
+      formData.append('project', params.projectId);
+    }
+    if (params.originalSourceHash && SHA256_HEX_RE.test(params.originalSourceHash)) {
+      formData.append('originalSourceHash', params.originalSourceHash);
+    }
+
+    const response = await uploadMultipart('/gallery', formData);
+    const data = response.data;
+
+    return {
+      outcome: 'success',
+      item: data ? parseMediaItem(data) : undefined,
+    };
+  } catch (error: any) {
+    const status = error?.response?.status;
+    if (status === 413) {
+      return { outcome: 'fileTooLarge' };
+    }
+    if (status === 409) {
+      const dupData = error?.response?.data?.duplicate;
+      return {
+        outcome: 'duplicate',
+        duplicateInfo: dupData ? parseCheckHashResult(dupData) : undefined,
+      };
+    }
+    return { outcome: 'failure' };
   }
 }
 
