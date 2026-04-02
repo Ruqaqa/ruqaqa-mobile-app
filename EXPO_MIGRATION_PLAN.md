@@ -419,17 +419,19 @@ Update seed data as sub-phases progress:
 
 **Goal:** Ensure all cross-cutting concerns are solid.
 
-**Business Requirements:**
-- Profile avatar display (employee photos from the backend, with fallback initials)
-- Employee cache: fetch and cache the full employee list for 24 hours. Use cache-first strategy (show cached data immediately, refresh in background). Fall back to expired cache on network failure
-- Finance channel cache: same 24-hour cache strategy as employees
-- Sound feedback on successful form submissions
-- Consistent loading states, error states, and empty states across all features
-- Pull-to-refresh where applicable
-- Module switcher bottom sheet (Finance / Gallery toggle)
-- Deep linking support if needed for future features
+**Already completed during earlier phases:**
+- Employee cache: 24-hour cache-first with background refresh and expired-cache fallback (`src/services/employeeCacheService.ts`, Phase 3)
+- Finance channel cache: 24-hour stale-while-revalidate (`src/services/financeChannelService.ts`, Phase 4)
+- Sound feedback on successful form submissions: transactions, reconciliation, gallery downloads (`src/services/soundService.ts`)
+- Consistent loading states, error states, and empty states: SkeletonCard, EmptyState, ErrorState used across all features (`src/components/ui/`)
+- Pull-to-refresh: RefreshControl in transaction list, reconciliation list, album grid, and media grid
+- Module switcher bottom sheet: Finance/Gallery toggle (`src/components/layout/ModuleSwitcherSheet.tsx`, Phase 0)
 
-**Refer to:** `lib/widgets/`, `lib/features/transactions/services/employee_cache_service.dart`, `lib/features/reconciliation/services/channel_service.dart`, `lib/core/services/sound_service.dart`
+**Remaining:**
+- Profile avatar: currently shows User icon fallback — add initials fallback (first letter of name)
+- Deep linking support for feature-specific routes (if needed for future features)
+
+**Refer to:** `lib/widgets/`, `lib/core/services/sound_service.dart`
 
 **Deliverable:** All shared UI and services polished and consistent.
 
