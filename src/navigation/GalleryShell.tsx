@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { View, StyleSheet, Pressable, Text } from 'react-native';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { View, StyleSheet, Pressable, Text, Alert, BackHandler, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
@@ -7,7 +7,7 @@ import { useTheme } from '../theme';
 import { useAppModuleContext } from './AppModuleContext';
 import { AppBar } from '../components/layout/AppBar';
 import { AlbumGridScreen } from '../features/gallery/components/AlbumGridScreen';
-import { UploadTabContainer } from '../features/gallery/components/UploadTabContainer';
+import { UploadTabContainer, UploadTabContainerRef } from '../features/gallery/components/UploadTabContainer';
 
 type GalleryTab = 'albums' | 'upload';
 
@@ -22,6 +22,7 @@ export function GalleryShell() {
   const [activeTab, setActiveTab] = useState<GalleryTab>('albums');
   const [showCreateSheet, setShowCreateSheet] = useState(false);
   const [isInAlbumDetail, setIsInAlbumDetail] = useState(false);
+  const uploadTabRef = useRef<UploadTabContainerRef>(null);
 
   const tabs: GalleryTab[] = permissions.canCreateGallery
     ? ['albums', 'upload']
@@ -34,6 +35,45 @@ export function GalleryShell() {
 
   const openCreateSheet = useCallback(() => setShowCreateSheet(true), []);
   const closeCreateSheet = useCallback(() => setShowCreateSheet(false), []);
+
+  const handleTabSwitch = useCallback((tab: GalleryTab) => {
+    // If switching away from upload tab, check pipeline state
+    if (activeTab === 'upload' && tab !== 'upload') {
+      const state = uploadTabRef.current?.getPipelineState?.();
+      if (state === 'processing') {
+        // Block navigation during upload
+        Alert.alert('', t('galleryUploadInProgress'));
+        return;
+      }
+      if (state === 'done' || state === 'error') {
+        // Reset form when navigating away after completion
+        uploadTabRef.current?.reset?.();
+      }
+    }
+    setActiveTab(tab);
+  }, [activeTab, t]);
+
+  // Handle Android back button on upload tab
+  useEffect(() => {
+    if (Platform.OS !== 'android' || activeTab !== 'upload') return;
+
+    const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+      const state = uploadTabRef.current?.getPipelineState?.();
+      if (state === 'processing') {
+        Alert.alert('', t('galleryUploadInProgress'));
+        return true; // consume the back press
+      }
+      if (state === 'done' || state === 'error') {
+        // Reset form and stay on upload tab (same as "New Upload" button)
+        uploadTabRef.current?.reset?.();
+        return true;
+      }
+      setActiveTab('albums');
+      return true; // consume — don't let double-back-exit fire
+    });
+
+    return () => handler.remove();
+  }, [activeTab, t]);
 
   const showFab = activeTab === 'albums' && permissions.canCreateGallery && !isInAlbumDetail;
 
@@ -52,7 +92,7 @@ export function GalleryShell() {
         </View>
         {permissions.canCreateGallery && (
           <View style={[styles.tabContent, { display: activeTab === 'upload' ? 'flex' : 'none' }]}>
-            <UploadTabContainer />
+            <UploadTabContainer ref={uploadTabRef} />
           </View>
         )}
       </View>
@@ -90,7 +130,7 @@ export function GalleryShell() {
             return (
               <Pressable
                 key={tab}
-                onPress={() => setActiveTab(tab)}
+                onPress={() => handleTabSwitch(tab)}
                 style={styles.tabItem}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: isActive }}

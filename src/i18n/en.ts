@@ -360,6 +360,7 @@ export default {
   galleryFileTooLargeAfterOptimization: 'This file is {{sizeMb}} MB after compression, which exceeds the {{limitMb}} MB limit. Try trimming the video or splitting your selection into smaller batches.',
   galleryFileTooLargeAfterOptimizationImage: 'This image is {{sizeMb}} MB after optimization, which exceeds the {{limitMb}} MB limit. Try using a lower resolution version.',
   galleryUploadNewUpload: 'New Upload',
+  galleryUploadInProgress: 'Please wait until the upload is completed.',
 
   // Gallery - Duplicates
   galleryDuplicateFound: 'Duplicate Found',

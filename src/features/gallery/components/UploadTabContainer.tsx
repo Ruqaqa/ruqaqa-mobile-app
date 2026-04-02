@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useTranslation } from 'react-i18next';
@@ -17,6 +17,13 @@ import { UploadScreen } from './UploadScreen';
 import { SearchablePickerSheet } from './SearchablePickerSheet';
 import { DuplicateSheet } from './DuplicateSheet';
 import { UploadProgressCard } from './UploadProgressCard';
+import type { UploadStage } from '../types';
+
+/** Ref interface exposed to GalleryShell for tab-switch coordination. */
+export interface UploadTabContainerRef {
+  getPipelineState: () => UploadStage;
+  reset: () => void;
+}
 
 /**
  * Container that wires the UploadScreen UI with:
@@ -29,7 +36,7 @@ import { UploadProgressCard } from './UploadProgressCard';
  *
  * This is the component that GalleryShell renders for the Upload tab.
  */
-export function UploadTabContainer() {
+export const UploadTabContainer = forwardRef<UploadTabContainerRef>(function UploadTabContainer(_props, ref) {
   const { t, i18n } = useTranslation();
   const form = useUploadForm();
   const pipeline = useUploadPipeline();
@@ -188,6 +195,12 @@ export function UploadTabContainer() {
     form.reset();
   }, [pipeline, form]);
 
+  // Expose pipeline state and reset to parent (GalleryShell) for tab-switch coordination
+  useImperativeHandle(ref, () => ({
+    getPipelineState: () => pipeline.stage,
+    reset: handleReset,
+  }), [pipeline.stage, handleReset]);
+
   // --- Pipeline progress content (injected into UploadScreen) ---
 
   const pipelineContent =
@@ -297,4 +310,4 @@ export function UploadTabContainer() {
       )}
     </>
   );
-}
+});

@@ -360,6 +360,7 @@ export default {
   galleryFileTooLargeAfterOptimization: 'حجم هذا الملف {{sizeMb}} ميجابايت بعد الضغط، وهو يتجاوز الحد المسموح {{limitMb}} ميجابايت. جرّب اختصار مدة الفيديو أو تقسيم الملفات على دفعات أصغر.',
   galleryFileTooLargeAfterOptimizationImage: 'حجم هذه الصورة {{sizeMb}} ميجابايت بعد التحسين، وهو يتجاوز الحد المسموح {{limitMb}} ميجابايت. جرّب استخدام نسخة بدقة أقل.',
   galleryUploadNewUpload: 'رفع جديد',
+  galleryUploadInProgress: 'يرجى الانتظار حتى اكتمال الرفع.',
 
   // Gallery - Duplicates
   galleryDuplicateFound: 'ملف مكرر',

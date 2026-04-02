@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -97,13 +97,27 @@ export function UploadScreen({
   const { t } = useTranslation();
   const { colors, typography, spacing, radius } = useTheme();
 
+  const scrollRef = useRef<ScrollView>(null);
+
   const hasMedia = images.length > 0 || video !== null;
   const showPreview = hasMedia || isLoadingVideo;
   const lockedOpacity = isLocked ? 0.5 : 1;
   const itemSize = getImageItemSize();
 
+  // Auto-scroll to bottom when pipeline content appears or updates
+  useEffect(() => {
+    if (pipelineContent && isLocked) {
+      // Small delay to let layout settle after new content renders
+      const timer = setTimeout(() => {
+        scrollRef.current?.scrollToEnd({ animated: true });
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [pipelineContent, isLocked]);
+
   return (
     <ScrollView
+      ref={scrollRef}
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={{ padding: spacing.base, paddingBottom: spacing.xxxl }}
       keyboardShouldPersistTaps="handled"
