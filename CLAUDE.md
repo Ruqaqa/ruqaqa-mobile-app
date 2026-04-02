@@ -8,7 +8,7 @@ Expo (React Native + TypeScript) mobile app for Ruqaqa employees. It's a migrati
 
 App ID: `sa.ruqaqa.finance` | Version: 1.2.1 | Scheme: `ruqaqa://`
 
-**Migration status:** Phases 0–4 complete (auth, permissions, transactions, reconciliation). Phases 5–7 pending (gallery, upload, polish). See `EXPO_MIGRATION_PLAN.md` for details.
+**Migration status:** Phases 0–5 complete (auth, permissions, transactions, reconciliation, gallery browsing/viewing/multi-select/download). Phase 6 (gallery upload & processing) and Phase 7 (polish) pending. See `EXPO_MIGRATION_PLAN.md` for details.
 
 ## Commands
 
@@ -23,6 +23,8 @@ pnpm test               # Jest unit tests
 pnpm test -- src/services/__tests__/foo.test.ts  # Run single test file
 pnpm test:e2e           # Clear app data, forward port, run all Maestro E2E tests
 pnpm test:e2e:flow      # Run a specific Maestro flow file
+pnpm seed:gallery       # Seed MongoDB with test gallery data (albums, tags, media)
+pnpm seed:gallery:clean # Remove seeded test data
 ```
 
 ### Metro dev server
@@ -139,6 +141,20 @@ Cross-cutting concern — receives files from other apps and routes them to the 
 - `src/hooks/useShareIntent.ts` — Consumer hook
 - Each feature has a `sharedFilesAdapter.ts` util to convert shared files to its attachment format
 
+### Gallery (Phase 5)
+
+`src/features/gallery/` — Album browsing, media viewing, multi-select with bulk actions, and download system.
+
+**Album browsing:** 2-column grid with mosaic thumbnails, search, create/rename via bottom sheets. `useAlbumList` (debounced search, optimistic updates), `useAlbumActions` (create + rename). Default album is protected from rename/delete.
+
+**Media viewing:** Paginated media grid inside albums (20/page, infinite scroll). Full-screen viewer with pinch-to-zoom (ZoomableImage), horizontal swipe navigation (RTL-aware), video playback (VideoPlayer via expo-video). `useAlbumMedia` manages pagination. `useAuthHeaders` provides 30s auto-refresh auth headers for private media URLs.
+
+**Multi-select & bulk actions:** Long-press to enter selection mode, select all/deselect. Bulk delete (permission-gated: `gallery_cms_delete`). Bulk manage sheet with tri-state UI for album assignment, tag assignment, project association. `useMediaSelection` (Set-based, O(1)), `useMediaBulkActions` (sequential processing with progress). Backend: `PUT /gallery/[id]/manage`.
+
+**Download system:** Individual or bulk download with format selection (original vs watermarked). Downloads via `expo-media-library` with cache fallback. Android notification progress (sticky, replaced atomically). In-app `DownloadProgressBar`. `DownloadQueue` (max 2 concurrent, FIFO). Success sound on completion. Queue is in-memory only (no persistence across restarts).
+
+**Key utils:** `mediaUrls.ts` (normalizeMediaUrl, getFullResMediaUrl), `validation.ts` (validateBulkIds — ObjectId validation, dedup, max 50 cap), `parsers.ts`.
+
 ### Component library
 
 `src/components/` is organized into categories:
@@ -150,6 +166,7 @@ Cross-cutting concern — receives files from other apps and routes them to the 
 | `layout/` | App chrome: AppBar, ModuleSwitcherSheet, NoAccessScreen, ErrorBoundary |
 | `auth/` | SessionExpiredModal, LanguageSwitcher |
 | `share/` | ShareIntentBridge, FlowSelectorSheet, SharedFilesPreview, SharePendingBanner |
+| `gallery/` | MediaThumbnail (auth-aware with shimmer), AlbumMosaic (mosaic layout) |
 | `version/` | VersionGate (forced/optional update + maintenance mode) |
 
 ### Services
@@ -169,6 +186,9 @@ Cross-cutting concern — receives files from other apps and routes them to the 
 | `appLifecycle.ts` | First-launch tracking via AsyncStorage |
 | `config.ts` | Dev/prod URLs keyed on `releaseChannel` from `app.json` |
 | `errors.ts` | Typed error classes: `NetworkError`, `AuthError` |
+| `formCacheService.ts` | AsyncStorage cache for last-selected client/project in transaction form |
+| `keycloakDiscovery.ts` | Constructs all Keycloak OIDC endpoints from config (authorization, token, endSession, userinfo) |
+| `notificationConfig.ts` | Configures `expo-notifications` foreground display handler (banner + list, no sound/badge) |
 | `shareIntent/*` | Share intent state machine, validation, flow target registry (see share intent section) |
 
 ### Utilities
@@ -203,6 +223,7 @@ Cross-cutting concern — receives files from other apps and routes them to the 
 | `useAppModule.ts` | Get/set current module (Finance/Gallery) via `AppModuleContext` |
 | `usePagedList.ts` | Generic pagination hook — used by both `useTransactionList` and `useReconciliationList` |
 | `useShareIntent.ts` | Consume shared files from the share intent store |
+| `useAuthHeaders.ts` | Provides auth headers for authenticated media requests with 30s auto-refresh and stable reference |
 
 ### Testing
 
