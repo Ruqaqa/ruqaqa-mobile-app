@@ -184,15 +184,21 @@ function ItemTrailing({ item }: { item: PipelineItemStatus }) {
         </View>
       );
 
-    case 'optimizing':
+    case 'optimizing': {
+      const pct = item.progressPercent != null && item.progressPercent > 0
+        ? Math.round(item.progressPercent * 100)
+        : null;
       return (
         <View style={styles.trailingRow}>
           <ActivityIndicator size={12} color={colors.warning} />
           <Text style={[styles.trailingLabel, { color: colors.warning, marginStart: spacing.xs }]}>
-            {t('galleryUploadItemOptimizing')}
+            {pct != null
+              ? t('galleryUploadItemCompressing', { percent: pct })
+              : t('galleryUploadItemOptimizing')}
           </Text>
         </View>
       );
+    }
 
     case 'watermarking':
       return (

@@ -9,15 +9,20 @@ const mockFileSize = jest.fn<number, []>().mockReturnValue(1_000_000);
 const mockFileExists = jest.fn<boolean, []>().mockReturnValue(true);
 const mockFileDelete = jest.fn();
 const mockFileMove = jest.fn();
+const mockFileCopy = jest.fn();
 
 jest.mock('expo-file-system', () => ({
-  File: jest.fn().mockImplementation((uri: string) => ({
-    uri,
-    get size() { return mockFileSize(); },
-    get exists() { return mockFileExists(); },
-    delete: mockFileDelete,
-    move: mockFileMove,
-  })),
+  File: jest.fn().mockImplementation((uriOrBase: string, name?: string) => {
+    const uri = name ? `${uriOrBase}/${name}` : uriOrBase;
+    return {
+      uri,
+      get size() { return mockFileSize(); },
+      get exists() { return mockFileExists(); },
+      delete: mockFileDelete,
+      move: mockFileMove,
+      copy: mockFileCopy,
+    };
+  }),
   Paths: { cache: 'file:///cache' },
 }));
 
@@ -33,6 +38,14 @@ jest.mock('../services/imageOptimizationService', () => ({
   optimizeImage: (...args: any[]) => mockOptimizeImage(...args),
 }));
 
+// Mock videoOptimizationService
+const mockOptimizeVideo = jest.fn();
+const mockCancelVideoCompression = jest.fn();
+jest.mock('../services/videoOptimizationService', () => ({
+  optimizeVideo: (...args: any[]) => mockOptimizeVideo(...args),
+  cancelVideoCompression: (...args: any[]) => mockCancelVideoCompression(...args),
+}));
+
 // Mock galleryService
 const mockCheckHash = jest.fn();
 const mockAddItemToAlbums = jest.fn();
@@ -41,6 +54,23 @@ jest.mock('../services/galleryService', () => ({
   checkHash: (...args: any[]) => mockCheckHash(...args),
   addItemToAlbums: (...args: any[]) => mockAddItemToAlbums(...args),
   uploadItem: (...args: any[]) => mockUploadItem(...args),
+}));
+
+// Mock expo-keep-awake
+const mockActivateKeepAwake = jest.fn().mockResolvedValue(undefined);
+const mockDeactivateKeepAwake = jest.fn();
+jest.mock('expo-keep-awake', () => ({
+  activateKeepAwakeAsync: (...args: any[]) => mockActivateKeepAwake(...args),
+  deactivateKeepAwake: (...args: any[]) => mockDeactivateKeepAwake(...args),
+}));
+
+// Mock AppState from react-native
+const mockAppStateRemove = jest.fn();
+const mockAddEventListener = jest.fn().mockReturnValue({ remove: mockAppStateRemove });
+jest.mock('react-native', () => ({
+  AppState: {
+    addEventListener: (...args: any[]) => mockAddEventListener(...args),
+  },
 }));
 
 // --- Helpers ---
@@ -70,8 +100,17 @@ beforeEach(() => {
       optimizedSize: 1_000_000,
     }),
   );
+  mockOptimizeVideo.mockImplementation((uri: string) =>
+    Promise.resolve({
+      uri,
+      wasOptimized: false,
+      originalSize: 1_000_000,
+      optimizedSize: 1_000_000,
+    }),
+  );
   mockUploadItem.mockResolvedValue({ outcome: 'success' });
   mockFileSize.mockReturnValue(1_000_000);
+  mockFileExists.mockReturnValue(true);
 });
 
 afterEach(() => {
@@ -663,7 +702,8 @@ describe('UploadPipeline', () => {
 
     expect(mockUploadItem).toHaveBeenCalledWith(
       expect.objectContaining({
-        fileUri: 'file:///img1.jpg',
+        // fileUri is now the stable copy (pipeline_0_<ts>.jpg), not the original
+        fileUri: expect.stringMatching(/pipeline_0_\d+\.jpg$/),
         albumIds: ['album1', 'album2'],
         tagIds: ['tag1'],
         projectId: 'proj1',
@@ -835,5 +875,362 @@ describe('UploadPipeline', () => {
 
     // Temp file cleanup should have been attempted
     expect(mockFileDelete).toHaveBeenCalled();
+  });
+
+  // --- Keep-awake ---
+
+  it('activates keep-awake on pipeline start and deactivates on completion', async () => {
+    const onStatusChanged = jest.fn();
+    const pipeline = new UploadPipeline({
+      images: [makeImage('file:///img1.jpg')],
+      video: null,
+      albumIds: ['album1'],
+      onStatusChanged,
+    });
+
+    const resultPromise = pipeline.run();
+    await jest.runAllTimersAsync();
+    await resultPromise;
+
+    expect(mockActivateKeepAwake).toHaveBeenCalledWith('gallery-upload-pipeline');
+    expect(mockDeactivateKeepAwake).toHaveBeenCalledWith('gallery-upload-pipeline');
+  });
+
+  it('deactivates keep-awake even when pipeline throws', async () => {
+    mockComputeFileHash.mockRejectedValue(new Error('hash fail'));
+    mockOptimizeImage.mockRejectedValue(new Error('optimize fail'));
+
+    const onStatusChanged = jest.fn();
+    const pipeline = new UploadPipeline({
+      images: [makeImage('file:///bad.jpg')],
+      video: null,
+      albumIds: ['album1'],
+      onStatusChanged,
+    });
+
+    const resultPromise = pipeline.run();
+    await jest.runAllTimersAsync();
+    await resultPromise;
+
+    expect(mockDeactivateKeepAwake).toHaveBeenCalledWith('gallery-upload-pipeline');
+  });
+
+  // --- AppState concurrency ---
+
+  it('subscribes to AppState changes during pipeline run', async () => {
+    const onStatusChanged = jest.fn();
+    const pipeline = new UploadPipeline({
+      images: [makeImage('file:///img1.jpg')],
+      video: null,
+      albumIds: ['album1'],
+      onStatusChanged,
+    });
+
+    const resultPromise = pipeline.run();
+    await jest.runAllTimersAsync();
+    await resultPromise;
+
+    expect(mockAddEventListener).toHaveBeenCalledWith('change', expect.any(Function));
+    expect(mockAppStateRemove).toHaveBeenCalled();
+  });
+
+  // --- Video optimization wiring ---
+
+  it('calls optimizeVideo for video items in pipeline', async () => {
+    const onStatusChanged = jest.fn();
+    const pipeline = new UploadPipeline({
+      images: [],
+      video: makeVideo('file:///video1.mp4'),
+      albumIds: ['album1'],
+      onStatusChanged,
+    });
+
+    const resultPromise = pipeline.run();
+    await jest.runAllTimersAsync();
+    await resultPromise;
+
+    expect(mockOptimizeVideo).toHaveBeenCalledWith(
+      // Stable copy URI, not the original
+      expect.stringMatching(/pipeline_\d+_\d+\.mp4$/),
+      expect.any(Function),
+    );
+  });
+
+  it('tracks bytesSaved when video optimization reduces size', async () => {
+    mockOptimizeVideo.mockResolvedValue({
+      uri: 'file:///cache/compressed_video.mp4',
+      wasOptimized: true,
+      originalSize: 50_000_000,
+      optimizedSize: 20_000_000,
+    });
+
+    const onStatusChanged = jest.fn();
+    const pipeline = new UploadPipeline({
+      images: [],
+      video: makeVideo('file:///video1.mp4'),
+      albumIds: ['album1'],
+      onStatusChanged,
+    });
+
+    const resultPromise = pipeline.run();
+    await jest.runAllTimersAsync();
+    const result = await resultPromise;
+
+    expect(result.bytesSaved).toBe(30_000_000);
+    expect(result.successCount).toBe(1);
+  });
+
+  it('uploads original video when optimization fails', async () => {
+    mockOptimizeVideo.mockRejectedValue(new Error('compression failed'));
+
+    const onStatusChanged = jest.fn();
+    const pipeline = new UploadPipeline({
+      images: [],
+      video: makeVideo('file:///video1.mp4'),
+      albumIds: ['album1'],
+      onStatusChanged,
+    });
+
+    const resultPromise = pipeline.run();
+    await jest.runAllTimersAsync();
+    const result = await resultPromise;
+
+    // Should still upload with the stable copy (not original ImagePicker URI)
+    expect(result.successCount).toBe(1);
+    expect(mockUploadItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fileUri: expect.stringMatching(/pipeline_\d+_\d+\.mp4$/),
+        alreadyOptimized: false,
+      }),
+    );
+  });
+
+  it('passes optimized video URI to upload when optimization succeeds', async () => {
+    mockOptimizeVideo.mockResolvedValue({
+      uri: 'file:///cache/compressed.mp4',
+      wasOptimized: true,
+      originalSize: 50_000_000,
+      optimizedSize: 20_000_000,
+    });
+
+    const onStatusChanged = jest.fn();
+    const pipeline = new UploadPipeline({
+      images: [],
+      video: makeVideo('file:///video1.mp4'),
+      albumIds: ['album1'],
+      onStatusChanged,
+    });
+
+    const resultPromise = pipeline.run();
+    await jest.runAllTimersAsync();
+    await resultPromise;
+
+    expect(mockUploadItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fileUri: 'file:///cache/compressed.mp4',
+        alreadyOptimized: true,
+      }),
+    );
+  });
+
+  it('does not call optimizeVideo for image-only uploads', async () => {
+    const onStatusChanged = jest.fn();
+    const pipeline = new UploadPipeline({
+      images: [makeImage('file:///img1.jpg')],
+      video: null,
+      albumIds: ['album1'],
+      onStatusChanged,
+    });
+
+    const resultPromise = pipeline.run();
+    await jest.runAllTimersAsync();
+    await resultPromise;
+
+    expect(mockOptimizeVideo).not.toHaveBeenCalled();
+  });
+
+  // -----------------------------------------------------------------------
+  // Stable copy regression tests (file-not-found bug fix)
+  // -----------------------------------------------------------------------
+  // The pipeline copies ImagePicker cache files to a pipeline-owned location
+  // before processing.  This prevents Android cache eviction from deleting
+  // files mid-batch.  These tests verify the copy happens and the original
+  // volatile URI is never leaked to downstream services.
+
+  describe('stable copy (cache eviction fix)', () => {
+    it('copies each image to a stable path before processing', async () => {
+      const onStatusChanged = jest.fn();
+      const pipeline = new UploadPipeline({
+        images: [
+          makeImage('file:///data/user/0/sa.ruqaqa.finance/cache/ImagePicker/aaa.jpeg'),
+          makeImage('file:///data/user/0/sa.ruqaqa.finance/cache/ImagePicker/bbb.jpeg'),
+        ],
+        video: null,
+        albumIds: ['album1'],
+        onStatusChanged,
+      });
+
+      const resultPromise = pipeline.run();
+      await jest.runAllTimersAsync();
+      await resultPromise;
+
+      // copy() should have been called once per image
+      expect(mockFileCopy).toHaveBeenCalledTimes(2);
+    });
+
+    it('never passes the original ImagePicker URI to optimizeImage', async () => {
+      const originalUri = 'file:///data/user/0/sa.ruqaqa.finance/cache/ImagePicker/orig.jpeg';
+      const onStatusChanged = jest.fn();
+      const pipeline = new UploadPipeline({
+        images: [makeImage(originalUri)],
+        video: null,
+        albumIds: ['album1'],
+        onStatusChanged,
+      });
+
+      const resultPromise = pipeline.run();
+      await jest.runAllTimersAsync();
+      await resultPromise;
+
+      // optimizeImage should have received the stable copy URI, not the original
+      expect(mockOptimizeImage).toHaveBeenCalledTimes(1);
+      const receivedUri = mockOptimizeImage.mock.calls[0][0] as string;
+      expect(receivedUri).not.toBe(originalUri);
+      expect(receivedUri).toMatch(/pipeline_0_\d+\.jpeg$/);
+    });
+
+    it('never passes the original ImagePicker URI to uploadItem when optimization is skipped', async () => {
+      const originalUri = 'file:///data/user/0/sa.ruqaqa.finance/cache/ImagePicker/skip.jpeg';
+
+      // Optimization returns the input URI unchanged (wasOptimized: false)
+      mockOptimizeImage.mockImplementation((uri: string) =>
+        Promise.resolve({ uri, wasOptimized: false, originalSize: 100, optimizedSize: 100 }),
+      );
+
+      const onStatusChanged = jest.fn();
+      const pipeline = new UploadPipeline({
+        images: [makeImage(originalUri)],
+        video: null,
+        albumIds: ['album1'],
+        onStatusChanged,
+      });
+
+      const resultPromise = pipeline.run();
+      await jest.runAllTimersAsync();
+      await resultPromise;
+
+      // uploadItem should receive the stable copy URI, not the original
+      const uploadedUri = (mockUploadItem.mock.calls[0][0] as any).fileUri as string;
+      expect(uploadedUri).not.toBe(originalUri);
+      expect(uploadedUri).toMatch(/pipeline_0_\d+\.jpeg$/);
+    });
+
+    it('copies video to a stable path before processing', async () => {
+      const originalVideoUri = 'file:///data/user/0/sa.ruqaqa.finance/cache/ImagePicker/vid.mp4';
+      const onStatusChanged = jest.fn();
+      const pipeline = new UploadPipeline({
+        images: [],
+        video: makeVideo(originalVideoUri),
+        albumIds: ['album1'],
+        onStatusChanged,
+      });
+
+      const resultPromise = pipeline.run();
+      await jest.runAllTimersAsync();
+      await resultPromise;
+
+      // copy() should have been called for the video
+      expect(mockFileCopy).toHaveBeenCalledTimes(1);
+
+      // optimizeVideo should receive the stable copy, not the original
+      const receivedUri = mockOptimizeVideo.mock.calls[0][0] as string;
+      expect(receivedUri).not.toBe(originalVideoUri);
+      expect(receivedUri).toMatch(/pipeline_\d+_\d+\.mp4$/);
+    });
+
+    it('gives each image in a batch a unique stable copy filename', async () => {
+      const onStatusChanged = jest.fn();
+      const pipeline = new UploadPipeline({
+        images: [
+          makeImage('file:///cache/ImagePicker/a.jpg'),
+          makeImage('file:///cache/ImagePicker/b.jpg'),
+          makeImage('file:///cache/ImagePicker/c.jpg'),
+        ],
+        video: null,
+        albumIds: ['album1'],
+        onStatusChanged,
+      });
+
+      const resultPromise = pipeline.run();
+      await jest.runAllTimersAsync();
+      await resultPromise;
+
+      // Each image should get a different index in its stable filename
+      const optimizeUris = mockOptimizeImage.mock.calls.map((c) => c[0] as string);
+      expect(optimizeUris).toHaveLength(3);
+      expect(optimizeUris[0]).toMatch(/pipeline_0_\d+\.jpg$/);
+      expect(optimizeUris[1]).toMatch(/pipeline_1_\d+\.jpg$/);
+      expect(optimizeUris[2]).toMatch(/pipeline_2_\d+\.jpg$/);
+    });
+
+    it('cleans up stable copies after pipeline completes', async () => {
+      const onStatusChanged = jest.fn();
+      const pipeline = new UploadPipeline({
+        images: [makeImage('file:///cache/ImagePicker/cleanup.jpg')],
+        video: null,
+        albumIds: ['album1'],
+        onStatusChanged,
+      });
+
+      const resultPromise = pipeline.run();
+      await jest.runAllTimersAsync();
+      await resultPromise;
+
+      // The stable copy is tracked as a temp file and should be cleaned up.
+      // mockFileDelete is called for temp file cleanup.
+      expect(mockFileDelete).toHaveBeenCalled();
+    });
+
+    it('proceeds gracefully when the source file is already missing at copy time', async () => {
+      // Simulate the source file not existing (the very bug scenario)
+      mockFileExists.mockReturnValue(false);
+
+      const onStatusChanged = jest.fn();
+      const pipeline = new UploadPipeline({
+        images: [makeImage('file:///cache/ImagePicker/gone.jpg')],
+        video: null,
+        albumIds: ['album1'],
+        onStatusChanged,
+      });
+
+      const resultPromise = pipeline.run();
+      await jest.runAllTimersAsync();
+      const result = await resultPromise;
+
+      // copy should NOT be called (file doesn't exist)
+      expect(mockFileCopy).not.toHaveBeenCalled();
+      // Pipeline should not crash — it completes (file missing is caught downstream)
+      expect(result.totalCount).toBe(1);
+    });
+
+    it('hashes the stable copy, not the original ImagePicker URI', async () => {
+      const originalUri = 'file:///cache/ImagePicker/hashme.jpeg';
+      const onStatusChanged = jest.fn();
+      const pipeline = new UploadPipeline({
+        images: [makeImage(originalUri)],
+        video: null,
+        albumIds: ['album1'],
+        onStatusChanged,
+      });
+
+      const resultPromise = pipeline.run();
+      await jest.runAllTimersAsync();
+      await resultPromise;
+
+      // computeFileHash should receive the stable copy, not the original
+      const hashedUri = mockComputeFileHash.mock.calls[0][0] as string;
+      expect(hashedUri).not.toBe(originalUri);
+      expect(hashedUri).toMatch(/pipeline_0_\d+\.jpeg$/);
+    });
   });
 });

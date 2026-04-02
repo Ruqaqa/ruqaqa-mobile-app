@@ -103,6 +103,12 @@ apiClient.interceptors.response.use(
 /**
  * Upload files via multipart/form-data.
  * Handles Bearer token and 401 refresh like regular requests.
+ *
+ * Timeout is raised to 120 s because file uploads on mobile networks can
+ * easily exceed the default 30 s API timeout.  The default 30 s timeout
+ * applied to all requests including multipart uploads — on slow connections
+ * this caused the native networking layer to abort mid-upload, surfacing as
+ * an opaque "Network Error" with no HTTP status code.
  */
 export async function uploadMultipart(
   path: string,
@@ -111,6 +117,7 @@ export async function uploadMultipart(
 ) {
   return apiClient.post(path, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 120_000,
     onUploadProgress: onProgress
       ? (e) => {
           const percent = e.total ? Math.round((e.loaded * 100) / e.total) : 0;

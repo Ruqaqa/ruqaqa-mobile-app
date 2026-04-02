@@ -14,7 +14,6 @@ jest.mock('expo-file-system', () => {
   return {
     File: jest.fn().mockImplementation((uriOrBase: string, name?: string) => {
       const uri = name ? `${uriOrBase}/${name}` : uriOrBase;
-      // First call = original file, second call = optimized file, third = dest file
       callCount++;
       const current = callCount;
       if (current === 1) {
@@ -25,7 +24,7 @@ jest.mock('expo-file-system', () => {
           delete: mockOriginalDelete,
         };
       }
-      // Optimized or dest files
+      // Compressed or dest files
       return {
         uri,
         get size() { return mockOptimizedSize(); },
@@ -38,28 +37,18 @@ jest.mock('expo-file-system', () => {
   };
 });
 
-const mockSaveAsync = jest.fn();
-const mockRenderAsync = jest.fn();
-const mockResize = jest.fn();
-const mockManipulate = jest.fn();
+const mockImageCompress = jest.fn<Promise<string>, [string, any]>();
 
-jest.mock('expo-image-manipulator', () => ({
-  ImageManipulator: {
-    manipulate: (...args: any[]) => mockManipulate(...args),
+jest.mock('react-native-compressor', () => ({
+  Image: {
+    compress: (...args: any[]) => mockImageCompress(args[0], args[1]),
   },
-  SaveFormat: { WEBP: 'webp', PNG: 'png' },
 }));
-
-function resetFileCallCount() {
-  const { File } = require('expo-file-system');
-  (File as jest.Mock).mockClear();
-  // Reset the internal callCount by re-mocking
-}
 
 beforeEach(() => {
   jest.clearAllMocks();
 
-  // Reset File call counter by re-implementing
+  // Reset File call counter
   let callCount = 0;
   const { File } = require('expo-file-system');
   (File as jest.Mock).mockImplementation((uriOrBase: string, name?: string) => {
@@ -82,11 +71,8 @@ beforeEach(() => {
     };
   });
 
-  // Default: manipulate chain works
-  mockSaveAsync.mockResolvedValue({ uri: 'file:///cache/optimized.webp' });
-  mockRenderAsync.mockResolvedValue({ saveAsync: mockSaveAsync });
-  mockResize.mockReturnValue({ renderAsync: mockRenderAsync });
-  mockManipulate.mockReturnValue({ resize: mockResize });
+  // Default: compress succeeds
+  mockImageCompress.mockResolvedValue('file:///cache/compressed.jpg');
 
   mockOriginalSize.mockReturnValue(500_000);
   mockOptimizedSize.mockReturnValue(200_000);
@@ -96,39 +82,51 @@ beforeEach(() => {
 describe('optimizeImage', () => {
   // --- Format detection ---
 
-  it('converts JPEG to WebP', async () => {
+  it('compresses JPEG with lossy quality 0.65 and jpg output', async () => {
     const result = await optimizeImage('file:///photos/photo.jpg');
 
     expect(result.wasOptimized).toBe(true);
-    expect(mockSaveAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ format: 'webp', compress: 0.65 }),
+    expect(mockImageCompress).toHaveBeenCalledWith(
+      'file:///photos/photo.jpg',
+      expect.objectContaining({
+        compressionMethod: 'manual',
+        quality: 0.65,
+        output: 'jpg',
+        maxWidth: 2048,
+        maxHeight: 2048,
+      }),
     );
   });
 
-  it('converts HEIC to WebP', async () => {
+  it('compresses HEIC with lossy quality and jpg output', async () => {
     const result = await optimizeImage('file:///photos/photo.heic');
 
     expect(result.wasOptimized).toBe(true);
-    expect(mockSaveAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ format: 'webp' }),
+    expect(mockImageCompress).toHaveBeenCalledWith(
+      'file:///photos/photo.heic',
+      expect.objectContaining({ quality: 0.65, output: 'jpg' }),
     );
   });
 
-  it('converts HEIF to WebP', async () => {
+  it('compresses HEIF with lossy quality and jpg output', async () => {
     const result = await optimizeImage('file:///photos/photo.heif');
 
     expect(result.wasOptimized).toBe(true);
-    expect(mockSaveAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ format: 'webp' }),
+    expect(mockImageCompress).toHaveBeenCalledWith(
+      'file:///photos/photo.heif',
+      expect.objectContaining({ quality: 0.65, output: 'jpg' }),
     );
   });
 
-  it('keeps PNG as PNG with quality 1.0', async () => {
+  it('keeps PNG as PNG with quality 1', async () => {
+    mockImageCompress.mockResolvedValue('file:///cache/compressed.png');
+
     const result = await optimizeImage('file:///photos/screenshot.png');
 
     expect(result.wasOptimized).toBe(true);
-    expect(mockSaveAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ format: 'png', compress: 1.0 }),
+    expect(mockImageCompress).toHaveBeenCalledWith(
+      'file:///photos/screenshot.png',
+      expect.objectContaining({ quality: 1, output: 'png' }),
     );
   });
 
@@ -137,46 +135,51 @@ describe('optimizeImage', () => {
 
     expect(result.wasOptimized).toBe(false);
     expect(result.uri).toBe('file:///files/document.gif');
-    expect(mockManipulate).not.toHaveBeenCalled();
+    expect(mockImageCompress).not.toHaveBeenCalled();
   });
 
   it('skips files with no extension', async () => {
     const result = await optimizeImage('file:///files/noext');
 
     expect(result.wasOptimized).toBe(false);
-    expect(mockManipulate).not.toHaveBeenCalled();
+    expect(mockImageCompress).not.toHaveBeenCalled();
   });
 
   // --- Resize ---
 
-  it('resizes to MAX_DIMENSION (2048)', async () => {
+  it('passes MAX_DIMENSION (2048) as maxWidth and maxHeight', async () => {
     await optimizeImage('file:///photos/photo.jpg');
 
-    expect(mockResize).toHaveBeenCalledWith({ width: 2048, height: 2048 });
+    expect(mockImageCompress).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ maxWidth: 2048, maxHeight: 2048 }),
+    );
   });
 
   // --- Skip-if-larger ---
 
-  it('returns original when optimized file is larger', async () => {
+  it('returns compressed file when optimized is not smaller (compressor may consume source)', async () => {
     mockOriginalSize.mockReturnValue(100_000);
     mockOptimizedSize.mockReturnValue(150_000);
 
     const result = await optimizeImage('file:///photos/small.jpg');
 
     expect(result.wasOptimized).toBe(false);
-    expect(result.uri).toBe('file:///photos/small.jpg');
+    // Always returns the compressed file URI because react-native-compressor
+    // may consume/delete the source file on Android during compression.
+    expect(result.uri).toContain('optimized_small');
     expect(result.originalSize).toBe(100_000);
     expect(result.optimizedSize).toBe(100_000);
   });
 
-  it('returns original when optimized file is same size', async () => {
+  it('returns compressed file when optimized is same size', async () => {
     mockOriginalSize.mockReturnValue(100_000);
     mockOptimizedSize.mockReturnValue(100_000);
 
     const result = await optimizeImage('file:///photos/same.jpg');
 
     expect(result.wasOptimized).toBe(false);
-    expect(result.uri).toBe('file:///photos/same.jpg');
+    expect(result.uri).toContain('optimized_same');
   });
 
   // --- Successful optimization ---
@@ -196,17 +199,16 @@ describe('optimizeImage', () => {
     const result = await optimizeImage('file:///photos/photo.JPG');
 
     expect(result.wasOptimized).toBe(true);
-    expect(mockSaveAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ format: 'webp' }),
+    expect(mockImageCompress).toHaveBeenCalledWith(
+      'file:///photos/photo.JPG',
+      expect.objectContaining({ output: 'jpg' }),
     );
   });
 
   // --- Error handling ---
 
-  it('returns original on manipulator error', async () => {
-    mockManipulate.mockImplementation(() => {
-      throw new Error('Manipulator failed');
-    });
+  it('returns original on compress error', async () => {
+    mockImageCompress.mockRejectedValue(new Error('Compress failed'));
 
     const result = await optimizeImage('file:///photos/bad.jpg');
 
@@ -214,22 +216,44 @@ describe('optimizeImage', () => {
     expect(result.uri).toBe('file:///photos/bad.jpg');
   });
 
-  it('returns original on renderAsync error', async () => {
-    mockRenderAsync.mockRejectedValue(new Error('Render failed'));
+  // --- URI scheme validation ---
 
-    const result = await optimizeImage('file:///photos/bad.jpg');
+  it('rejects http:// URIs without calling compress', async () => {
+    const result = await optimizeImage('http://example.com/photo.jpg');
 
     expect(result.wasOptimized).toBe(false);
-    expect(result.uri).toBe('file:///photos/bad.jpg');
+    expect(result.originalSize).toBe(0);
+    expect(result.optimizedSize).toBe(0);
+    expect(mockImageCompress).not.toHaveBeenCalled();
   });
 
-  it('returns original on saveAsync error', async () => {
-    mockSaveAsync.mockRejectedValue(new Error('Save failed'));
-
-    const result = await optimizeImage('file:///photos/bad.jpg');
+  it('rejects https:// URIs without calling compress', async () => {
+    const result = await optimizeImage('https://example.com/photo.jpg');
 
     expect(result.wasOptimized).toBe(false);
-    expect(result.uri).toBe('file:///photos/bad.jpg');
+    expect(result.originalSize).toBe(0);
+    expect(mockImageCompress).not.toHaveBeenCalled();
+  });
+
+  it('rejects data: URIs without calling compress', async () => {
+    const result = await optimizeImage('data:image/jpeg;base64,abc123');
+
+    expect(result.wasOptimized).toBe(false);
+    expect(mockImageCompress).not.toHaveBeenCalled();
+  });
+
+  it('accepts file:// URIs', async () => {
+    const result = await optimizeImage('file:///photos/photo.jpg');
+
+    expect(result.wasOptimized).toBe(true);
+    expect(mockImageCompress).toHaveBeenCalled();
+  });
+
+  it('accepts absolute paths starting with /', async () => {
+    const result = await optimizeImage('/data/photos/photo.jpg');
+
+    expect(result.wasOptimized).toBe(true);
+    expect(mockImageCompress).toHaveBeenCalled();
   });
 
   // --- Extension edge cases ---
@@ -238,8 +262,9 @@ describe('optimizeImage', () => {
     const result = await optimizeImage('file:///photos/photo.jpg?token=abc123');
 
     expect(result.wasOptimized).toBe(true);
-    expect(mockSaveAsync).toHaveBeenCalledWith(
-      expect.objectContaining({ format: 'webp' }),
+    expect(mockImageCompress).toHaveBeenCalledWith(
+      'file:///photos/photo.jpg?token=abc123',
+      expect.objectContaining({ output: 'jpg' }),
     );
   });
 });

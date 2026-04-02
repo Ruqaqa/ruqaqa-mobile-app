@@ -195,6 +195,8 @@ export interface PipelineItemStatus {
   state: ItemState;
   actualSizeBytes?: number;
   originalSizeBytes?: number;
+  /** Video compression progress (0–1). Only set during 'optimizing' state for videos. */
+  progressPercent?: number;
 }
 
 /**

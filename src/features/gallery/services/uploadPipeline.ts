@@ -1,4 +1,6 @@
-import { File as FSFile } from 'expo-file-system';
+import { AppState, type NativeEventSubscription } from 'react-native';
+import { File as FSFile, Paths } from 'expo-file-system';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import type { ImagePickerAsset } from 'expo-image-picker';
 
 import {
@@ -23,8 +25,18 @@ import {
 } from '../types';
 import { computeFileHash } from './fileHashService';
 import { optimizeImage } from './imageOptimizationService';
+import {
+  optimizeVideo,
+  cancelVideoCompression,
+} from './videoOptimizationService';
 import { checkHash, addItemToAlbums, uploadItem } from './galleryService';
 import { isValidObjectId } from '@/utils/sanitize';
+
+// ---------------------------------------------------------------------------
+// Keep-awake tag (unique per module to avoid conflicts)
+// ---------------------------------------------------------------------------
+
+const KEEP_AWAKE_TAG = 'gallery-upload-pipeline';
 
 // ---------------------------------------------------------------------------
 // Types for pipeline callbacks
@@ -71,6 +83,12 @@ interface PipelineItem {
  * Orchestrates the upload pipeline: hash → dedup → optimize → size check →
  * (watermark placeholder) → upload.
  *
+ * Background safety:
+ * - `expo-keep-awake` prevents device sleep during the pipeline run.
+ * - `AppState` listener reduces upload concurrency when backgrounded
+ *   (from MAX_CONCURRENT_UPLOADS to 1) to respect OS resource limits.
+ * - Video optimization supports cancellation via `cancelVideoCompression()`.
+ *
  * Mirrors Flutter's `UploadPipeline.run()`.
  */
 export class UploadPipeline {
@@ -89,6 +107,10 @@ export class UploadPipeline {
   private tempFileUris: string[] = [];
   private applyToAllDecision: DuplicateDecision | null = null;
 
+  /** Current effective concurrency limit — reduced when backgrounded. */
+  private concurrencyLimit = MAX_CONCURRENT_UPLOADS;
+  private appStateSubscription: NativeEventSubscription | null = null;
+
   constructor(config: UploadPipelineConfig) {
     this.config = config;
   }
@@ -106,6 +128,7 @@ export class UploadPipeline {
     this.bytesSaved = 0;
     this.tempFileUris = [];
     this.applyToAllDecision = null;
+    this.concurrencyLimit = MAX_CONCURRENT_UPLOADS;
 
     // Initialize item statuses
     this.items = [
@@ -119,6 +142,16 @@ export class UploadPipeline {
     ];
     this.reportStatus();
 
+    // Prevent device from sleeping during upload
+    try { await activateKeepAwakeAsync(KEEP_AWAKE_TAG); } catch { /* ignore */ }
+
+    // Listen for app state changes to adjust concurrency
+    this.appStateSubscription = AppState.addEventListener('change', (state) => {
+      this.concurrencyLimit = state === 'active'
+        ? MAX_CONCURRENT_UPLOADS
+        : 1;
+    });
+
     try {
       await this.processImages();
 
@@ -127,6 +160,9 @@ export class UploadPipeline {
       }
     } finally {
       this.cleanupTempFiles();
+      this.appStateSubscription?.remove();
+      this.appStateSubscription = null;
+      try { deactivateKeepAwake(KEEP_AWAKE_TAG); } catch { /* ignore */ }
     }
 
     return {
@@ -146,13 +182,15 @@ export class UploadPipeline {
   private setItemState(
     index: number,
     state: ItemState,
-    extra?: { actualSizeBytes?: number; originalSizeBytes?: number },
+    extra?: { actualSizeBytes?: number; originalSizeBytes?: number; progressPercent?: number },
   ) {
     this.items[index] = {
       ...this.items[index],
       state,
       ...(extra?.actualSizeBytes !== undefined && { actualSizeBytes: extra.actualSizeBytes }),
       ...(extra?.originalSizeBytes !== undefined && { originalSizeBytes: extra.originalSizeBytes }),
+      // Only include progressPercent when explicitly provided; clear it otherwise
+      progressPercent: extra?.progressPercent,
     };
     this.reportStatus();
   }
@@ -259,28 +297,38 @@ export class UploadPipeline {
     const activeUploads: Promise<void>[] = [];
 
     for (let i = 0; i < images.length; i++) {
-      const dedupResult = await this.dedupCheck(i, images[i].uri);
+      // Copy the ImagePicker cache file to a pipeline-owned location so it
+      // survives Android cache eviction during long batch uploads.  The
+      // original URI lives in cache/ImagePicker/ which the OS can purge at
+      // any time under memory pressure.
+      const stableUri = copyToStablePath(images[i].uri, i);
+      if (stableUri !== images[i].uri) {
+        this.tempFileUris.push(stableUri);
+      }
+
+      const dedupResult = await this.dedupCheck(i, stableUri);
       if (dedupResult.skip) continue;
 
       // Optimize
       this.setItemState(i, 'optimizing');
       let item: PipelineItem;
       try {
-        const result = await optimizeImage(images[i].uri);
+        const result = await optimizeImage(stableUri);
         item = {
           index: i,
-          originalUri: images[i].uri,
+          originalUri: stableUri,
           fileToUploadUri: result.uri,
           alreadyOptimized: result.wasOptimized,
           noWatermarkNeeded: false,
           originalSourceHash: dedupResult.hash,
         };
-        if (result.wasOptimized && result.uri !== images[i].uri) {
+        if (result.wasOptimized && result.uri !== stableUri) {
           this.tempFileUris.push(result.uri);
           this.bytesSaved += result.originalSize - result.optimizedSize;
         }
         this.completedWeight += IMAGE_OPTIMIZE_WEIGHT;
-      } catch {
+      } catch (err) {
+        console.error('[pipeline] Optimization failed for image', i, err);
         this.failedCount++;
         this.completedWeight += IMAGE_WEIGHT;
         this.setItemState(i, 'failed');
@@ -313,7 +361,7 @@ export class UploadPipeline {
       }
       this.completedWeight += IMAGE_WATERMARK_WEIGHT;
 
-      // Upload with concurrency control
+      // Upload with concurrency control (respects backgrounded limit)
       this.setItemState(i, 'uploading');
 
       const uploadPromise = this.uploadWithRetry(item).then(() => {
@@ -322,7 +370,7 @@ export class UploadPipeline {
       });
       activeUploads.push(uploadPromise);
 
-      if (activeUploads.length >= MAX_CONCURRENT_UPLOADS) {
+      if (activeUploads.length >= this.concurrencyLimit) {
         await Promise.race(activeUploads);
       }
     }
@@ -386,31 +434,55 @@ export class UploadPipeline {
   }
 
   // -----------------------------------------------------------------------
-  // Video processing (placeholder for Phase 6C)
+  // Video processing — GPU-accelerated via react-native-compressor
   // -----------------------------------------------------------------------
 
   private async processVideo() {
     const video = this.config.video!;
     const videoIndex = this.items.length - 1;
 
-    const dedupResult = await this.dedupCheck(videoIndex, video.uri);
+    // Copy to stable storage — same rationale as images (cache eviction).
+    const stableVideoUri = copyToStablePath(video.uri, videoIndex);
+    if (stableVideoUri !== video.uri) {
+      this.tempFileUris.push(stableVideoUri);
+    }
+
+    const dedupResult = await this.dedupCheck(videoIndex, stableVideoUri);
     if (dedupResult.skip) return;
 
-    // Video optimization would go here in Phase 6C.
-    // For now, skip optimize and go straight to size check + upload.
+    // GPU-accelerated video optimization
     this.setItemState(videoIndex, 'optimizing');
+    let videoFileUri = stableVideoUri;
+    let videoWasOptimized = false;
+    try {
+      const optResult = await optimizeVideo(stableVideoUri, (progress) => {
+        // Update item with compression progress for UI display
+        this.setItemState(videoIndex, 'optimizing', { progressPercent: progress });
+      });
+
+      videoFileUri = optResult.uri;
+      videoWasOptimized = optResult.wasOptimized;
+      if (optResult.wasOptimized && optResult.uri !== stableVideoUri) {
+        this.tempFileUris.push(optResult.uri);
+        this.bytesSaved += optResult.originalSize - optResult.optimizedSize;
+      }
+    } catch {
+      // Optimization failed — proceed with original file
+    }
     this.completedWeight += VIDEO_OPTIMIZE_WEIGHT;
 
     // Size check
     this.setItemState(videoIndex, 'checkingSize');
-    const videoFile = new FSFile(video.uri);
+    const videoFile = new FSFile(videoFileUri);
     const videoSize = videoFile.size;
+    const originalVideoFile = new FSFile(stableVideoUri);
+    const originalVideoSize = originalVideoFile.size;
     if (videoSize > MAX_FILE_SIZE_BYTES) {
       this.oversizedCount++;
       this.completedWeight += VIDEO_UPLOAD_WEIGHT;
       this.setItemState(videoIndex, 'sizeExceeded', {
         actualSizeBytes: videoSize,
-        originalSizeBytes: videoSize,
+        originalSizeBytes: originalVideoSize,
       });
       return;
     }
@@ -419,8 +491,8 @@ export class UploadPipeline {
     this.setItemState(videoIndex, 'uploading');
     for (let attempt = 0; attempt <= MAX_UPLOAD_RETRIES; attempt++) {
       const result = await uploadItem({
-        fileUri: video.uri,
-        alreadyOptimized: false,
+        fileUri: videoFileUri,
+        alreadyOptimized: videoWasOptimized,
         noWatermarkNeeded: false,
         albumIds: this.config.albumIds,
         tagIds: this.config.tagIds,
@@ -510,4 +582,20 @@ function getFilename(uri: string): string {
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Copy an ImagePicker cache file to a pipeline-owned location so it survives
+ * Android cache eviction. Returns the new stable URI. The caller is responsible
+ * for deleting the copy when done (tracked via `tempFileUris`).
+ */
+function copyToStablePath(uri: string, index: number): string {
+  const src = new FSFile(uri);
+  if (!src.exists) return uri; // nothing to copy — will be caught later
+  const ext = uri.lastIndexOf('.') !== -1
+    ? uri.substring(uri.lastIndexOf('.')).split(/[?#]/)[0].toLowerCase()
+    : '';
+  const dest = new FSFile(Paths.cache, `pipeline_${index}_${Date.now()}${ext}`);
+  src.copy(dest);
+  return dest.uri;
 }

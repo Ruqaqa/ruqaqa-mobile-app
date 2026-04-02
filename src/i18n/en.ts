@@ -345,6 +345,7 @@ export default {
   galleryUploadPartialSuccess: 'Uploaded {{success}} of {{total}}, {{failed}} failed',
   galleryUploadSizeSaved: 'Saved {{size}} MB',
   galleryUploadItemOptimizing: 'Optimizing',
+  galleryUploadItemCompressing: 'Compressing {{percent}}%',
   galleryUploadItemWatermarking: 'Watermarking',
   galleryUploadItemUploading: 'Uploading',
   galleryUploadDoneCount: '{{done}} of {{total}} done',

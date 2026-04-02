@@ -1,3 +1,4 @@
+import { File as FSFile } from 'expo-file-system';
 import { apiClient, uploadMultipart } from '@/services/apiClient';
 import { ApiError, mapAxiosError } from '@/services/errors';
 import { isValidObjectId } from '@/utils/sanitize';
@@ -376,6 +377,43 @@ export async function addItemToAlbums(
 
 // --- Phase 6B: Upload item (multipart) ---
 
+// ---------------------------------------------------------------------------
+// MIME type lookup from file extension
+// ---------------------------------------------------------------------------
+
+/** Map common gallery file extensions to their MIME types.
+ * Mirrors Flutter's `lookupMimeType()` from the `mime` package. */
+const EXT_TO_MIME: Record<string, string> = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+  heic: 'image/heic',
+  heif: 'image/heif',
+  mp4: 'video/mp4',
+  mov: 'video/quicktime',
+  avi: 'video/x-msvideo',
+  webm: 'video/webm',
+  mkv: 'video/x-matroska',
+  '3gp': 'video/3gpp',
+  flv: 'video/x-flv',
+  wmv: 'video/x-ms-wmv',
+  ogg: 'video/ogg',
+  mpeg: 'video/mpeg',
+  mpg: 'video/mpeg',
+};
+
+/**
+ * Resolve the MIME type for a file URI based on its extension.
+ * Falls back to `application/octet-stream` if the extension is unknown.
+ */
+function lookupMimeType(uri: string): string {
+  const lastDot = uri.lastIndexOf('.');
+  if (lastDot === -1) return 'application/octet-stream';
+  const ext = uri.substring(lastDot + 1).split(/[?#]/)[0].toLowerCase();
+  return EXT_TO_MIME[ext] ?? 'application/octet-stream';
+}
+
 const BASE36 = '0123456789abcdefghijklmnopqrstuvwxyz';
 
 /**
@@ -415,14 +453,34 @@ export interface UploadItemParams {
  */
 export async function uploadItem(params: UploadItemParams): Promise<UploadItemResult> {
   try {
+    // Verify the file exists before constructing the request.  On React Native
+    // Android, passing a non-existent file URI to FormData causes the native
+    // networking layer (OkHttp) to fail with a generic "Network Error" that
+    // masks the real issue.  Failing fast here produces a clear log message and
+    // lets the retry logic work on a real network issue instead.
+    const fileRef = new FSFile(params.fileUri);
+    if (!fileRef.exists) {
+      console.error('[uploadItem] File does not exist at URI, cannot upload:', params.fileUri);
+      return { outcome: 'failure' };
+    }
+
     const formData = new FormData();
 
-    // Primary file
+    // Ensure the URI has the file:// scheme that RN's networking layer
+    // requires.  expo-file-system always stores URIs with the scheme, but
+    // react-native-compressor occasionally returns bare paths on Android.
+    const normalizedUri = params.fileUri.startsWith('file://') ? params.fileUri
+      : params.fileUri.startsWith('/') ? `file://${params.fileUri}`
+      : params.fileUri;
+
+    // Primary file — resolve correct MIME type from extension so the backend
+    // validates it against the allowed gallery MIME types list.
     const filename = privacySafeFilename(params.fileUri);
+    const mimeType = lookupMimeType(params.fileUri);
     formData.append('file', {
-      uri: params.fileUri,
+      uri: normalizedUri,
       name: filename,
-      type: 'application/octet-stream',
+      type: mimeType,
     } as any);
 
     if (params.alreadyOptimized) {
@@ -463,6 +521,18 @@ export async function uploadItem(params: UploadItemParams): Promise<UploadItemRe
       item: data ? parseMediaItem(data) : undefined,
     };
   } catch (error: any) {
+    // Log both the Axios-level message and the native XHR response text.
+    // On React Native Android, "Network Error" (ERR_NETWORK) is a generic
+    // wrapper — the real cause (e.g. "Could not retrieve file for uri …") is
+    // in request._response / request.responseText.
+    console.error(
+      '[uploadItem] Upload failed:',
+      error?.response?.status,
+      error?.response?.data,
+      error?.message,
+      error?.code,
+      error?.request?._response ?? error?.request?.responseText,
+    );
     const status = error?.response?.status;
     if (status === 413) {
       return { outcome: 'fileTooLarge' };

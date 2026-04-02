@@ -1,4 +1,4 @@
-import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
+import { Image } from 'react-native-compressor';
 import { File as FSFile, Paths } from 'expo-file-system';
 
 /**
@@ -19,20 +19,15 @@ export interface ImageOptimizationResult {
 /** Max dimension on the longest edge. */
 const MAX_DIMENSION = 2048;
 
-/** JPEG/WebP quality (0–1 scale for expo-image-manipulator). Flutter uses 65/100. */
-const WEBP_COMPRESS = 0.65;
+/**
+ * JPEG quality (0–1 scale). Flutter uses 65/100.
+ * react-native-compressor uses 0–1 for quality.
+ */
+const JPEG_QUALITY = 0.65;
 
-/** PNG is lossless — use quality 1.0. */
-const PNG_COMPRESS = 1.0;
-
-/** Map of input extensions to target save format. */
-const FORMAT_MAP: Record<string, SaveFormat> = {
-  jpg: SaveFormat.WEBP,
-  jpeg: SaveFormat.WEBP,
-  heic: SaveFormat.WEBP,
-  heif: SaveFormat.WEBP,
-  png: SaveFormat.PNG,
-};
+/** Extensions we know how to compress (lossy → JPEG, lossless → PNG). */
+const LOSSY_EXTS = new Set(['jpg', 'jpeg', 'heic', 'heif']);
+const LOSSLESS_EXTS = new Set(['png']);
 
 /**
  * Extract the file extension (lowercase, no dot) from a URI or path.
@@ -40,14 +35,18 @@ const FORMAT_MAP: Record<string, SaveFormat> = {
 function getExtension(uri: string): string {
   const lastDot = uri.lastIndexOf('.');
   if (lastDot === -1) return '';
-  // Strip query params if present
   const ext = uri.substring(lastDot + 1).split(/[?#]/)[0];
   return ext.toLowerCase();
 }
 
 /**
- * Optimize an image: resize to max 2048px on the longest edge,
- * compress JPEG/HEIC to WebP at 65% quality, keep PNG as PNG.
+ * Optimize an image using GPU-accelerated native compression
+ * (react-native-compressor). Runs on a native background thread —
+ * never blocks the JS thread.
+ *
+ * - JPEG/HEIC → compressed JPEG at 65% quality, max 2048px
+ * - PNG → compressed PNG, max 2048px
+ * - Unknown format → returned as-is
  *
  * If the optimized file is not smaller than the original, returns
  * the original file URI (optimization skipped).
@@ -55,14 +54,20 @@ function getExtension(uri: string): string {
  * Mirrors Flutter's `ImageOptimizationService.optimizeImage`.
  */
 export async function optimizeImage(uri: string): Promise<ImageOptimizationResult> {
+  // Defense-in-depth: only allow local file URIs. Reject network or crafted schemes.
+  if (!uri.startsWith('file://') && !uri.startsWith('/')) {
+    return { uri, wasOptimized: false, originalSize: 0, optimizedSize: 0 };
+  }
+
   const ext = getExtension(uri);
-  const targetFormat = FORMAT_MAP[ext];
+  const isLossy = LOSSY_EXTS.has(ext);
+  const isLossless = LOSSLESS_EXTS.has(ext);
 
   const originalFile = new FSFile(uri);
   const originalSize = originalFile.size;
 
   // Unknown format — skip optimization
-  if (!targetFormat) {
+  if (!isLossy && !isLossless) {
     return {
       uri,
       wasOptimized: false,
@@ -71,54 +76,51 @@ export async function optimizeImage(uri: string): Promise<ImageOptimizationResul
     };
   }
 
-  const compress = targetFormat === SaveFormat.WEBP ? WEBP_COMPRESS : PNG_COMPRESS;
-
   try {
-    // Use the new object-oriented API: manipulate → resize → render → save
-    const context = ImageManipulator.manipulate(uri);
-    const imageRef = await context
-      .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION })
-      .renderAsync();
-
-    const outExt = targetFormat === SaveFormat.WEBP ? 'webp' : 'png';
-    const result = await imageRef.saveAsync({
-      format: targetFormat,
-      compress,
+    // react-native-compressor Image.compress runs on a native background thread.
+    // Uses hardware-accelerated Bitmap scaling on Android, Core Image on iOS.
+    const compressedUri = await Image.compress(uri, {
+      compressionMethod: 'manual',
+      maxWidth: MAX_DIMENSION,
+      maxHeight: MAX_DIMENSION,
+      quality: isLossy ? JPEG_QUALITY : 1,
+      output: isLossless ? 'png' : 'jpg',
     });
 
     // Check if the optimized file is actually smaller
-    const optimizedFile = new FSFile(result.uri);
-    const optimizedSize = optimizedFile.size;
+    const compressedFile = new FSFile(compressedUri);
+    const optimizedSize = compressedFile.size;
 
-    if (optimizedSize >= originalSize) {
-      // Not worth it — clean up and return original
-      try { optimizedFile.delete(); } catch { /* ignore */ }
-      return {
-        uri,
-        wasOptimized: false,
-        originalSize,
-        optimizedSize: originalSize,
-      };
-    }
-
-    // Rename to a predictable path in cache for cleanup tracking.
-    // Strip path separators and null bytes to prevent path traversal.
+    // Move compressed file to a predictable cache path regardless of whether
+    // it's smaller.  react-native-compressor on Android may consume/delete the
+    // source file during compression, so we can never assume the original URI
+    // is still valid after Image.compress returns.
     const rawBaseName = uri.substring(uri.lastIndexOf('/') + 1).replace(/\.[^.]+$/, '');
     const baseName = rawBaseName.replace(/[/\\\0]/g, '_').slice(0, 200);
-    const destFile = new FSFile(Paths.cache, `optimized_${baseName}.${outExt}`);
+    const outExt = isLossless ? 'png' : 'jpg';
+    const destFile = new FSFile(Paths.cache, `optimized_${baseName}_${Date.now()}.${outExt}`);
     if (destFile.exists) {
       try { destFile.delete(); } catch { /* ignore */ }
     }
-    optimizedFile.move(destFile);
+    compressedFile.move(destFile);
+
+    const wasOptimized = optimizedSize < originalSize;
 
     return {
       uri: destFile.uri,
-      wasOptimized: true,
+      wasOptimized,
       originalSize,
-      optimizedSize,
+      optimizedSize: wasOptimized ? optimizedSize : originalSize,
     };
   } catch {
-    // On any error, fall back to original
+    // On any error, fall back to original — but verify it still exists.
+    // react-native-compressor may have consumed/moved it before throwing.
+    const origStillExists = new FSFile(uri).exists;
+    if (!origStillExists) {
+      // Original is gone and compression failed — nothing we can do.
+      // Return the URI anyway; the pipeline's file-existence check in
+      // uploadItem will catch it and log a clear message.
+    }
     return {
       uri,
       wasOptimized: false,

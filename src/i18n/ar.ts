@@ -345,6 +345,7 @@ export default {
   galleryUploadPartialSuccess: 'تم رفع {{success}} من {{total}}، فشل {{failed}}',
   galleryUploadSizeSaved: 'تم توفير {{size}} ميجابايت',
   galleryUploadItemOptimizing: 'تحسين الملف',
+  galleryUploadItemCompressing: 'ضغط {{percent}}٪',
   galleryUploadItemWatermarking: 'العلامة المائية',
   galleryUploadItemUploading: 'يجري الرفع',
   galleryUploadDoneCount: '{{done}} من {{total}} تم',

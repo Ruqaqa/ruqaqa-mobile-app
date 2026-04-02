@@ -35,6 +35,8 @@ export function UploadTabContainer() {
   const pipeline = useUploadPipeline();
   const locale = (i18n.language === 'ar' ? 'ar' : 'en') as 'ar' | 'en';
 
+  // Note: keep-awake is handled by the UploadPipeline class itself
+
   // Picker sheet visibility
   const [albumPickerVisible, setAlbumPickerVisible] = useState(false);
   const [tagPickerVisible, setTagPickerVisible] = useState(false);
