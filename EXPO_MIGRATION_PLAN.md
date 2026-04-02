@@ -360,58 +360,174 @@ Update seed data as sub-phases progress:
 
 **Goal:** Users can upload photos and videos with optimization and optional watermarking.
 
+---
+
+#### Phase 6A: Upload Screen & Media Selection
+
+**Goal:** The upload tab has a working screen where users can pick media and select metadata.
+
 **Business Requirements:**
 
-**Media Selection & Upload:**
-- Pick multiple images (up to 20) and/or 1 video per upload batch from the device gallery or camera
-- Upload progress tracking per item and overall batch progress
-- Upload pipeline stages shown to the user:
-  1. Computing file hashes (for duplicate detection)
-  2. Checking for duplicates against server
-  3. Optimizing images (compression, format conversion)
-  4. Compressing videos (if applicable)
-  5. Applying watermark (if enabled)
-  6. Uploading to server
-  7. Assigning to album/tags
-- Duplicate detection: if a file hash matches an existing server file, prompt the user — they can choose to add it to the album anyway or skip it. "Apply to all" option for batch decisions
-- Concurrent uploads: max 3 at a time
-- Retry: 2 attempts per failed upload item
-- Max file size: 100 MB per item
+**Upload Screen UI:**
+- Replace current upload tab placeholder with the upload screen
+- Two picker cards: "Pick Images" (up to 20) and "Pick Video" (1 only) via `expo-image-picker`
+- Image preview grid (3 columns) with tap-to-remove
+- Video preview card with thumbnail
+- Upload button enabled only when media selected + required metadata set
+
+**Metadata Selection:**
+- Album picker (multi-select, required) with search and inline creation via bottom sheet
+- Tag picker (multi-select, required) with search and inline creation via bottom sheet
+- Project picker (single-select, optional) with search and inline creation via bottom sheet
+- Validation: upload blocked until albums and tags are selected
+
+**Gallery Service Extensions:**
+- `fetchTags()` — list tags with search/locale support
+- `createTag(name, locale)` — inline tag creation
+- `createProject(name, clientName?, clientId?)` — inline project creation
+
+**Types & Constants:**
+- `ItemState` enum (waiting, hashing, checkingDuplicate, optimizing, checkingSize, watermarking, uploading, done, skipped, failed, sizeExceeded)
+- `PipelineStatus`, `PipelineItemStatus`, `PipelineResult` types
+- `WatermarkDraft` type (xPct, yPct, widthPct, opacityPct, noWatermarkNeeded)
+- Upload constants: MAX_IMAGES (20), MAX_VIDEO (1), MAX_FILE_SIZE (100MB), MAX_CONCURRENT_UPLOADS (3), MAX_UPLOAD_RETRIES (2)
+
+**Refer to:** `lib/features/gallery/pages/gallery_upload_page.dart` (media selection + metadata UI)
+
+**Deliverable:** User can pick media, select albums/tags/project, but cannot upload yet.
+
+---
+
+#### Phase 6B: Upload Pipeline & Image Optimization
+
+**Goal:** Images can be optimized, deduplicated, and uploaded to the backend.
+
+**Business Requirements:**
 
 **Image Optimization:**
 - Resize to max 2048px on longest edge
 - Compress to ~65% quality
 - Convert JPEG/HEIC to WebP, keep PNG as PNG
 - Skip optimization if compressed file is larger than original
+- Use `expo-image-manipulator` for resize/compress/format conversion
+
+**File Hashing & Duplicate Detection:**
+- Compute SHA-256 hash of each file before upload (use `expo-crypto` or streaming approach to avoid blocking JS thread)
+- Call `GET /api/mobile/gallery/check-hash?hash=...` to check for duplicates
+- If duplicate found, show `DuplicateSheet` bottom sheet with existing item details (filename, albums, tags, project, date)
+- User can choose "Add to Albums" (links existing item to selected albums via `POST /api/mobile/gallery/{id}/albums`) or "Skip"
+- "Apply to All Remaining" checkbox caches the decision for subsequent duplicates
+
+**Upload Pipeline:**
+- `UploadPipeline` orchestrator with weighted progress tracking
+  - Image weight: 1.0 each (0.20 optimize + 0.10 watermark + 0.75 upload)
+  - Video weight: 3.0 (1.8 optimize + 1.2 watermark+upload)
+  - Progress = completedWeight / totalWeight
+- Max 3 concurrent image uploads (FIFO)
+- 2 retry attempts per failed upload with exponential backoff (500ms, 1000ms)
+- Max file size check: 100 MB per item
+- Pipeline stages per item: hash → dedup check → optimize → size check → (watermark placeholder) → upload
+- Multipart upload via `POST /api/mobile/gallery` with fields: file, albumIds, tags, project, originalSourceHash, noWatermarkNeeded, watermarkOverrides
+
+**Upload Progress UI:**
+- `UploadProgressCard` showing overall progress bar with percentage
+- Per-item status with icons (waiting, hashing, optimizing, uploading, done, skipped, failed, sizeExceeded)
+- Error message display for failed items
+- Upload stages: idle → processing → done/error
+- Success sound on completion
+- Flow reset: clear selections and return to idle state after completion
+
+**Result Tracking:**
+- `PipelineResult` with successCount, failedCount, skippedCount, oversizedCount, bytesSaved
+- Summary shown to user after pipeline completes
+
+**Refer to:** `lib/features/gallery/services/upload_pipeline.dart`, `lib/features/gallery/services/image_optimization_service.dart`, `lib/features/gallery/services/file_hash_service.dart`, `lib/features/gallery/widgets/duplicate_sheet.dart`, `lib/features/gallery/widgets/upload_progress_card.dart`
+
+**Deliverable:** Full image upload pipeline working end-to-end with optimization, deduplication, progress tracking, and retry.
+
+---
+
+#### Phase 6C: Watermark System
+
+**Goal:** Users can position a watermark on media before upload.
+
+**Business Requirements:**
+
+**Watermark Editor Screen:**
+- Full-screen modal opened after metadata selection, before pipeline runs
+- Dark-themed AppBar with close (cancel), title, and "Apply to All" button
+- Main canvas showing current media item preview with interactive watermark overlay
+- Watermark overlay is draggable (reposition) and resizable (corner/edge handles)
+- Maintains logo aspect ratio during resize (fallback: 2.5)
+- "No Watermark" toggle per item (FilterChip, red when active, disables sliders)
+- Opacity slider (10–100%, 90 divisions) with percentage label
+- "Reset Defaults" button restores default settings for current item
+- Thumbnail strip at bottom: horizontal scroll of all media items, tap to switch, active item highlighted
+- Confirm button returns `Map<string, WatermarkDraft>` keyed by item ID, cancel returns null
+- "Apply to All" copies position/size/opacity from active item to all others
+
+**Watermark Application:**
+- Apply logo overlay to images using Skia canvas rendering (via `@shopify/react-native-skia`) or equivalent
+- Logo: green branded logo (`assets/logo-green.png`)
+- Position/size/opacity from `WatermarkDraft` (all percentage-based, 0–100)
+- Save watermarked image to temp file
+- Falls back to original if watermarking fails
+- Video watermarking deferred to server-side (per Expo limitations)
+
+**Settings & Defaults:**
+- Fetch default watermark settings from `GET /api/mobile/gallery/watermark-settings` (logo URL, x, y, width, opacity)
+- Persist last-used watermark settings in AsyncStorage across sessions
+- Send `watermarkOverrides` (x, y, width, opacity) with upload for server-side record
+
+**Pipeline Integration:**
+- Watermark stage runs between optimization and upload in the pipeline
+- If `noWatermarkNeeded` is set for an item, skip watermark application
+- Watermark weight: 0.10 of image weight (already allocated in 6B progress weights)
+
+**Refer to:** `lib/features/gallery/pages/watermark_editor_screen.dart`, `lib/features/gallery/widgets/watermark_editor_canvas.dart`, `lib/features/gallery/services/watermark_applicator.dart`, `lib/features/gallery/services/watermark_settings_repository.dart`
+
+**Deliverable:** Watermark editor with interactive positioning, image watermarking, and pipeline integration.
+
+---
+
+#### Phase 6D: Video Processing & Share Intent
+
+**Goal:** Video optimization support and Gallery share intent flow target.
+
+**Business Requirements:**
 
 **Video Optimization:**
-- Compress using H.264 encoding
-- Show compression progress
+- Compress video using H.264 encoding (via `react-native-compressor` or similar)
+- Show compression progress (0–100%) in the pipeline UI
 - Fall back to original if compression fails or produces a larger file
-
-**Watermark System:**
-- Interactive watermark editor: users can position a logo watermark on a canvas preview
-- Adjustable: position (X%, Y%), size (width %), opacity (0-100%)
-- Watermark settings persist across sessions
-- Applied to images before upload (video watermarking can be deferred to server-side — see Expo limitations above)
-
-**Album & Tag Assignment:**
-- After upload, assign media to an album
-- Create new albums or tags inline during the upload flow
-- Associate albums with projects
+- Video thumbnail generation at selection time for preview
+- Video processed sequentially in pipeline (not concurrent with other videos)
+- Video weight: 3.0 in pipeline progress (1.8 optimize + 1.2 watermark+upload)
 
 **Share Intent Integration:**
 - Enable the "Gallery" flow target in `src/services/shareIntent/flowTargets.ts` (currently disabled with "Coming soon" badge)
-- When user shares files from another app and selects Gallery, navigate to the upload flow with files pre-attached
+- When user shares files from another app and selects Gallery, navigate to upload screen with files pre-attached
 - Follow the same pattern as Transactions and Reconciliation: consume files via `useShareIntent()` hook + shared adapter on form mount
 - Shared files skip the device gallery/camera picker step and go directly into the upload pipeline
-- Validate shared files against gallery-specific constraints (allowed MIME types: image/*, video/*, max file size)
+- Validate shared files against gallery constraints (allowed MIME types: image/*, video/*, max file size 100MB)
 - Auto-open the upload screen and switch to Gallery module when share intent targets Gallery
 - Security: explicit `allowedMimeTypes` on flow target, MIME validation at trust boundary
 
-**Refer to:** `lib/features/gallery/services/upload_pipeline.dart`, `lib/features/gallery/services/image_optimization_service.dart`, `lib/features/gallery/services/video_optimization_service.dart`, `lib/features/gallery/services/watermark_applicator.dart`, `lib/features/gallery/pages/gallery_upload_page.dart`, `lib/features/gallery/pages/watermark_editor_screen.dart`
+**Seed Data Updates:**
+- Update seed script with media items that have varying watermark states for testing
 
-**Deliverable:** Full media upload pipeline with optimization, watermarking, duplicate detection, and share intent integration.
+**Refer to:** `lib/features/gallery/services/video_optimization_service.dart`, `lib/features/gallery/services/video_processing_service.dart`
+
+**Deliverable:** Videos can be compressed and uploaded. Shared files route to Gallery upload flow.
+
+---
+
+**Phase 6 Dependency Chain:**
+```
+6A → 6B → 6C
+              ↘
+               6D (6C and 6D can be parallel after 6B)
+```
 
 ---
 
@@ -450,10 +566,13 @@ Update seed data as sub-phases progress:
 | 5B | Gallery — Media Viewing | Phase 5A |
 | 5C | Gallery — Multi-Select & Bulk Actions | Phase 5B |
 | 5D | Gallery — Download System | Phase 5B |
-| 6 | Gallery — Upload & Processing | Phase 5A |
+| 6A | Gallery — Upload Screen & Media Selection | Phase 5A |
+| 6B | Gallery — Upload Pipeline & Image Optimization | Phase 6A |
+| 6C | Gallery — Watermark System | Phase 6B |
+| 6D | Gallery — Video Processing & Share Intent | Phase 6B |
 | 7 | Shared Components & Polish | All phases |
 
-Phases 3, 4, and 5A can be worked on in parallel once Phase 2 is complete. 5C and 5D can be worked on in parallel once 5B is complete.
+Phases 3, 4, and 5A can be worked on in parallel once Phase 2 is complete. 5C and 5D can be worked on in parallel once 5B is complete. 6C and 6D can be worked on in parallel once 6B is complete.
 
 ---
 
