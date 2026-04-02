@@ -7,20 +7,7 @@ import { useTheme } from '../theme';
 import { useAppModuleContext } from './AppModuleContext';
 import { AppBar } from '../components/layout/AppBar';
 import { AlbumGridScreen } from '../features/gallery/components/AlbumGridScreen';
-
-function PlaceholderTab({ label }: { label: string }) {
-  const { colors, typography, spacing } = useTheme();
-  return (
-    <View style={[styles.placeholder, { backgroundColor: colors.background }]}>
-      <Text style={[typography.headingMedium, { color: colors.foregroundSecondary }]}>
-        {label}
-      </Text>
-      <Text style={[typography.bodySmall, { color: colors.foregroundSecondary, marginTop: spacing.sm }]}>
-        Coming in Phase 6-7
-      </Text>
-    </View>
-  );
-}
+import { UploadTabContainer } from '../features/gallery/components/UploadTabContainer';
 
 type GalleryTab = 'albums' | 'upload';
 
@@ -65,7 +52,7 @@ export function GalleryShell() {
         </View>
         {permissions.canCreateGallery && (
           <View style={[styles.tabContent, { display: activeTab === 'upload' ? 'flex' : 'none' }]}>
-            <PlaceholderTab label={tabLabels.upload} />
+            <UploadTabContainer />
           </View>
         )}
       </View>
@@ -142,7 +129,6 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { flex: 1 },
   tabContent: { flex: 1 },
-  placeholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   fab: {
     position: 'absolute',
     bottom: 80,

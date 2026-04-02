@@ -317,7 +317,7 @@ export default {
 
   // Gallery - Tags
   galleryTags: 'Tags',
-  gallerySelectTagsHint: 'Select tags (optional)...',
+  gallerySelectTagsHint: 'Select tags...',
   gallerySearchTagsHint: 'Search tags...',
   galleryNoTagsFound: 'No tags found',
   galleryCreateTag: 'Create new tag',

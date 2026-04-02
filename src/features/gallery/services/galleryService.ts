@@ -1,8 +1,52 @@
 import { apiClient } from '@/services/apiClient';
 import { ApiError, mapAxiosError } from '@/services/errors';
 import { isValidObjectId } from '@/utils/sanitize';
-import { GalleryAlbum, ALBUM_PAGE_SIZE, FetchAlbumMediaResult, MEDIA_PAGE_SIZE, MediaItemDetail, ManageItemPayload } from '../types';
-import { parseAlbum, parseMediaItem, parseMediaItemDetail } from '../utils/parsers';
+import {
+  GalleryAlbum, ALBUM_PAGE_SIZE, FetchAlbumMediaResult, MEDIA_PAGE_SIZE,
+  MediaItemDetail, ManageItemPayload, PickerItem,
+  CheckHashResult, CheckHashItem, CheckHashRelation, CheckHashAlbum,
+  AddToAlbumsResult, TAG_NAME_MAX_LENGTH,
+} from '../types';
+import { parseAlbum, parseMediaItem, parseMediaItemDetail, extractLocalizedString } from '../utils/parsers';
+
+// ---------------------------------------------------------------------------
+// Phase 6A: Input sanitization for upload-related service functions
+// ---------------------------------------------------------------------------
+
+/** Max length for search queries sent to tag/project search endpoints. */
+const SEARCH_QUERY_MAX_LENGTH = 200;
+
+/** Max length for project names during inline creation. */
+const PROJECT_NAME_MAX_LENGTH = 200;
+
+// Control characters regex (C0 + C1 ranges, excluding common whitespace)
+const CONTROL_CHARS_RE = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g;
+
+// Regex metacharacters to strip from search input (prevents regex injection on backend)
+const REGEX_META_RE = /[.*+?^${}()|[\]\\]/g;
+
+/** SHA-256 hex hash format. */
+const SHA256_HEX_RE = /^[a-f\d]{64}$/i;
+
+/**
+ * Sanitize a search query: strip control chars, regex metacharacters,
+ * trim, and cap length.
+ */
+function sanitizeSearchQuery(query: string): string {
+  return query
+    .replace(CONTROL_CHARS_RE, '')
+    .replace(REGEX_META_RE, '')
+    .trim()
+    .slice(0, SEARCH_QUERY_MAX_LENGTH);
+}
+
+/**
+ * Sanitize a name for inline creation (tag or project):
+ * strip control chars, trim, cap length.
+ */
+function sanitizeCreateName(name: string, maxLength: number): string {
+  return name.replace(CONTROL_CHARS_RE, '').trim().slice(0, maxLength);
+}
 
 interface FetchAlbumsParams {
   search?: string;
@@ -164,4 +208,213 @@ export async function manageMediaItem(
   } catch (error) {
     throw mapAxiosError(error);
   }
+}
+
+// --- Phase 6A: Tag, Project, and Upload service extensions ---
+
+/**
+ * Fetch tags with optional search. Used by the tag picker in upload screen.
+ * Mirrors Flutter's `fetchTagSuggestions` from `suggestions_service.dart`.
+ */
+export async function fetchTags(query: string): Promise<PickerItem[]> {
+  const sanitized = sanitizeSearchQuery(query);
+  const limit = sanitized ? 50 : 30;
+  try {
+    const response = await apiClient.get('/tags', {
+      params: { q: sanitized, limit },
+    });
+    if (response.data?.success && Array.isArray(response.data.tags)) {
+      return response.data.tags.map((t: any) => ({
+        id: String(t.id ?? ''),
+        name: String(t.name ?? ''),
+      }));
+    }
+  } catch {
+    // swallow — return empty
+  }
+  return [];
+}
+
+/**
+ * Create a new tag. Used by inline tag creation in the upload screen.
+ * Mirrors Flutter's `GalleryApiService.createTag`.
+ */
+export async function createTag(
+  name: string,
+  locale: 'ar' | 'en',
+): Promise<PickerItem | null> {
+  const sanitized = sanitizeCreateName(name, TAG_NAME_MAX_LENGTH);
+  if (sanitized.length === 0) return null;
+  try {
+    const response = await apiClient.post('/tags', { name: sanitized, locale });
+    const data = response.data;
+    if (data && data.id) {
+      return {
+        id: String(data.id),
+        name: String(data.name ?? name),
+      };
+    }
+  } catch {
+    // swallow — return null
+  }
+  return null;
+}
+
+/**
+ * Fetch projects with optional search. Used by the project picker in upload screen.
+ * Mirrors Flutter's `fetchProjectSuggestions` from `suggestions_service.dart`.
+ */
+export async function fetchProjects(query: string): Promise<PickerItem[]> {
+  const sanitized = sanitizeSearchQuery(query);
+  const limit = sanitized ? 10 : 7;
+  try {
+    const response = await apiClient.get('/projects', {
+      params: { q: sanitized, limit },
+    });
+    if (response.data?.success && Array.isArray(response.data.projects)) {
+      return response.data.projects.map((p: any) => ({
+        id: String(p.id ?? ''),
+        name: String(p.name ?? ''),
+      }));
+    }
+  } catch {
+    // swallow — return empty
+  }
+  return [];
+}
+
+/**
+ * Create a new project. Used by inline project creation in the upload screen.
+ * Mirrors Flutter's `GalleryApiService.createProject`.
+ */
+export async function createProject(
+  name: string,
+  clientName?: string,
+  clientId?: string,
+): Promise<PickerItem | null> {
+  const sanitized = sanitizeCreateName(name, PROJECT_NAME_MAX_LENGTH);
+  if (sanitized.length === 0) return null;
+  try {
+    const body: Record<string, string> = { name: sanitized };
+    if (clientName) body.clientName = sanitizeCreateName(clientName, PROJECT_NAME_MAX_LENGTH);
+    if (clientId && isValidObjectId(clientId)) body.clientId = clientId;
+
+    const response = await apiClient.post('/projects', body);
+    const data = response.data;
+    if (data && data.id) {
+      return {
+        id: String(data.id),
+        name: String(data.name ?? name),
+      };
+    }
+  } catch {
+    // swallow — return null
+  }
+  return null;
+}
+
+/**
+ * Check if a file hash already exists on the server.
+ * Mirrors Flutter's `GalleryApiService.checkHash`.
+ */
+export async function checkHash(hash: string): Promise<CheckHashResult | null> {
+  // Validate hash format: must be a valid SHA-256 hex string (64 chars)
+  if (!hash || !SHA256_HEX_RE.test(hash)) return null;
+
+  try {
+    const response = await apiClient.get('/gallery/check-hash', {
+      params: { hash },
+    });
+    return parseCheckHashResult(response.data);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Add an existing item to albums (used when duplicate is found and user chooses "Add to Albums").
+ * Mirrors Flutter's `GalleryApiService.addItemToAlbums`.
+ */
+export async function addItemToAlbums(
+  itemId: string,
+  albumIds: string[],
+  tagIds?: string[],
+  projectId?: string,
+): Promise<AddToAlbumsResult | null> {
+  if (!isValidObjectId(itemId) || !itemId) return null;
+
+  // Validate all IDs are valid ObjectId format
+  const validAlbumIds = albumIds.filter((id) => id && isValidObjectId(id));
+  if (validAlbumIds.length === 0) return null;
+
+  const validTagIds = tagIds?.filter((id) => id && isValidObjectId(id));
+  if (projectId && !isValidObjectId(projectId)) return null;
+
+  try {
+    const body: Record<string, any> = { albumIds: validAlbumIds };
+    if (validTagIds && validTagIds.length > 0) body.tagIds = validTagIds;
+    if (projectId) body.projectId = projectId;
+
+    const response = await apiClient.post(`/gallery/${itemId}/albums`, body);
+    const data = response.data;
+    return {
+      success: data?.success ?? false,
+      itemId: String(data?.itemId ?? ''),
+      addedAlbumIds: Array.isArray(data?.addedAlbumIds)
+        ? data.addedAlbumIds.map(String)
+        : [],
+      alreadyLinkedAlbumIds: Array.isArray(data?.alreadyLinkedAlbumIds)
+        ? data.alreadyLinkedAlbumIds.map(String)
+        : [],
+      removedFromDefault: data?.removedFromDefault ?? false,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// --- Parsers for Phase 6A types ---
+
+function parseCheckHashResult(data: any): CheckHashResult {
+  return {
+    exists: data?.exists ?? false,
+    hash: String(data?.hash ?? ''),
+    item: data?.item ? parseCheckHashItem(data.item) : undefined,
+  };
+}
+
+function parseCheckHashItem(data: any): CheckHashItem {
+  return {
+    id: String(data?.id ?? ''),
+    filename: data?.filename ?? undefined,
+    mediaType: data?.mediaType ?? undefined,
+    thumbnailUrl: data?.thumbnailUrl ?? undefined,
+    createdAt: data?.createdAt ?? undefined,
+    project: data?.project && typeof data.project === 'object'
+      ? parseCheckHashRelation(data.project)
+      : undefined,
+    tags: Array.isArray(data?.tags)
+      ? data.tags.filter((t: any) => t && t.id).map(parseCheckHashRelation)
+      : [],
+    albums: Array.isArray(data?.albums)
+      ? data.albums.filter((a: any) => a && a.id).map(parseCheckHashAlbum)
+      : [],
+  };
+}
+
+function parseCheckHashRelation(data: any): CheckHashRelation {
+  const localized = extractLocalizedString(data?.name ?? data?.title ?? '');
+  return {
+    id: String(data?.id ?? ''),
+    name: localized.en || localized.ar,
+  };
+}
+
+function parseCheckHashAlbum(data: any): CheckHashAlbum {
+  const localized = extractLocalizedString(data?.title ?? '');
+  return {
+    id: String(data?.id ?? ''),
+    title: localized.en || localized.ar,
+    isDefault: data?.isDefault ?? false,
+  };
 }

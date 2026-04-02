@@ -317,7 +317,7 @@ export default {
 
   // Gallery - Tags
   galleryTags: 'الوسوم',
-  gallerySelectTagsHint: 'اختر وسوم (اختياري)...',
+  gallerySelectTagsHint: 'اختر وسوم...',
   gallerySearchTagsHint: 'بحث في الوسوم...',
   galleryNoTagsFound: 'لا توجد وسوم',
   galleryCreateTag: 'إنشاء وسم جديد',
