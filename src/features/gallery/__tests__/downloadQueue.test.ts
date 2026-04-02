@@ -589,4 +589,123 @@ describe('DownloadQueue', () => {
       expect(snap.jobs.find((j) => j.id === 'j1')?.status).toBe('canceled');
     });
   });
+
+  describe('AbortController support', () => {
+    it('passes an AbortSignal to the executor as third argument', async () => {
+      const receivedSignals = new Map<string, AbortSignal>();
+      const pending = new Map<string, { resolve: (uri: string) => void }>();
+      const executor = jest.fn(
+        (
+          job: DownloadJob,
+          _onProgress: (jobId: string, progress: number) => void,
+          signal: AbortSignal,
+        ): Promise<string> =>
+          new Promise((resolve) => {
+            receivedSignals.set(job.id, signal);
+            pending.set(job.id, { resolve });
+          }),
+      );
+
+      const queue = new DownloadQueue(executor);
+      await queue.enqueue([makeJob({ id: 'j1' })]);
+      await flush();
+
+      expect(receivedSignals.has('j1')).toBe(true);
+      expect(receivedSignals.get('j1')).toBeInstanceOf(AbortSignal);
+      expect(receivedSignals.get('j1')!.aborted).toBe(false);
+
+      pending.get('j1')!.resolve('/saved');
+      await flush();
+    });
+
+    it('aborts the signal when cancelJob is called on a running job', async () => {
+      const receivedSignals = new Map<string, AbortSignal>();
+      const pending = new Map<string, { resolve: (uri: string) => void; reject: (err: Error) => void }>();
+      const executor = jest.fn(
+        (
+          job: DownloadJob,
+          _onProgress: (jobId: string, progress: number) => void,
+          signal: AbortSignal,
+        ): Promise<string> =>
+          new Promise((resolve, reject) => {
+            receivedSignals.set(job.id, signal);
+            pending.set(job.id, { resolve, reject });
+          }),
+      );
+
+      const queue = new DownloadQueue(executor);
+      await queue.enqueue([makeJob({ id: 'j1' })]);
+      await flush();
+
+      queue.cancelJob('j1');
+      await flush();
+
+      expect(receivedSignals.get('j1')!.aborted).toBe(true);
+
+      // Clean up: reject so finally block runs
+      pending.get('j1')!.reject(new Error('aborted'));
+      await flush();
+    });
+
+    it('aborts all running signals when cancelAll is called', async () => {
+      const receivedSignals = new Map<string, AbortSignal>();
+      const pending = new Map<string, { resolve: (uri: string) => void; reject: (err: Error) => void }>();
+      const executor = jest.fn(
+        (
+          job: DownloadJob,
+          _onProgress: (jobId: string, progress: number) => void,
+          signal: AbortSignal,
+        ): Promise<string> =>
+          new Promise((resolve, reject) => {
+            receivedSignals.set(job.id, signal);
+            pending.set(job.id, { resolve, reject });
+          }),
+      );
+
+      const queue = new DownloadQueue(executor);
+      await queue.enqueue([makeJob({ id: 'j1' }), makeJob({ id: 'j2' })]);
+      await flush();
+
+      queue.cancelAll();
+      await flush();
+
+      expect(receivedSignals.get('j1')!.aborted).toBe(true);
+      expect(receivedSignals.get('j2')!.aborted).toBe(true);
+
+      // Clean up
+      pending.get('j1')!.reject(new Error('aborted'));
+      pending.get('j2')!.reject(new Error('aborted'));
+      await flush();
+    });
+
+    it('does not abort signal for a completed job', async () => {
+      const receivedSignals = new Map<string, AbortSignal>();
+      const pending = new Map<string, { resolve: (uri: string) => void }>();
+      const executor = jest.fn(
+        (
+          job: DownloadJob,
+          _onProgress: (jobId: string, progress: number) => void,
+          signal: AbortSignal,
+        ): Promise<string> =>
+          new Promise((resolve) => {
+            receivedSignals.set(job.id, signal);
+            pending.set(job.id, { resolve });
+          }),
+      );
+
+      const queue = new DownloadQueue(executor);
+      await queue.enqueue([makeJob({ id: 'j1' })]);
+      await flush();
+
+      // Complete the job first
+      pending.get('j1')!.resolve('/saved');
+      await flush();
+
+      // Cancel after completion should not abort
+      queue.cancelJob('j1');
+      await flush();
+
+      expect(receivedSignals.get('j1')!.aborted).toBe(false);
+    });
+  });
 });

@@ -10,6 +10,7 @@ type SnapshotListener = (snapshot: DownloadSnapshot) => void;
 type JobExecutor = (
   job: DownloadJob,
   onProgress: (jobId: string, progress: number) => void,
+  signal: AbortSignal,
 ) => Promise<string>; // returns saved URI
 
 let idCounter = 0;
@@ -22,13 +23,17 @@ export function generateJobId(): string {
 function computeSnapshot(jobs: DownloadJob[]): DownloadSnapshot {
   if (jobs.length === 0) return EMPTY_DOWNLOAD_SNAPSHOT;
 
-  const completedCount = jobs.filter((j) => j.status === 'completed').length;
-  const failedCount = jobs.filter((j) => j.status === 'failed').length;
-  const isActive = jobs.some((j) => j.status === 'queued' || j.status === 'running');
-  const batchProgress =
-    jobs.length > 0
-      ? jobs.reduce((sum, j) => sum + j.progress, 0) / jobs.length
-      : 0;
+  let completedCount = 0;
+  let failedCount = 0;
+  let progressSum = 0;
+  let isActive = false;
+
+  for (const j of jobs) {
+    if (j.status === 'completed') completedCount++;
+    else if (j.status === 'failed') failedCount++;
+    if (j.status === 'queued' || j.status === 'running') isActive = true;
+    progressSum += j.progress;
+  }
 
   return {
     jobs: [...jobs],
@@ -36,7 +41,7 @@ function computeSnapshot(jobs: DownloadJob[]): DownloadSnapshot {
     completedCount,
     failedCount,
     isActive,
-    batchProgress,
+    batchProgress: progressSum / jobs.length,
   };
 }
 
@@ -52,9 +57,10 @@ function isTerminal(status: DownloadStatus): boolean {
 export class DownloadQueue {
   private jobs: DownloadJob[] = [];
   private runningIds = new Set<string>();
+  private abortControllers = new Map<string, AbortController>();
   private listeners = new Set<SnapshotListener>();
   private executor: JobExecutor;
-  private processing = false;
+  private draining = false;
 
   constructor(executor: JobExecutor) {
     this.executor = executor;
@@ -86,6 +92,7 @@ export class DownloadQueue {
     if (idx < 0) return;
     if (isTerminal(this.jobs[idx].status)) return;
 
+    this.abortControllers.get(jobId)?.abort();
     this.jobs[idx] = { ...this.jobs[idx], status: 'canceled' };
     this.runningIds.delete(jobId);
     this.emit();
@@ -93,6 +100,9 @@ export class DownloadQueue {
   }
 
   cancelAll(): void {
+    for (const controller of this.abortControllers.values()) {
+      controller.abort();
+    }
     for (let i = 0; i < this.jobs.length; i++) {
       if (!isTerminal(this.jobs[i].status)) {
         this.jobs[i] = { ...this.jobs[i], status: 'canceled' };
@@ -115,8 +125,8 @@ export class DownloadQueue {
   }
 
   private async processQueue(): Promise<void> {
-    if (this.processing) return;
-    this.processing = true;
+    if (this.draining) return;
+    this.draining = true;
 
     try {
       while (this.runningIds.size < MAX_CONCURRENT_DOWNLOADS) {
@@ -134,13 +144,16 @@ export class DownloadQueue {
         this.executeJob(job.id);
       }
     } finally {
-      this.processing = false;
+      this.draining = false;
     }
   }
 
   private async executeJob(jobId: string): Promise<void> {
     const idx = this.jobs.findIndex((j) => j.id === jobId);
     if (idx < 0) return;
+
+    const controller = new AbortController();
+    this.abortControllers.set(jobId, controller);
 
     try {
       const savedUri = await this.executor(
@@ -151,6 +164,7 @@ export class DownloadQueue {
           this.jobs[i] = { ...this.jobs[i], progress: Math.min(progress, 1) };
           this.emit();
         },
+        controller.signal,
       );
 
       const completedIdx = this.jobs.findIndex((j) => j.id === jobId);
@@ -172,6 +186,7 @@ export class DownloadQueue {
         };
       }
     } finally {
+      this.abortControllers.delete(jobId);
       this.runningIds.delete(jobId);
       this.emit();
       this.processQueue();

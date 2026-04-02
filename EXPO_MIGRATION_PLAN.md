@@ -331,18 +331,24 @@ Update seed data as sub-phases progress:
 
 ---
 
-#### Phase 5D: Download System
+#### Phase 5D: Download System — DONE
 
 **Goal:** Users can download media to their device with queue management.
 
-**Business Requirements:**
-- Download individual items or selected items (integrates with 5C multi-select)
-- Format selection: original quality or watermarked version (if watermarked variant exists on the server)
-- Downloads save to the device's public Downloads folder (Android) or Documents (iOS)
-- Downloaded media should appear in the system gallery/photos app (Android media scanner integration)
-- Download progress shown via system notifications
-- Support for resuming interrupted downloads
-- Download queue: max 2 concurrent downloads, remaining queued
+**Completed:**
+- Download individual items from full-screen viewer or bulk download selected items (integrates with 5C multi-select)
+- Format selection via DownloadFormatSheet: original quality or watermarked version, with smart detection of mixed selections and graceful fallback when watermarked variant unavailable
+- Downloads save to device gallery/photos via `expo-media-library` (MediaLibrary.createAssetAsync), with cache fallback if permission denied
+- Download progress shown via Android system notifications (sticky progress, replaced atomically with result on completion) and in-app DownloadProgressBar (completed/total count, progress bar, failure badge)
+- Download queue with max 2 concurrent downloads (DownloadQueue class), FIFO ordering, automatic next-job processing
+- Success sound playback on download completion
+- Counter resets on new download batch, progress bar clears when leaving album
+- Input validation: ObjectId regex, filename sanitization, item deduplication
+- i18n: all download strings in en + ar
+- Comprehensive test coverage: downloadQueue, downloadService, downloadNotificationService, useDownload tests
+
+**Not implemented (not in Flutter either):**
+- Download resume/retry persistence across app restarts (queue is in-memory only)
 
 **Refer to:** `lib/features/gallery/services/gallery_download_service.dart`, `lib/core/downloads/`
 

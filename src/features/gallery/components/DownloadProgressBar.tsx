@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, type DimensionValue } from 'react-native';
 import { Download, X, AlertCircle } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/theme';
@@ -89,7 +89,7 @@ export function DownloadProgressBar({
               styles.progressFill,
               {
                 backgroundColor: colors.primary,
-                width: `${Math.round(snapshot.batchProgress * 100)}%` as any,
+                width: `${Math.round(snapshot.batchProgress * 100)}%` as DimensionValue,
               },
             ]}
           />

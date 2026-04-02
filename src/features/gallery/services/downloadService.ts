@@ -15,6 +15,9 @@ import { downloadNotificationObserver, dismissDownloadNotifications } from './do
 
 const OBJECT_ID_RE = /^[0-9a-fA-F]{24}$/;
 
+/** Module-level cache for media library permission, checked once per batch in downloadItems(). */
+let mediaLibraryGranted = false;
+
 /**
  * Sanitize a filename by replacing forbidden characters.
  */
@@ -64,6 +67,7 @@ function resolveSourceUrl(itemId: string, format?: DownloadFormat): string {
 async function executeDownload(
   job: DownloadJob,
   onProgress: (jobId: string, progress: number) => void,
+  signal: AbortSignal,
 ): Promise<string> {
   // Get auth token
   const token = await tokenStorage.getAccessToken();
@@ -84,18 +88,23 @@ async function executeDownload(
 
   onProgress(job.id, 0.05);
 
-  // Download file
+  // Download file (pass signal so abort cancels the HTTP request)
   const downloadedFile = await File.downloadFileAsync(
     job.sourceUrl,
     destFile,
-    { headers, idempotent: true },
+    { headers, idempotent: true, signal },
   );
 
   onProgress(job.id, 0.85);
 
+  // Check if canceled before saving to media library
+  if (signal.aborted) {
+    return downloadedFile.uri;
+  }
+
   // Save to media library (makes it visible in Photos/Gallery app)
-  const { status } = await MediaLibrary.requestPermissionsAsync();
-  if (status !== 'granted') {
+  // Permission is checked once upfront in downloadItems(), read cached result here.
+  if (!mediaLibraryGranted) {
     // If permission denied, the file is still in cache — return cache URI
     onProgress(job.id, 1.0);
     return downloadedFile.uri;
@@ -165,6 +174,10 @@ export async function downloadItems(
   }
 
   if (jobs.length > 0) {
+    // Check media library permission once for the entire batch
+    const { status } = await MediaLibrary.requestPermissionsAsync();
+    mediaLibraryGranted = status === 'granted';
+
     // Clear stale completed/failed jobs so the counter resets for the new batch
     queue.clearCompleted();
     await queue.enqueue(jobs);
