@@ -23,9 +23,25 @@ interface VideoPlayerProps {
 }
 
 /**
+ * Extract the raw Bearer token from auth headers.
+ * Returns null if no token is available.
+ */
+function extractToken(headers: { Authorization: string } | undefined): string | null {
+  if (!headers?.Authorization) return null;
+  const parts = headers.Authorization.split(' ');
+  return parts.length === 2 ? parts[1] : null;
+}
+
+/**
  * Video player for the full-screen media viewer.
  * Shows a thumbnail with play overlay initially, then streams the video inline using expo-video.
  * Handles loading, error, and playback states.
+ *
+ * Auth strategy: Native video players (ExoPlayer/AVPlayer) don't reliably forward
+ * custom HTTP headers. We use belt-and-suspenders: both a `?token=xxx` query param
+ * in the URL (which the server accepts) AND `headers: { Authorization }` on the
+ * video source object. The useMemo depends on a boolean `hasToken` (not the token
+ * string) to avoid recreating the player on every 30s token refresh.
  */
 export function VideoPlayer({ item }: VideoPlayerProps) {
   const { t } = useTranslation();
@@ -38,18 +54,30 @@ export function VideoPlayer({ item }: VideoPlayerProps) {
     [item.thumbnailUrl],
   );
 
-  const videoUri = useMemo(() => getFullResMediaUrl(item.id), [item.id]);
+  const baseVideoUri = useMemo(() => getFullResMediaUrl(item.id), [item.id]);
 
-  // Stabilize the source: only rebuild when the URI changes, not on every
-  // authHeaders refresh (every 30s). useVideoPlayer recreates the player when
-  // its source reference changes, which would interrupt playback.
-  const authHeadersRef = useRef(authHeaders);
-  authHeadersRef.current = authHeaders;
+  // Keep a stable ref to the latest token so the source memo doesn't depend
+  // on the token string itself (which changes every 30s).
+  const tokenRef = useRef<string | null>(null);
+  tokenRef.current = extractToken(authHeaders);
+  const hasToken = tokenRef.current != null;
 
-  const videoSource = useMemo(
-    () => videoUri ? { uri: videoUri, headers: authHeadersRef.current } : null,
-    [videoUri],
-  );
+  // Build the video source with ?token=xxx in the URL for native player auth,
+  // plus headers as a secondary auth mechanism.
+  // The dependency on `hasToken` (boolean) ensures the player is only recreated
+  // when auth availability changes (logged in/out), not on every 30s refresh.
+  const videoSource = useMemo(() => {
+    if (!baseVideoUri) return null;
+    const token = tokenRef.current;
+    const uri = token
+      ? `${baseVideoUri}?token=${encodeURIComponent(token)}`
+      : baseVideoUri;
+    return {
+      uri,
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baseVideoUri, hasToken]);
 
   const player = useVideoPlayer(videoSource, (p) => {
     if (playRequested) {
@@ -80,7 +108,7 @@ export function VideoPlayer({ item }: VideoPlayerProps) {
     setPlayRequested(false);
   }, []);
 
-  if (!videoUri || error) {
+  if (!baseVideoUri || error) {
     return (
       <View style={styles.container}>
         <AlertCircle size={48} color="rgba(255, 255, 255, 0.54)" />
