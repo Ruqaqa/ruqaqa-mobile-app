@@ -19,7 +19,6 @@ Before starting, be aware of these constraints:
 
 | Area | Problem |
 |------|---------|
-| **Video watermarking** | FFmpegKit (the primary FFmpeg wrapper for React Native) was archived/retired in June 2025. There is no well-maintained unified library for applying watermarks to videos. Community forks exist but have uncertain futures. Image watermarking is fine. |
 | **Background file processing** | React Native has no equivalent to Dart isolates. Heavy computation (file hashing, compression pipelines) blocks the JS thread. Native modules or JSI are needed for parallel processing, but the DX is significantly worse. |
 
 ### Medium Risk
@@ -34,9 +33,9 @@ Before starting, be aware of these constraints:
 
 Keycloak OAuth, image compression, cached images, localization/RTL, share intents, multipart uploads, media scanner, local notifications — all have good Expo equivalents.
 
-### Recommendation on Video Watermarking
+### Note on Video Watermarking
 
-Since video watermarking has no reliable client-side solution in React Native, consider moving video watermark application to the **server side** (the Payload backend already processes uploads). The mobile app would only handle image watermarking client-side. This architectural change would eliminate the highest-risk item.
+Video watermarking is done **client-side** using `kroog-ffmpeg-kit-react-native` (a maintained community fork of the archived FFmpegKit). FFmpeg applies the watermark overlay and H.264 compression in a **single pass** — no need for separate watermark and compression steps. The overlay filter runs on CPU, but the H.264 encoding step can leverage hardware acceleration (VideoToolbox on iOS, MediaCodec on Android) if built from source with those flags enabled. The default pre-built binaries use software encoding (`libx264`), which is acceptable for typical mobile video lengths. See Phase 6D for details.
 
 ---
 
@@ -420,8 +419,8 @@ Update seed data as sub-phases progress:
 
 **Upload Pipeline:**
 - `UploadPipeline` orchestrator with weighted progress tracking
-  - Image weight: 1.0 each (0.20 optimize + 0.10 watermark + 0.75 upload)
-  - Video weight: 3.0 (1.8 optimize + 1.2 watermark+upload)
+  - Image weight: 1.0 each (0.20 optimize + 0.10 watermark + 0.70 upload)
+  - Video weight: 3.0 (2.0 watermark+compress single pass + 1.0 upload)
   - Progress = completedWeight / totalWeight
 - Max 3 concurrent image uploads (FIFO)
 - 2 retry attempts per failed upload with exponential backoff (500ms, 1000ms)
@@ -466,13 +465,13 @@ Update seed data as sub-phases progress:
 - Confirm button returns `Map<string, WatermarkDraft>` keyed by item ID, cancel returns null
 - "Apply to All" copies position/size/opacity from active item to all others
 
-**Watermark Application:**
+**Watermark Application (Images Only):**
 - Apply logo overlay to images using Skia canvas rendering (via `@shopify/react-native-skia`) or equivalent
-- Logo: green branded logo (`assets/logo-green.png`)
+- Logo: green branded logo (`assets/logo-green.png`) — same logo used on the login page
 - Position/size/opacity from `WatermarkDraft` (all percentage-based, 0–100)
 - Save watermarked image to temp file
 - Falls back to original if watermarking fails
-- Video watermarking deferred to server-side (per Expo limitations)
+- Video watermarking is handled in Phase 6D via FFmpeg (single pass: overlay + compress)
 
 **Settings & Defaults:**
 - Fetch default watermark settings from `GET /api/mobile/gallery/watermark-settings` (logo URL, x, y, width, opacity)
@@ -492,17 +491,44 @@ Update seed data as sub-phases progress:
 
 #### Phase 6D: Video Processing & Share Intent
 
-**Goal:** Video optimization support and Gallery share intent flow target.
+**Goal:** Video watermarking + compression (single FFmpeg pass) and Gallery share intent flow target.
 
 **Business Requirements:**
 
-**Video Optimization:**
-- Compress video using H.264 encoding (via `react-native-compressor` or similar)
-- Show compression progress (0–100%) in the pipeline UI
-- Fall back to original if compression fails or produces a larger file
-- Video thumbnail generation at selection time for preview
-- Video processed sequentially in pipeline (not concurrent with other videos)
-- Video weight: 3.0 in pipeline progress (1.8 optimize + 1.2 watermark+upload)
+**FFmpeg Library Setup:**
+- Use `kroog-ffmpeg-kit-react-native` (maintained community fork of the archived FFmpegKit, last updated March 2026)
+- Expo integration via `@config-plugins/ffmpeg-kit-react-native` config plugin
+- Package variant: `full` or `full-gpl` (includes all codecs needed for H.264 encoding)
+- Note: raises Android minSdk to 24
+
+**Video Processing — Single FFmpeg Pass (Watermark + Compress):**
+- Watermark overlay and H.264 compression happen in **one FFmpeg command**, not two separate steps
+- FFmpeg command: `-i input.mp4 -i watermark.png -filter_complex "overlay=x:y" -c:v libx264 -preset fast -crf 23 output.mp4`
+- Overlay position/size/opacity from `WatermarkDraft` (percentage-based, converted to pixel values based on video dimensions)
+- Logo: green branded logo (`assets/logo-green.png`) — same logo used on the login page
+- If `noWatermarkNeeded` is set, run compression only (no overlay filter)
+- Fall back to original if FFmpeg processing fails or produces a larger file
+- Video processed **sequentially** in pipeline (one video at a time, not concurrent)
+- Video weight: 3.0 in pipeline progress (2.0 watermark+compress + 1.0 upload)
+- Encoding: `libx264` software encoding (pre-built binaries). Hardware encoding (VideoToolbox/MediaCodec) possible later via custom FFmpeg build with `--enable-videotoolbox` / `--enable-mediacodec` flags
+- Limit FFmpeg threads (`-threads 2`) to reduce memory pressure on low-end devices
+
+**FFmpeg Progress Tracking:**
+- FFmpeg reports progress via its statistics callback (frame count, time, speed)
+- Map FFmpeg progress (0–100%) to pipeline progress for the watermark+compress stage
+- Show progress in both the in-app `UploadProgressCard` and the system notification
+
+**Foreground Notification (OOM Protection):**
+- While video processing is active, show a **sticky foreground notification** with progress percentage (e.g. "Processing video... 45%")
+- This prevents the OS from killing the app when processing in the foreground or if the user briefly switches apps
+- Update notification progress atomically (same pattern as download notifications in Phase 5D)
+- Replace with completion notification ("Video processed successfully" / "Processing failed") when done
+- Use `expo-notifications` — already in the project from download system
+
+**Video Thumbnail Generation:**
+- Generate thumbnail at selection time for the upload preview UI
+- Use FFmpeg to extract a frame at 1 second: `-ss 1 -frames:v 1 output.jpg`
+- Fall back to a generic video placeholder if extraction fails
 
 **Share Intent Integration:**
 - Enable the "Gallery" flow target in `src/services/shareIntent/flowTargets.ts` (currently disabled with "Coming soon" badge)
@@ -518,16 +544,15 @@ Update seed data as sub-phases progress:
 
 **Refer to:** `lib/features/gallery/services/video_optimization_service.dart`, `lib/features/gallery/services/video_processing_service.dart`
 
-**Deliverable:** Videos can be compressed and uploaded. Shared files route to Gallery upload flow.
+**Deliverable:** Videos are watermarked and compressed in a single FFmpeg pass with progress tracking and foreground notification. Shared files route to Gallery upload flow.
 
 ---
 
 **Phase 6 Dependency Chain:**
 ```
-6A → 6B → 6C
-              ↘
-               6D (6C and 6D can be parallel after 6B)
+6A → 6B → 6C → 6D
 ```
+6C (watermark editor + image watermarking) must come before 6D (video processing) because 6D uses the same `WatermarkDraft` positions from the editor and the same pipeline integration patterns. Share intent (part of 6D) is independent but bundled for simplicity.
 
 ---
 
@@ -568,11 +593,11 @@ Update seed data as sub-phases progress:
 | 5D | Gallery — Download System | Phase 5B |
 | 6A | Gallery — Upload Screen & Media Selection | Phase 5A |
 | 6B | Gallery — Upload Pipeline & Image Optimization | Phase 6A |
-| 6C | Gallery — Watermark System | Phase 6B |
-| 6D | Gallery — Video Processing & Share Intent | Phase 6B |
+| 6C | Gallery — Watermark System (Images) | Phase 6B |
+| 6D | Gallery — Video Processing (FFmpeg) & Share Intent | Phase 6C |
 | 7 | Shared Components & Polish | All phases |
 
-Phases 3, 4, and 5A can be worked on in parallel once Phase 2 is complete. 5C and 5D can be worked on in parallel once 5B is complete. 6C and 6D can be worked on in parallel once 6B is complete.
+Phases 3, 4, and 5A can be worked on in parallel once Phase 2 is complete. 5C and 5D can be worked on in parallel once 5B is complete. 6C and 6D are sequential (6C → 6D).
 
 ---
 
@@ -582,7 +607,7 @@ Phases 3, 4, and 5A can be worked on in parallel once Phase 2 is complete. 5C an
 
 2. **API base URL** is configurable: dev is `http://192.168.100.53:3000`, production is `https://ruqaqa.sa`. All mobile API routes are under `/api/mobile/`.
 
-3. **Video watermarking** should be moved to server-side processing. Do not attempt client-side video watermarking in React Native — the ecosystem does not have a reliable solution.
+3. **Video watermarking** is done client-side via `kroog-ffmpeg-kit-react-native`. FFmpeg handles watermark overlay + H.264 compression in a single pass. See Phase 6D for the full approach.
 
 4. **Use `expo prebuild`** and development builds from day one. Do not rely on Expo Go — too many features require native modules.
 
