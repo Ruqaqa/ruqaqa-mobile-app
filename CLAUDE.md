@@ -147,7 +147,7 @@ Cross-cutting concern — receives files from other apps and routes them to the 
 
 **Album browsing:** 2-column grid with mosaic thumbnails, search, create/rename via bottom sheets. `useAlbumList` (debounced search, optimistic updates), `useAlbumActions` (create + rename). Default album is protected from rename/delete.
 
-**Media viewing:** Paginated media grid inside albums (20/page, infinite scroll). Full-screen viewer with pinch-to-zoom (ZoomableImage), horizontal swipe navigation (RTL-aware), video playback (VideoPlayer via expo-video). `useAlbumMedia` manages pagination. `useAuthHeaders` provides 30s auto-refresh auth headers for private media URLs.
+**Media viewing:** Paginated media grid inside albums (20/page, infinite scroll). Full-screen viewer with pinch-to-zoom (ZoomableImage), horizontal swipe navigation (RTL-aware), video playback (VideoPlayer via expo-video with `?token=` query param + Authorization header belt-and-suspenders auth — native players don't reliably forward custom HTTP headers). `useAlbumMedia` manages pagination. `useAuthHeaders` provides 30s auto-refresh auth headers for private media URLs.
 
 **Multi-select & bulk actions:** Long-press to enter selection mode, select all/deselect. Bulk delete (permission-gated: `gallery_cms_delete`). Bulk manage sheet with tri-state UI for album assignment, tag assignment, project association. `useMediaSelection` (Set-based, O(1)), `useMediaBulkActions` (sequential processing with progress). Backend: `PUT /gallery/[id]/manage`.
 

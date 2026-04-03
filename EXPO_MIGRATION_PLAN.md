@@ -283,7 +283,7 @@ Update seed data as sub-phases progress:
 **Completed:**
 - Media grid inside album detail showing authenticated thumbnails (images and videos distinguished with play icon overlay)
 - Tap to open full-screen media viewer with pinch-to-zoom (ZoomableImage via react-native-gesture-handler)
-- Video playback support in the viewer (VideoPlayer via expo-av)
+- Video playback support in the viewer (VideoPlayer via expo-video with `?token=` query param + Authorization header belt-and-suspenders auth, since native players don't reliably forward custom HTTP headers)
 - Paginated media loading for large albums (20 per page, infinite scroll)
 - MediaThumbnail component with shimmer loading, auth header gating (prevents 401 race), error/placeholder states
 - useAuthHeaders hook with 30s auto-refresh and stable object reference (no unnecessary re-renders)
