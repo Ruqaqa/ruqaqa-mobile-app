@@ -8,7 +8,7 @@ Expo (React Native + TypeScript) mobile app for Ruqaqa employees. It's a migrati
 
 App ID: `sa.ruqaqa.finance` | Version: 1.2.1 | Scheme: `ruqaqa://`
 
-**Migration status:** Phases 0–5 complete (auth, permissions, transactions, reconciliation, gallery browsing/viewing/multi-select/download). Phase 6 (gallery upload & processing) and Phase 7 (polish) pending. See `EXPO_MIGRATION_PLAN.md` for details.
+**Migration status:** Phases 0–5 complete (auth, permissions, transactions, reconciliation, gallery browsing/viewing/multi-select/download). Phase 6A–6B complete (upload screen, media pickers, metadata selection, upload pipeline, image optimization, dedup). Phase 6C (watermark editor + image watermarking) and Phase 6D (FFmpeg video processing + share intent) pending. See `EXPO_MIGRATION_PLAN.md` for details.
 
 ## Commands
 
@@ -260,3 +260,4 @@ Test files live next to source in `__tests__/` directories. Mock `expo-secure-st
 - Client-side permission checks are UX-only — the backend is the security boundary
 - New features should follow the feature structure convention (types, components, hooks, services, utils, tests)
 - Shared finance UI goes in `src/components/finance/`, not duplicated per feature
+- **expo-ffmpeg module** (custom FFmpeg module for video watermarking, compression, and GPU-accelerated encoding): The source of truth is `../expo-ffmpeg-module/`, NOT `modules/expo-ffmpeg/`. All development, bug fixes, and feature changes must be made in the original project first, verified there (build + device test), then copied into `modules/expo-ffmpeg/`. Never edit the module directly inside this project — it's a reusable module, not app-specific code.

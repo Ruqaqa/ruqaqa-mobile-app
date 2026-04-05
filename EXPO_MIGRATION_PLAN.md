@@ -35,7 +35,7 @@ Keycloak OAuth, image compression, cached images, localization/RTL, share intent
 
 ### Note on Video Watermarking
 
-Video watermarking is done **client-side** using `kroog-ffmpeg-kit-react-native` (a maintained community fork of the archived FFmpegKit). FFmpeg applies the watermark overlay and H.264 compression in a **single pass** — no need for separate watermark and compression steps. The overlay filter runs on CPU, but the H.264 encoding step can leverage hardware acceleration (VideoToolbox on iOS, MediaCodec on Android) if built from source with those flags enabled. The default pre-built binaries use software encoding (`libx264`), which is acceptable for typical mobile video lengths. See Phase 6D for details.
+Video watermarking is done **client-side** using a **custom Expo module** that wraps FFmpeg compiled from source. By compiling ourselves, we enable GPU hardware encoding (`h264_videotoolbox` on iOS, `h264_mediacodec` on Android) which the community fork pre-built binaries don't include. FFmpeg applies the watermark overlay and H.264 compression in a **single pass**. The overlay filter runs on CPU, the encoding leverages the device GPU (4-8x faster than software encoding). The module only includes what we need (overlay filter + H.264 encoder), keeping the binary smaller than full FFmpegKit. See Phase 6D for details.
 
 ---
 
@@ -361,35 +361,44 @@ Update seed data as sub-phases progress:
 
 ---
 
-#### Phase 6A: Upload Screen & Media Selection
+#### Phase 6A: Upload Screen & Media Selection — DONE
 
 **Goal:** The upload tab has a working screen where users can pick media and select metadata.
 
 **Business Requirements:**
 
 **Upload Screen UI:**
-- Replace current upload tab placeholder with the upload screen
-- Two picker cards: "Pick Images" (up to 20) and "Pick Video" (1 only) via `expo-image-picker`
-- Image preview grid (3 columns) with tap-to-remove
-- Video preview card with thumbnail
-- Upload button enabled only when media selected + required metadata set
+- [x] Replace current upload tab placeholder with the upload screen
+- [x] Two picker cards: "Pick Images" (up to 20) and "Pick Video" (1 only) via `expo-image-picker`
+- [x] Image preview grid (3 columns) with tap-to-remove
+- [x] Video preview card with thumbnail
+- [x] Upload button enabled only when media selected + required metadata set
 
 **Metadata Selection:**
-- Album picker (multi-select, required) with search and inline creation via bottom sheet
-- Tag picker (multi-select, required) with search and inline creation via bottom sheet
-- Project picker (single-select, optional) with search and inline creation via bottom sheet
-- Validation: upload blocked until albums and tags are selected
+- [x] Album picker (multi-select, required) with search and inline creation via bottom sheet
+- [x] Tag picker (multi-select, required) with search and inline creation via bottom sheet
+- [x] Project picker (single-select, optional) with search and inline creation via bottom sheet
+- [x] Validation: upload blocked until albums and tags are selected
 
 **Gallery Service Extensions:**
-- `fetchTags()` — list tags with search/locale support
-- `createTag(name, locale)` — inline tag creation
-- `createProject(name, clientName?, clientId?)` — inline project creation
+- [x] `fetchTags()` — list tags with search/locale support
+- [x] `createTag(name, locale)` — inline tag creation
+- [x] `createProject(name, clientName?, clientId?)` — inline project creation
 
 **Types & Constants:**
-- `ItemState` enum (waiting, hashing, checkingDuplicate, optimizing, checkingSize, watermarking, uploading, done, skipped, failed, sizeExceeded)
-- `PipelineStatus`, `PipelineItemStatus`, `PipelineResult` types
-- `WatermarkDraft` type (xPct, yPct, widthPct, opacityPct, noWatermarkNeeded)
-- Upload constants: MAX_IMAGES (20), MAX_VIDEO (1), MAX_FILE_SIZE (100MB), MAX_CONCURRENT_UPLOADS (3), MAX_UPLOAD_RETRIES (2)
+- [x] `ItemState` enum (waiting, hashing, checkingDuplicate, optimizing, checkingSize, watermarking, uploading, done, skipped, failed, sizeExceeded)
+- [x] `PipelineStatus`, `PipelineItemStatus`, `PipelineResult` types
+- [x] `WatermarkDraft` type (xPct, yPct, widthPct, opacityPct, noWatermarkNeeded)
+- [x] Upload constants: MAX_IMAGES (20), MAX_VIDEO (1), MAX_FILE_SIZE (100MB), MAX_CONCURRENT_UPLOADS (3), MAX_UPLOAD_RETRIES (2)
+
+**Completed:**
+- UploadScreen component with media picker cards, image preview grid, video preview card
+- UploadTabContainer orchestrator wiring hooks, pickers, and pipeline
+- MetadataPickerField (chips + remove) and SearchablePickerSheet (search + inline creation)
+- useUploadForm hook managing form state, validation, and reset
+- Gallery service: fetchTags, createTag, fetchProjects, createProject with input sanitization
+- All Phase 6A types and constants defined in `src/features/gallery/types.ts`
+- Navigation integration in GalleryShell with pipeline state checking
 
 **Refer to:** `lib/features/gallery/pages/gallery_upload_page.dart` (media selection + metadata UI)
 
@@ -397,48 +406,55 @@ Update seed data as sub-phases progress:
 
 ---
 
-#### Phase 6B: Upload Pipeline & Image Optimization
+#### Phase 6B: Upload Pipeline & Image Optimization — DONE
 
 **Goal:** Images can be optimized, deduplicated, and uploaded to the backend.
 
 **Business Requirements:**
 
 **Image Optimization:**
-- Resize to max 2048px on longest edge
-- Compress to ~65% quality
-- Convert JPEG/HEIC to WebP, keep PNG as PNG
-- Skip optimization if compressed file is larger than original
-- Use `expo-image-manipulator` for resize/compress/format conversion
+- [x] Resize to max 2048px on longest edge
+- [x] Compress to ~65% quality
+- [x] Convert JPEG/HEIC to WebP, keep PNG as PNG
+- [x] Skip optimization if compressed file is larger than original
+- [x] Use `react-native-compressor` for resize/compress/format conversion
 
 **File Hashing & Duplicate Detection:**
-- Compute SHA-256 hash of each file before upload (use `expo-crypto` or streaming approach to avoid blocking JS thread)
-- Call `GET /api/mobile/gallery/check-hash?hash=...` to check for duplicates
-- If duplicate found, show `DuplicateSheet` bottom sheet with existing item details (filename, albums, tags, project, date)
-- User can choose "Add to Albums" (links existing item to selected albums via `POST /api/mobile/gallery/{id}/albums`) or "Skip"
-- "Apply to All Remaining" checkbox caches the decision for subsequent duplicates
+- [x] Compute SHA-256 hash of each file before upload (use `expo-crypto`)
+- [x] Call `GET /api/mobile/gallery/check-hash?hash=...` to check for duplicates
+- [x] If duplicate found, show `DuplicateSheet` bottom sheet with existing item details (filename, albums, tags, project, date)
+- [x] User can choose "Add to Albums" (links existing item to selected albums via `POST /api/mobile/gallery/{id}/albums`) or "Skip"
+- [x] "Apply to All Remaining" checkbox caches the decision for subsequent duplicates
 
 **Upload Pipeline:**
-- `UploadPipeline` orchestrator with weighted progress tracking
-  - Image weight: 1.0 each (0.20 optimize + 0.10 watermark + 0.70 upload)
-  - Video weight: 3.0 (2.0 watermark+compress single pass + 1.0 upload)
-  - Progress = completedWeight / totalWeight
-- Max 3 concurrent image uploads (FIFO)
-- 2 retry attempts per failed upload with exponential backoff (500ms, 1000ms)
-- Max file size check: 100 MB per item
-- Pipeline stages per item: hash → dedup check → optimize → size check → (watermark placeholder) → upload
-- Multipart upload via `POST /api/mobile/gallery` with fields: file, albumIds, tags, project, originalSourceHash, noWatermarkNeeded, watermarkOverrides
+- [x] `UploadPipeline` orchestrator with weighted progress tracking
+- [x] Max 3 concurrent image uploads (FIFO)
+- [x] 2 retry attempts per failed upload with exponential backoff (500ms, 1000ms)
+- [x] Max file size check: 100 MB per item
+- [x] Pipeline stages per item: hash → dedup check → optimize → size check → (watermark placeholder) → upload
+- [x] Multipart upload via `POST /api/mobile/gallery` with fields: file, albumIds, tags, project, originalSourceHash, noWatermarkNeeded, watermarkOverrides
 
 **Upload Progress UI:**
-- `UploadProgressCard` showing overall progress bar with percentage
-- Per-item status with icons (waiting, hashing, optimizing, uploading, done, skipped, failed, sizeExceeded)
-- Error message display for failed items
-- Upload stages: idle → processing → done/error
-- Success sound on completion
-- Flow reset: clear selections and return to idle state after completion
+- [x] `UploadProgressCard` showing overall progress bar with percentage
+- [x] Per-item status with icons (waiting, hashing, optimizing, uploading, done, skipped, failed, sizeExceeded)
+- [x] Error message display for failed items
+- [x] Upload stages: idle → processing → done/error
+- [x] Success sound on completion
+- [x] Flow reset: clear selections and return to idle state after completion
 
 **Result Tracking:**
-- `PipelineResult` with successCount, failedCount, skippedCount, oversizedCount, bytesSaved
-- Summary shown to user after pipeline completes
+- [x] `PipelineResult` with successCount, failedCount, skippedCount, oversizedCount, bytesSaved
+- [x] Summary shown to user after pipeline completes
+
+**Completed:**
+- Full UploadPipeline class (602 lines) with concurrency control, retry, keep-awake, app state listener
+- fileHashService (SHA-256 via expo-crypto), imageOptimizationService (react-native-compressor)
+- DuplicateSheet with "Add to Albums" / "Skip" / "Apply to All Remaining"
+- galleryService: checkHash, addItemToAlbums, uploadItem (multipart with privacy-safe filenames, MIME detection)
+- UploadProgressCard with per-item status rows and result summary
+- useUploadPipeline hook with duplicate decision promise-based resolution
+- videoOptimizationService (basic compression via react-native-compressor, not FFmpeg)
+- Comprehensive test coverage: uploadPipeline.test.ts, useUploadForm.test.ts, useUploadPipeline.test.ts
 
 **Refer to:** `lib/features/gallery/services/upload_pipeline.dart`, `lib/features/gallery/services/image_optimization_service.dart`, `lib/features/gallery/services/file_hash_service.dart`, `lib/features/gallery/widgets/duplicate_sheet.dart`, `lib/features/gallery/widgets/upload_progress_card.dart`
 
@@ -495,22 +511,27 @@ Update seed data as sub-phases progress:
 
 **Business Requirements:**
 
-**FFmpeg Library Setup:**
-- Use `kroog-ffmpeg-kit-react-native` (maintained community fork of the archived FFmpegKit, last updated March 2026)
-- Expo integration via `@config-plugins/ffmpeg-kit-react-native` config plugin
-- Package variant: `full` or `full-gpl` (includes all codecs needed for H.264 encoding)
-- Note: raises Android minSdk to 24
+**Custom FFmpeg Expo Module:**
+- Build a custom Expo module (`modules/expo-ffmpeg/`) that wraps FFmpeg compiled from source
+- Cross-compile FFmpeg for Android (arm64-v8a, armeabi-v7a) via Android NDK and iOS (arm64) via Xcode toolchain
+- Build flags include: `--enable-videotoolbox` (iOS GPU), `--enable-mediacodec --enable-jni` (Android GPU), `--enable-libx264 --enable-gpl` (software fallback)
+- Only include needed components: H.264 encoder, overlay filter, image extraction — keeps binary smaller than full FFmpegKit
+- Expo module exposes to JS: `execute(command)`, progress callback, `cancel()`
+- Build scripts in `modules/expo-ffmpeg/scripts/` for reproducible compilation
+- Pre-compiled binaries committed or hosted for CI (avoid recompiling on every build)
 
 **Video Processing — Single FFmpeg Pass (Watermark + Compress):**
 - Watermark overlay and H.264 compression happen in **one FFmpeg command**, not two separate steps
-- FFmpeg command: `-i input.mp4 -i watermark.png -filter_complex "overlay=x:y" -c:v libx264 -preset fast -crf 23 output.mp4`
+- FFmpeg command uses GPU encoding with software fallback:
+  - iOS: `-i input.mp4 -i logo.png -filter_complex "overlay=x:y" -c:v h264_videotoolbox -b:v 2M output.mp4`
+  - Android: `-i input.mp4 -i logo.png -filter_complex "overlay=x:y" -c:v h264_mediacodec -b:v 2M output.mp4`
+  - Fallback: `-c:v libx264 -preset fast -crf 23` if hardware encoder unavailable
 - Overlay position/size/opacity from `WatermarkDraft` (percentage-based, converted to pixel values based on video dimensions)
 - Logo: green branded logo (`assets/logo-green.png`) — same logo used on the login page
 - If `noWatermarkNeeded` is set, run compression only (no overlay filter)
 - Fall back to original if FFmpeg processing fails or produces a larger file
 - Video processed **sequentially** in pipeline (one video at a time, not concurrent)
 - Video weight: 3.0 in pipeline progress (2.0 watermark+compress + 1.0 upload)
-- Encoding: `libx264` software encoding (pre-built binaries). Hardware encoding (VideoToolbox/MediaCodec) possible later via custom FFmpeg build with `--enable-videotoolbox` / `--enable-mediacodec` flags
 - Limit FFmpeg threads (`-threads 2`) to reduce memory pressure on low-end devices
 
 **FFmpeg Progress Tracking:**
@@ -580,22 +601,22 @@ Update seed data as sub-phases progress:
 
 ## Phase Summary
 
-| Phase | Name | Depends On |
-|-------|------|------------|
-| 0 | Project Scaffolding & Infrastructure | — |
-| 1 | Authentication & User Session | Phase 0 |
-| 2 | Permissions & Role-Based Access | Phase 1 |
-| 3 | Transactions | Phase 2 |
-| 4 | Reconciliation | Phase 2 |
-| 5A | Gallery — Album Browsing & CRUD | Phase 2 |
-| 5B | Gallery — Media Viewing | Phase 5A |
-| 5C | Gallery — Multi-Select & Bulk Actions | Phase 5B |
-| 5D | Gallery — Download System | Phase 5B |
-| 6A | Gallery — Upload Screen & Media Selection | Phase 5A |
-| 6B | Gallery — Upload Pipeline & Image Optimization | Phase 6A |
-| 6C | Gallery — Watermark System (Images) | Phase 6B |
-| 6D | Gallery — Video Processing (FFmpeg) & Share Intent | Phase 6C |
-| 7 | Shared Components & Polish | All phases |
+| Phase | Name | Status | Depends On |
+|-------|------|--------|------------|
+| 0 | Project Scaffolding & Infrastructure | DONE | — |
+| 1 | Authentication & User Session | DONE | Phase 0 |
+| 2 | Permissions & Role-Based Access | DONE | Phase 1 |
+| 3 | Transactions | DONE | Phase 2 |
+| 4 | Reconciliation | DONE | Phase 2 |
+| 5A | Gallery — Album Browsing & CRUD | DONE | Phase 2 |
+| 5B | Gallery — Media Viewing | DONE | Phase 5A |
+| 5C | Gallery — Multi-Select & Bulk Actions | DONE | Phase 5B |
+| 5D | Gallery — Download System | DONE | Phase 5B |
+| 6A | Gallery — Upload Screen & Media Selection | DONE | Phase 5A |
+| 6B | Gallery — Upload Pipeline & Image Optimization | DONE | Phase 6A |
+| 6C | Gallery — Watermark System (Images) | **NEXT** | Phase 6B |
+| 6D | Gallery — Video Processing (FFmpeg) & Share Intent | Pending | Phase 6C |
+| 7 | Shared Components & Polish | Pending | All phases |
 
 Phases 3, 4, and 5A can be worked on in parallel once Phase 2 is complete. 5C and 5D can be worked on in parallel once 5B is complete. 6C and 6D are sequential (6C → 6D).
 
@@ -607,7 +628,7 @@ Phases 3, 4, and 5A can be worked on in parallel once Phase 2 is complete. 5C an
 
 2. **API base URL** is configurable: dev is `http://192.168.100.53:3000`, production is `https://ruqaqa.sa`. All mobile API routes are under `/api/mobile/`.
 
-3. **Video watermarking** is done client-side via `kroog-ffmpeg-kit-react-native`. FFmpeg handles watermark overlay + H.264 compression in a single pass. See Phase 6D for the full approach.
+3. **Video watermarking** is done client-side via a custom FFmpeg Expo module (`modules/expo-ffmpeg/`) compiled from source with GPU hardware encoding enabled. FFmpeg handles watermark overlay + H.264 compression in a single pass. See Phase 6D for the full approach.
 
 4. **Use `expo prebuild`** and development builds from day one. Do not rely on Expo Go — too many features require native modules.
 
