@@ -435,6 +435,8 @@ function privacySafeFilename(uri: string): string {
 
 export interface UploadItemParams {
   fileUri: string;
+  /** URI of the watermarked variant file. If provided and exists, uploaded as 'watermarkedFile'. */
+  watermarkedFileUri?: string;
   alreadyOptimized?: boolean;
   noWatermarkNeeded?: boolean;
   albumIds?: string[];
@@ -482,6 +484,23 @@ export async function uploadItem(params: UploadItemParams): Promise<UploadItemRe
       name: filename,
       type: mimeType,
     } as any);
+
+    // Watermarked variant — dual-variant upload for videos
+    if (params.watermarkedFileUri) {
+      const wmFileRef = new FSFile(params.watermarkedFileUri);
+      if (wmFileRef.exists) {
+        const wmNormalizedUri = params.watermarkedFileUri.startsWith('file://') ? params.watermarkedFileUri
+          : params.watermarkedFileUri.startsWith('/') ? `file://${params.watermarkedFileUri}`
+          : params.watermarkedFileUri;
+        const wmFilename = privacySafeFilename(params.watermarkedFileUri);
+        const wmMimeType = lookupMimeType(params.watermarkedFileUri);
+        formData.append('watermarkedFile', {
+          uri: wmNormalizedUri,
+          name: wmFilename,
+          type: wmMimeType,
+        } as any);
+      }
+    }
 
     if (params.alreadyOptimized) {
       formData.append('alreadyOptimized', 'true');

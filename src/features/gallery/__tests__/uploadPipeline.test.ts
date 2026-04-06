@@ -40,9 +40,11 @@ jest.mock('../services/imageOptimizationService', () => ({
 
 // Mock videoOptimizationService
 const mockOptimizeVideo = jest.fn();
+const mockWatermarkVideo = jest.fn();
 const mockCancelVideoCompression = jest.fn();
 jest.mock('../services/videoOptimizationService', () => ({
   optimizeVideo: (...args: any[]) => mockOptimizeVideo(...args),
+  watermarkVideo: (...args: any[]) => mockWatermarkVideo(...args),
   cancelVideoCompression: (...args: any[]) => mockCancelVideoCompression(...args),
 }));
 
@@ -54,6 +56,18 @@ jest.mock('../services/galleryService', () => ({
   checkHash: (...args: any[]) => mockCheckHash(...args),
   addItemToAlbums: (...args: any[]) => mockAddItemToAlbums(...args),
   uploadItem: (...args: any[]) => mockUploadItem(...args),
+}));
+
+// Mock watermarkApplicatorService
+jest.mock('../services/watermarkApplicatorService', () => ({
+  applyWatermarkToImage: jest.fn().mockResolvedValue({ applied: false, uri: '' }),
+}));
+
+// Mock videoProcessingNotificationService
+jest.mock('../services/videoProcessingNotificationService', () => ({
+  showVideoProcessingProgress: jest.fn().mockResolvedValue(undefined),
+  showVideoProcessingResult: jest.fn().mockResolvedValue(undefined),
+  dismissVideoProcessingNotifications: jest.fn().mockResolvedValue(undefined),
 }));
 
 // Mock expo-keep-awake
@@ -101,6 +115,14 @@ beforeEach(() => {
     }),
   );
   mockOptimizeVideo.mockImplementation((uri: string) =>
+    Promise.resolve({
+      uri,
+      wasOptimized: false,
+      originalSize: 1_000_000,
+      optimizedSize: 1_000_000,
+    }),
+  );
+  mockWatermarkVideo.mockImplementation((uri: string) =>
     Promise.resolve({
       uri,
       wasOptimized: false,

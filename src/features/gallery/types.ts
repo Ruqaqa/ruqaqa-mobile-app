@@ -165,8 +165,9 @@ export const IMAGE_WATERMARK_WEIGHT = 0.10;
 export const IMAGE_UPLOAD_WEIGHT = 0.75;
 
 /** Pipeline progress weights for video. */
-export const VIDEO_WEIGHT = 3.0;
-export const VIDEO_OPTIMIZE_WEIGHT = 1.8;
+export const VIDEO_WEIGHT = 4.0;
+export const VIDEO_OPTIMIZE_WEIGHT = 1.5;
+export const VIDEO_WATERMARK_WEIGHT = 1.3;
 export const VIDEO_UPLOAD_WEIGHT = 1.2;
 
 /**

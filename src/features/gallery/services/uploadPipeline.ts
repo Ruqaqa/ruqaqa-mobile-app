@@ -21,12 +21,14 @@ import {
   IMAGE_UPLOAD_WEIGHT,
   VIDEO_WEIGHT,
   VIDEO_OPTIMIZE_WEIGHT,
+  VIDEO_WATERMARK_WEIGHT,
   VIDEO_UPLOAD_WEIGHT,
 } from '../types';
 import { computeFileHash } from './fileHashService';
 import { optimizeImage } from './imageOptimizationService';
 import {
   optimizeVideo,
+  watermarkVideo,
   cancelVideoCompression,
 } from './videoOptimizationService';
 import { checkHash, addItemToAlbums, uploadItem } from './galleryService';
@@ -460,7 +462,7 @@ export class UploadPipeline {
   }
 
   // -----------------------------------------------------------------------
-  // Video processing — GPU-accelerated via FFmpeg (single pass)
+  // Video processing — dual-variant: compress + watermark as separate passes
   // -----------------------------------------------------------------------
 
   private async processVideo() {
@@ -479,10 +481,10 @@ export class UploadPipeline {
     // Resolve video watermark draft (video is always the last item)
     const videoWmDraft = this.getVideoWatermarkDraft();
     const noWatermarkNeeded = videoWmDraft?.noWatermarkNeeded ?? true;
+    console.log('[pipeline] Video watermark draft:', JSON.stringify(videoWmDraft));
+    console.log('[pipeline] noWatermarkNeeded:', noWatermarkNeeded, 'logoUri:', !!this.config.logoUri);
 
-    // GPU-accelerated video processing — single FFmpeg pass
-    // If watermark draft is provided, overlays logo + compresses in one command.
-    // If no watermark, compresses only.
+    // --- Step 1: Compress-only (no watermark) ---
     this.setItemState(videoIndex, 'optimizing');
     let videoFileUri = stableVideoUri;
     let videoWasOptimized = false;
@@ -495,8 +497,6 @@ export class UploadPipeline {
           // Update foreground notification with progress
           showVideoProcessingProgress(progress * 100).catch(() => { /* ignore */ });
         },
-        noWatermarkNeeded ? null : videoWmDraft,
-        this.config.logoUri ?? null,
       );
 
       videoFileUri = optResult.uri;
@@ -513,7 +513,7 @@ export class UploadPipeline {
     await showVideoProcessingResult(videoProcessingSucceeded).catch(() => { /* ignore */ });
     this.completedWeight += VIDEO_OPTIMIZE_WEIGHT;
 
-    // Size check
+    // --- Step 2: Size check on compressed file ---
     this.setItemState(videoIndex, 'checkingSize');
     const videoFile = new FSFile(videoFileUri);
     const videoSize = videoFile.size;
@@ -521,7 +521,7 @@ export class UploadPipeline {
     const originalVideoSize = originalVideoFile.size;
     if (videoSize > MAX_FILE_SIZE_BYTES) {
       this.oversizedCount++;
-      this.completedWeight += VIDEO_UPLOAD_WEIGHT;
+      this.completedWeight += VIDEO_WATERMARK_WEIGHT + VIDEO_UPLOAD_WEIGHT;
       this.setItemState(videoIndex, 'sizeExceeded', {
         actualSizeBytes: videoSize,
         originalSizeBytes: originalVideoSize,
@@ -529,11 +529,48 @@ export class UploadPipeline {
       return;
     }
 
-    // Upload
+    // --- Step 3: Watermark + compress in single pass from original source ---
+    // Uses the original source (stableVideoUri), NOT the already-compressed file,
+    // to avoid double-encoding which degrades quality and inflates file size.
+    let watermarkedFileUri: string | undefined;
+    if (!noWatermarkNeeded && videoWmDraft && this.config.logoUri) {
+      this.setItemState(videoIndex, 'watermarking');
+      try {
+        const wmResult = await watermarkVideo(
+          stableVideoUri,
+          videoWmDraft,
+          this.config.logoUri,
+          (progress) => {
+            this.setItemState(videoIndex, 'watermarking', { progressPercent: progress });
+          },
+        );
+        if (wmResult.wasOptimized && wmResult.uri !== stableVideoUri) {
+          watermarkedFileUri = wmResult.uri;
+          this.tempFileUris.push(wmResult.uri);
+        }
+      } catch (err) {
+        // Watermark failure is non-fatal — proceed without watermarked variant
+        console.error('[pipeline] Video watermark failed:', err);
+      }
+
+      // Non-fatal size check on watermarked file
+      if (watermarkedFileUri) {
+        const wmFile = new FSFile(watermarkedFileUri);
+        if (wmFile.size > MAX_FILE_SIZE_BYTES) {
+          console.warn('[pipeline] Watermarked video exceeds max size, proceeding without it');
+          watermarkedFileUri = undefined;
+        }
+      }
+    }
+    this.completedWeight += VIDEO_WATERMARK_WEIGHT;
+
+    // --- Step 4: Upload (compressed + optional watermarked variant) ---
+    console.log('[pipeline] Upload: fileUri=', videoFileUri, 'watermarkedFileUri=', watermarkedFileUri);
     this.setItemState(videoIndex, 'uploading');
     for (let attempt = 0; attempt <= MAX_UPLOAD_RETRIES; attempt++) {
       const result = await uploadItem({
         fileUri: videoFileUri,
+        watermarkedFileUri,
         alreadyOptimized: videoWasOptimized,
         noWatermarkNeeded,
         albumIds: this.config.albumIds,

@@ -111,14 +111,13 @@ export function DownloadFormatSheet({
             {
               color: colors.foreground,
               marginStart: spacing.sm,
-              flex: 1,
             },
           ]}
         >
           {t('downloadWatermarked')}
         </Text>
         {!watermarkedEnabled && (
-          <Ban size={16} color={colors.foregroundSecondary} />
+          <Ban size={16} color={colors.foregroundSecondary} style={{ marginStart: spacing.sm }} />
         )}
       </Pressable>
     </BottomSheet>

@@ -1,5 +1,6 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type { ImagePickerAsset } from 'expo-image-picker';
+import { Asset } from 'expo-asset';
 
 import { playSuccessSound } from '@/services/soundService';
 import {
@@ -13,6 +14,10 @@ import {
   WatermarkDraft,
 } from '../types';
 import { UploadPipeline, DuplicateDecisionCallback } from '../services/uploadPipeline';
+
+// Bundled watermark logo — resolved to a local file URI on first use
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const LOGO_MODULE = require('../../../../assets/logo-green.png');
 
 // ---------------------------------------------------------------------------
 // Types
@@ -86,6 +91,17 @@ export function useUploadPipeline(): UseUploadPipelineReturn {
   // (Caller should use this hook at the top level of a component that persists
   // for the entire upload lifecycle)
 
+  // Pre-resolve the bundled watermark logo to a local file URI
+  const logoUriRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const asset = Asset.fromModule(LOGO_MODULE);
+    asset.downloadAsync().then(() => {
+      logoUriRef.current = asset.localUri ?? undefined;
+    }).catch(() => {
+      // Non-fatal — watermark will be skipped if logo isn't available
+    });
+  }, []);
+
   const startUpload = useCallback((params: StartUploadParams) => {
     const {
       images,
@@ -120,6 +136,7 @@ export function useUploadPipeline(): UseUploadPipelineReturn {
       tagIds,
       projectId,
       watermarkDrafts,
+      logoUri: logoUriRef.current,
       onStatusChanged: (status) => {
         setPipelineStatus(status);
       },

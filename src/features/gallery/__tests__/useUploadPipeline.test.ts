@@ -5,6 +5,15 @@ import type { GalleryAlbum, PickerItem } from '../types';
 
 // --- Mocks ---
 
+jest.mock('expo-asset', () => ({
+  Asset: {
+    fromModule: jest.fn().mockReturnValue({
+      downloadAsync: jest.fn().mockResolvedValue(undefined),
+      localUri: 'file:///assets/logo-green.png',
+    }),
+  },
+}));
+
 // Track whether the run mock should resolve with duplicate pause or immediately
 let mockPipelineRun: jest.Mock;
 let mockOnStatusChanged: ((status: any) => void) | undefined;

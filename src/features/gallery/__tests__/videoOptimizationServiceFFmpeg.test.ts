@@ -28,12 +28,44 @@ jest.mock('expo-file-system', () => {
         uri,
         get size() { return mockOutputSize(); },
         delete: mockOutputDelete,
+        write: jest.fn(),
         get exists() { return mockOutputExists(); },
       };
     }),
     Paths: { cache: 'file:///cache' },
   };
 });
+
+// Mock Skia (used by prepareLogoWithOpacity for baking opacity into logo PNG)
+jest.mock('@shopify/react-native-skia', () => ({
+  Skia: {
+    Image: {
+      MakeImageFromEncoded: jest.fn().mockReturnValue({
+        width: () => 200,
+        height: () => 80,
+      }),
+    },
+    Surface: {
+      MakeOffscreen: jest.fn().mockReturnValue({
+        getCanvas: jest.fn().mockReturnValue({
+          clear: jest.fn(),
+          drawImage: jest.fn(),
+        }),
+        flush: jest.fn(),
+        makeImageSnapshot: jest.fn().mockReturnValue({
+          encodeToBytes: jest.fn().mockReturnValue(new Uint8Array([0x89, 0x50, 0x4e, 0x47])),
+        }),
+      }),
+    },
+    Data: {
+      fromURI: jest.fn().mockReturnValue({}),
+    },
+    Paint: jest.fn().mockReturnValue({
+      setAlphaf: jest.fn(),
+    }),
+    Color: jest.fn().mockReturnValue(0),
+  },
+}), { virtual: true });
 
 // --- Setup ---
 
@@ -43,6 +75,7 @@ import { DEFAULT_WATERMARK_DRAFT } from '../types';
 // Get references to the mocked FFmpeg functions
 let ffmpegMock: any;
 let optimizeVideo: typeof import('../services/videoOptimizationService').optimizeVideo;
+let watermarkVideo: typeof import('../services/videoOptimizationService').watermarkVideo;
 let cancelVideoCompression: typeof import('../services/videoOptimizationService').cancelVideoCompression;
 let generateVideoThumbnail: typeof import('../services/videoOptimizationService').generateVideoThumbnail;
 
@@ -67,6 +100,7 @@ beforeEach(() => {
       uri,
       get size() { return mockOutputSize(); },
       delete: mockOutputDelete,
+      write: jest.fn(),
       get exists() { return mockOutputExists(); },
     };
   });
@@ -89,6 +123,7 @@ beforeEach(() => {
 
   const mod = require('../services/videoOptimizationService');
   optimizeVideo = mod.optimizeVideo;
+  watermarkVideo = mod.watermarkVideo;
   cancelVideoCompression = mod.cancelVideoCompression;
   generateVideoThumbnail = mod.generateVideoThumbnail;
 });
@@ -111,28 +146,22 @@ describe('optimizeVideo (FFmpeg)', () => {
     expect(ffmpegMock.buildWatermarkCommand).not.toHaveBeenCalled();
   });
 
-  it('calls buildWatermarkCommand when watermark draft provided', async () => {
-    await optimizeVideo(
+  it('always calls buildCompressCommand (no watermark support in optimizeVideo)', async () => {
+    await optimizeVideo('file:///videos/clip.mp4');
+
+    expect(ffmpegMock.buildCompressCommand).toHaveBeenCalled();
+    expect(ffmpegMock.buildWatermarkCommand).not.toHaveBeenCalled();
+  });
+
+  it('watermarkVideo calls buildWatermarkCommand with draft and logo', async () => {
+    await watermarkVideo(
       'file:///videos/clip.mp4',
-      undefined,
       { ...DEFAULT_WATERMARK_DRAFT, noWatermarkNeeded: false },
       'file:///assets/logo.png',
     );
 
     expect(ffmpegMock.buildWatermarkCommand).toHaveBeenCalled();
     expect(ffmpegMock.buildCompressCommand).not.toHaveBeenCalled();
-  });
-
-  it('skips watermark when noWatermarkNeeded is true', async () => {
-    await optimizeVideo(
-      'file:///videos/clip.mp4',
-      undefined,
-      { ...DEFAULT_WATERMARK_DRAFT, noWatermarkNeeded: true },
-      'file:///assets/logo.png',
-    );
-
-    expect(ffmpegMock.buildCompressCommand).toHaveBeenCalled();
-    expect(ffmpegMock.buildWatermarkCommand).not.toHaveBeenCalled();
   });
 
   it('maps FFmpeg progress percentage to 0-1 range', async () => {
