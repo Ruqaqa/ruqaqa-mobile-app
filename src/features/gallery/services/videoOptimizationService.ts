@@ -249,7 +249,6 @@ function prepareLogoWithOpacity(logoUri: string, opacity: number): string | null
     }
     tempFile.write(encoded);
 
-    console.log('[video:wm] Pre-processed logo with opacity', opacity, '→', tempFile.uri);
     return tempFile.uri;
   } catch (error) {
     console.error('[video:wm] Logo opacity pre-processing failed:', error);
@@ -294,12 +293,8 @@ export async function watermarkVideo(
   try {
     const inputPath = toAbsolutePath(uri);
 
-    console.log('[video:wm] inputPath:', inputPath);
-    console.log('[video:wm] logoUri raw:', logoUri);
-
     // Check if logo file exists
     const logoFile = new FSFile(logoUri);
-    console.log('[video:wm] logo exists:', logoFile.exists, 'size:', logoFile.exists ? logoFile.size : 0);
 
     // Generate unique output path
     const rawBaseName = uri.substring(uri.lastIndexOf('/') + 1).replace(/\.[^.]+$/, '');
@@ -323,8 +318,6 @@ export async function watermarkVideo(
     } catch {
       // Use default dimensions if probe fails
     }
-
-    console.log('[video:wm] video dimensions:', videoWidth, 'x', videoHeight);
 
     // Convert percentage positions to pixel-based FFmpeg margins
     const marginX = Math.round((clamped.xPct / 100) * videoWidth);
@@ -361,7 +354,6 @@ export async function watermarkVideo(
         const logoIntrinsicWidth = logoImage.width();
         const targetWidth = videoWidth * (clamped.widthPct / 100);
         logoScale = targetWidth / logoIntrinsicWidth;
-        console.log('[video:wm] logo intrinsic width:', logoIntrinsicWidth, 'target:', targetWidth, 'scale factor:', logoScale);
       }
     } catch {
       console.warn('[video:wm] Could not read logo dimensions, using widthPct as-is');
@@ -386,11 +378,9 @@ export async function watermarkVideo(
     };
 
     const command = buildWatermarkCommand(inputPath, logoPath, outputPath, options);
-    console.log('[video:wm] FFmpeg command:', command);
 
     // Execute FFmpeg — try hardware encoder first
     let result = await execute(command, progressCallback, { timeout: 600_000 });
-    console.log('[video:wm] First attempt returnCode:', result.returnCode, 'output:', result.output?.substring(0, 500));
 
     // If hardware encoder failed, retry with software fallback
     if (result.returnCode !== 0 && encoder !== 'libx264') {
@@ -413,14 +403,11 @@ export async function watermarkVideo(
       });
 
       result = await execute(fallbackCommand, progressCallback, { timeout: 600_000 });
-      console.log('[video:wm] Fallback returnCode:', result.returnCode, 'output:', result.output?.substring(0, 500));
     }
 
     if (result.returnCode !== 0) {
       const errorCode = getErrorCode(result.output);
-      if (errorCode === FFmpegErrorCode.CANCELLED) {
-        console.log('[video] Watermark cancelled by user');
-      } else {
+      if (errorCode !== FFmpegErrorCode.CANCELLED) {
         console.error('[video] FFmpeg watermark failed with code', result.returnCode);
       }
       // Clean up failed output

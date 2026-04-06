@@ -481,8 +481,6 @@ export class UploadPipeline {
     // Resolve video watermark draft (video is always the last item)
     const videoWmDraft = this.getVideoWatermarkDraft();
     const noWatermarkNeeded = videoWmDraft?.noWatermarkNeeded ?? true;
-    console.log('[pipeline] Video watermark draft:', JSON.stringify(videoWmDraft));
-    console.log('[pipeline] noWatermarkNeeded:', noWatermarkNeeded, 'logoUri:', !!this.config.logoUri);
 
     // --- Step 1: Compress-only (no watermark) ---
     this.setItemState(videoIndex, 'optimizing');
@@ -565,7 +563,6 @@ export class UploadPipeline {
     this.completedWeight += VIDEO_WATERMARK_WEIGHT;
 
     // --- Step 4: Upload (compressed + optional watermarked variant) ---
-    console.log('[pipeline] Upload: fileUri=', videoFileUri, 'watermarkedFileUri=', watermarkedFileUri);
     this.setItemState(videoIndex, 'uploading');
     for (let attempt = 0; attempt <= MAX_UPLOAD_RETRIES; attempt++) {
       const result = await uploadItem({

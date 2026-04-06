@@ -31,7 +31,7 @@ describe('computeWatermarkPixels', () => {
 
   it('converts default draft to pixels on 1920x1080 image', () => {
     const result = computeWatermarkPixels(
-      makeDraft(), // xPct=40, yPct=40, widthPct=20, opacityPct=50
+      makeDraft(), // xPct=40, yPct=40, widthPct=20, opacityPct=30
       1920,
       1080,
       LOGO_ASPECT_RATIO,
@@ -41,7 +41,7 @@ describe('computeWatermarkPixels', () => {
     expect(result.y).toBe(432);        // 40% of 1080
     expect(result.width).toBe(384);    // 20% of 1920
     expect(result.height).toBe(192);   // 384 / 2 (aspect ratio)
-    expect(result.opacity).toBe(0.5);  // 50%
+    expect(result.opacity).toBe(0.3);  // 30%
   });
 
   it('converts 50% position on 1000x1000 square image', () => {
