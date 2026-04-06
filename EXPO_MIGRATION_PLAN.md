@@ -636,7 +636,7 @@ Update seed data as sub-phases progress:
 | 6B | Gallery — Upload Pipeline & Image Optimization | DONE | Phase 6A |
 | 6C | Gallery — Watermark System (Images) | DONE | Phase 6B |
 | 6D | Gallery — Video Processing (FFmpeg) & Share Intent | DONE | Phase 6C |
-| 7 | Shared Components & Polish | Pending | All phases |
+| 7 | Shared Components & Polish | **NEXT** | All phases |
 
 Phases 3, 4, and 5A can be worked on in parallel once Phase 2 is complete. 5C and 5D can be worked on in parallel once 5B is complete. 6C and 6D are sequential (6C → 6D).
 
