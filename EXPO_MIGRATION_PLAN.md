@@ -615,8 +615,13 @@ Update seed data as sub-phases progress:
 - Module switcher bottom sheet: Finance/Gallery toggle (`src/components/layout/ModuleSwitcherSheet.tsx`, Phase 0)
 
 **Remaining:**
-- Profile avatar: currently shows User icon fallback — add initials fallback (first letter of name)
 - Deep linking support for feature-specific routes (if needed for future features)
+
+**Recently completed:**
+- [x] Profile avatar initials fallback (first+last initials, Arabic/Latin support, primary color background)
+- [x] Profile menu sheet: tap avatar → greeting ("مرحبا، {name}") + sign out button with loading state
+- [x] Employee name fix: combine firstName/lastName from backend validate endpoint
+- [x] Logout security hardening: clear formCache, watermarkSettings, shareIntentStore on logout
 
 **Refer to:** `lib/widgets/`, `lib/core/services/sound_service.dart`
 
