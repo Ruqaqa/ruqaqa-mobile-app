@@ -26,8 +26,17 @@ export const SHARE_FLOW_TARGETS: ShareFlowTarget[] = [
     labelKey: 'shareFlowGallery',
     descriptionKey: 'shareFlowGalleryDesc',
     icon: 'ImagePlus',
-    maxFiles: 10,
-    allowedMimeTypes: null,
+    maxFiles: 21, // MAX_IMAGES (20) + MAX_VIDEO (1)
+    allowedMimeTypes: [
+      'image/jpeg',
+      'image/png',
+      'image/heic',
+      'image/heif',
+      'image/webp',
+      'video/mp4',
+      'video/quicktime',
+      'video/x-matroska',
+    ],
     isAvailable: (p: UserPermissions) => p.canCreateGallery,
   },
 ];

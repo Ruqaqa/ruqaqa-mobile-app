@@ -1,0 +1,4 @@
+module ExpoFfmpegC {
+    header "FFmpegWrapper.h"
+    export *
+}

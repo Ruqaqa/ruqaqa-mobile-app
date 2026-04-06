@@ -1,0 +1,47 @@
+{
+  "name": "expo-ffmpeg",
+  "version": "0.1.0",
+  "description": "Expo module wrapping FFmpeg compiled from source with GPU hardware encoding for video watermarking and compression",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "expo-module build",
+    "clean": "expo-module clean",
+    "lint": "expo-module lint",
+    "test": "expo-module test",
+    "prepare": "expo-module prepare",
+    "prepublishOnly": "expo-module prepublishOnly",
+    "expo-module": "expo-module",
+    "open:ios": "xed example/ios",
+    "open:android": "open -a \"Android Studio\" example/android"
+  },
+  "keywords": [
+    "react-native",
+    "expo",
+    "ffmpeg",
+    "video-processing",
+    "hardware-encoding"
+  ],
+  "author": "Ruqaqa Limited Company",
+  "homepage": "https://ruqaqa.sa",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/react": "~19.1.1",
+    "expo": "^55.0.11",
+    "expo-module-scripts": "^55.0.2",
+    "jest": "^29.7.0",
+    "react-native": "0.82.1",
+    "ts-jest": "^29.4.9"
+  },
+  "peerDependencies": {
+    "expo": "*",
+    "react": "*",
+    "react-native": "*"
+  },
+  "dependencies": {
+    "expo": "~55.0.11",
+    "react": "19.2.0",
+    "react-native": "0.83.4"
+  }
+}

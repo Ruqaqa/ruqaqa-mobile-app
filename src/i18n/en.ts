@@ -508,4 +508,11 @@ export default {
   downloadNotificationAllFailed_one: '1 download failed',
   downloadNotificationAllFailed_other: '{{count}} downloads failed',
   downloadNotificationPartialFailure: 'Downloaded {{completed}} of {{total}}, {{failed}} failed',
+
+  // Gallery - Video Processing Notifications
+  videoProcessingNotificationChannelName: 'Video Processing',
+  videoProcessingNotificationTitle: 'Video Processing',
+  videoProcessingNotificationProgress: 'Processing video... {{percentage}}%',
+  videoProcessingNotificationComplete: 'Video processed successfully',
+  videoProcessingNotificationFailed: 'Video processing failed',
 } as const;

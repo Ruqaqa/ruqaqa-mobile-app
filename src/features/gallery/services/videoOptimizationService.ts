@@ -1,5 +1,19 @@
-import { Video, createVideoThumbnail } from 'react-native-compressor';
 import { File as FSFile, Paths } from 'expo-file-system';
+import {
+  execute,
+  cancel as ffmpegCancel,
+  getMediaInfo,
+  buildWatermarkCommand,
+  buildCompressCommand,
+  buildExtractThumbnailCommand,
+  getPreferredEncoder,
+  getErrorCode,
+  FFmpegErrorCode,
+} from 'expo-ffmpeg';
+import type { ProgressData, WatermarkOptions, CompressOptions } from 'expo-ffmpeg';
+import type { WatermarkDraft } from '../types';
+import { clampWatermarkDraft } from '../types';
+import { validateSafePath } from '../utils/watermarkValidation';
 
 /**
  * Result of optimizing a single video.
@@ -16,114 +30,226 @@ export interface VideoOptimizationResult {
   optimizedSize: number;
 }
 
+/**
+ * Convert a file:// URI to an absolute path for FFmpeg.
+ * FFmpeg expects raw filesystem paths, not file:// URIs.
+ */
+function toAbsolutePath(uri: string): string {
+  if (uri.startsWith('file://')) {
+    return decodeURIComponent(uri.replace('file://', ''));
+  }
+  return uri;
+}
+
 // ---------------------------------------------------------------------------
 // Cancellation support
 // ---------------------------------------------------------------------------
 
-/** Tracks the cancellation ID of the current compression. */
-let _currentCancellationId: string | undefined;
+/** Whether a video operation is currently running. */
+let _isProcessing = false;
 
 /**
  * Cancel the currently running video compression, if any.
  * Safe to call even if no compression is running.
  */
-export async function cancelVideoCompression(): Promise<void> {
-  if (_currentCancellationId) {
-    try {
-      await Video.cancelCompression(_currentCancellationId);
-    } catch { /* ignore — may already be finished */ }
-    _currentCancellationId = undefined;
+export function cancelVideoCompression(): void {
+  if (_isProcessing) {
+    ffmpegCancel();
   }
 }
 
 // ---------------------------------------------------------------------------
-// Video optimization
+// Video optimization — single FFmpeg pass
 // ---------------------------------------------------------------------------
 
 /**
- * Compress a video using GPU-accelerated hardware encoding.
+ * Process a video using GPU-accelerated FFmpeg encoding.
+ * Single pass: watermark overlay + H.264 compression (when watermark provided),
+ * or compression-only (when no watermark).
  *
- * - Android: MediaCodec (hardware H.264 encoder)
- * - iOS: AVAssetExportSession / VideoToolbox (hardware H.264/H.265)
+ * - iOS: h264_videotoolbox (GPU hardware encoder)
+ * - Android: h264_mediacodec (GPU hardware encoder)
+ * - Fallback: libx264 (CPU software encoder)
  *
  * Runs entirely on native background threads — never blocks the JS thread.
- * Uses streaming architecture: the native encoder reads frames incrementally,
- * so even 500MB+ videos won't cause OOM kills.
  *
- * @param uri       File URI of the input video.
- * @param onProgress Optional callback receiving progress 0–1.
- * @returns Optimization result with the output URI.
+ * @param uri            File URI of the input video.
+ * @param onProgress     Optional callback receiving progress 0–1.
+ * @param watermarkDraft Optional watermark positioning. If provided and not
+ *                       noWatermarkNeeded, overlays logo in same pass as compress.
+ * @param logoUri        Local file URI of the bundled watermark logo.
+ * @returns              Optimization result with the output URI.
  */
 export async function optimizeVideo(
   uri: string,
   onProgress?: (progress: number) => void,
+  watermarkDraft?: WatermarkDraft | null,
+  logoUri?: string | null,
 ): Promise<VideoOptimizationResult> {
-  // Defense-in-depth: only allow local file URIs. Reject network or crafted schemes.
-  if (!uri.startsWith('file://') && !uri.startsWith('/')) {
+  // Defense-in-depth: only allow local file URIs
+  if (!validateSafePath(uri)) {
     return { uri, wasOptimized: false, originalSize: 0, optimizedSize: 0 };
   }
 
   const originalFile = new FSFile(uri);
   const originalSize = originalFile.size;
 
-  // Reset cancellation state for this run
-  _currentCancellationId = undefined;
+  _isProcessing = true;
 
   try {
-    const compressedUri = await Video.compress(
-      uri,
-      {
-        compressionMethod: 'auto',
-        minimumFileSizeForCompress: 0,
-      },
-      (progress: number) => {
-        onProgress?.(progress);
-      },
-      (id: string) => {
-        _currentCancellationId = id;
-      },
-    );
+    const inputPath = toAbsolutePath(uri);
 
-    const compressedFile = new FSFile(compressedUri);
-    const optimizedSize = compressedFile.size;
-
-    if (optimizedSize >= originalSize) {
-      // Compression didn't help — clean up and return original
-      try { compressedFile.delete(); } catch { /* ignore */ }
-      return {
-        uri,
-        wasOptimized: false,
-        originalSize,
-        optimizedSize: originalSize,
-      };
-    }
-
-    // Move to a predictable cache path for cleanup tracking.
-    // Strip path separators and null bytes to prevent path traversal.
+    // Generate unique output path
     const rawBaseName = uri.substring(uri.lastIndexOf('/') + 1).replace(/\.[^.]+$/, '');
     const baseName = rawBaseName.replace(/[/\\\0]/g, '_').slice(0, 200);
-    const destFile = new FSFile(Paths.cache, `optimized_${baseName}.mp4`);
-    if (destFile.exists) {
-      try { destFile.delete(); } catch { /* ignore */ }
+    const outputFile = new FSFile(Paths.cache, `ffmpeg_${baseName}_${Date.now()}.mp4`);
+    if (outputFile.exists) {
+      try { outputFile.delete(); } catch { /* ignore */ }
     }
-    compressedFile.move(destFile);
+    const outputPath = toAbsolutePath(outputFile.uri);
+
+    // Get video dimensions for watermark pixel calculation
+    const needsWatermark = watermarkDraft
+      && !watermarkDraft.noWatermarkNeeded
+      && logoUri
+      && validateSafePath(logoUri);
+
+    const encoder = getPreferredEncoder();
+
+    // Map FFmpeg progress (0-100) to pipeline progress (0-1)
+    const progressCallback = onProgress
+      ? (data: ProgressData) => { onProgress(data.percentage / 100); }
+      : undefined;
+
+    let command: string;
+
+    if (needsWatermark && logoUri) {
+      // Single pass: watermark overlay + compress
+      const clamped = clampWatermarkDraft(watermarkDraft!);
+      const logoPath = toAbsolutePath(logoUri);
+
+      // Get video dimensions for percentage-to-pixel conversion
+      let videoWidth = 1920;
+      let videoHeight = 1080;
+      try {
+        const info = await getMediaInfo(inputPath);
+        if (info.width > 0 && info.height > 0) {
+          videoWidth = info.width;
+          videoHeight = info.height;
+        }
+      } catch {
+        // Use default dimensions if probe fails
+      }
+
+      // Convert percentage positions to pixel-based FFmpeg margins
+      const marginX = Math.round((clamped.xPct / 100) * videoWidth);
+      const marginY = Math.round((clamped.yPct / 100) * videoHeight);
+      const logoScale = clamped.widthPct / 100;
+      const opacity = clamped.opacityPct / 100;
+
+      const options: WatermarkOptions = {
+        position: 'top-left', // We use absolute positioning via marginX/marginY
+        marginX,
+        marginY,
+        opacity: opacity < 1 ? opacity : undefined,
+        scale: logoScale,
+        encoder,
+        threads: 2,
+      };
+
+      command = buildWatermarkCommand(inputPath, logoPath, outputPath, options);
+    } else {
+      // Compression only (no watermark)
+      const options: CompressOptions = {
+        encoder,
+        threads: 2,
+      };
+
+      command = buildCompressCommand(inputPath, outputPath, options);
+    }
+
+    // Execute FFmpeg — try hardware encoder first
+    let result = await execute(command, progressCallback, { timeout: 600_000 });
+
+    // If hardware encoder failed, retry with software fallback
+    if (result.returnCode !== 0 && encoder !== 'libx264') {
+      console.warn('[video] Hardware encoder failed, retrying with libx264');
+
+      // Clean up failed output
+      if (outputFile.exists) {
+        try { outputFile.delete(); } catch { /* ignore */ }
+      }
+
+      // Rebuild command from scratch with libx264 (avoids fragile string replace)
+      let fallbackCommand: string;
+      if (needsWatermark && logoUri) {
+        const clamped = clampWatermarkDraft(watermarkDraft!);
+        const logoPath = toAbsolutePath(logoUri);
+        const marginX = Math.round((clamped.xPct / 100) * 1920);
+        const marginY = Math.round((clamped.yPct / 100) * 1080);
+        const logoScale = clamped.widthPct / 100;
+        const opacity = clamped.opacityPct / 100;
+        fallbackCommand = buildWatermarkCommand(inputPath, logoPath, outputPath, {
+          position: 'top-left',
+          marginX,
+          marginY,
+          opacity: opacity < 1 ? opacity : undefined,
+          scale: logoScale,
+          encoder: 'libx264',
+          crf: 23,
+          preset: 'fast',
+          threads: 2,
+        });
+      } else {
+        fallbackCommand = buildCompressCommand(inputPath, outputPath, {
+          encoder: 'libx264',
+          crf: 23,
+          preset: 'fast',
+          threads: 2,
+        });
+      }
+
+      result = await execute(fallbackCommand, progressCallback, { timeout: 600_000 });
+    }
+
+    if (result.returnCode !== 0) {
+      const errorCode = getErrorCode(result.output);
+      if (errorCode === FFmpegErrorCode.CANCELLED) {
+        console.log('[video] Processing cancelled by user');
+      } else {
+        console.error('[video] FFmpeg failed with code', result.returnCode);
+      }
+      // Clean up failed output
+      if (outputFile.exists) {
+        try { outputFile.delete(); } catch { /* ignore */ }
+      }
+      return { uri, wasOptimized: false, originalSize, optimizedSize: originalSize };
+    }
+
+    // Check output size
+    if (!outputFile.exists) {
+      return { uri, wasOptimized: false, originalSize, optimizedSize: originalSize };
+    }
+
+    const optimizedSize = outputFile.size;
+
+    // If output is larger than input, discard and return original
+    if (optimizedSize >= originalSize) {
+      try { outputFile.delete(); } catch { /* ignore */ }
+      return { uri, wasOptimized: false, originalSize, optimizedSize: originalSize };
+    }
 
     return {
-      uri: destFile.uri,
+      uri: outputFile.uri,
       wasOptimized: true,
       originalSize,
       optimizedSize,
     };
-  } catch {
-    // On any error (including cancellation), fall back to original
-    return {
-      uri,
-      wasOptimized: false,
-      originalSize,
-      optimizedSize: originalSize,
-    };
+  } catch (error) {
+    console.error('[video] Video processing failed:', error);
+    return { uri, wasOptimized: false, originalSize, optimizedSize: originalSize };
   } finally {
-    _currentCancellationId = undefined;
+    _isProcessing = false;
   }
 }
 
@@ -132,18 +258,29 @@ export async function optimizeVideo(
 // ---------------------------------------------------------------------------
 
 /**
- * Generate a thumbnail from a video.
- * Returns the URI of the generated JPEG thumbnail, or null on failure.
- *
- * Mirrors Flutter's `VideoProcessingService.generateThumbnail`.
+ * Generate a thumbnail from a video using FFmpeg.
+ * Extracts a single frame at 1 second as JPEG.
+ * Returns the URI of the generated thumbnail, or null on failure.
  */
 export async function generateVideoThumbnail(uri: string): Promise<string | null> {
-  // Only allow local file URIs
-  if (!uri.startsWith('file://') && !uri.startsWith('/')) return null;
+  if (!validateSafePath(uri)) return null;
 
   try {
-    const result = await createVideoThumbnail(uri);
-    return result?.path ?? null;
+    const inputPath = toAbsolutePath(uri);
+    const outputFile = new FSFile(Paths.cache, `thumb_${Date.now()}.jpg`);
+    const outputPath = toAbsolutePath(outputFile.uri);
+
+    const result = await execute(
+      buildExtractThumbnailCommand(inputPath, outputPath, 1),
+      undefined,
+      { timeout: 30_000 },
+    );
+
+    if (result.returnCode === 0 && outputFile.exists) {
+      return outputFile.uri;
+    }
+
+    return null;
   } catch {
     return null;
   }

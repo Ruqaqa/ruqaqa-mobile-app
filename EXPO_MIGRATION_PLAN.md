@@ -462,7 +462,7 @@ Update seed data as sub-phases progress:
 
 ---
 
-#### Phase 6C: Watermark System
+#### Phase 6C: Watermark System — DONE
 
 **Goal:** Users can position a watermark on media before upload.
 
@@ -501,11 +501,20 @@ Update seed data as sub-phases progress:
 
 **Refer to:** `lib/features/gallery/pages/watermark_editor_screen.dart`, `lib/features/gallery/widgets/watermark_editor_canvas.dart`, `lib/features/gallery/services/watermark_applicator.dart`, `lib/features/gallery/services/watermark_settings_repository.dart`
 
+**Completed:**
+- `WatermarkEditorScreen` + `WatermarkEditorCanvas` + `WatermarkThumbnailStrip` + `OpacitySlider` in `src/features/gallery/components/`
+- `useWatermarkEditor` hook in `src/features/gallery/hooks/`
+- `watermarkApplicatorService.ts` (Skia compositing) + `watermarkSettingsService.ts` (API + AsyncStorage) in `src/features/gallery/services/`
+- `watermarkCoordinates.ts` + `watermarkValidation.ts` in `src/features/gallery/utils/`
+- `clampWatermarkDraft()` + `EditorMediaItem` type added to `types.ts`
+- Pipeline integration: watermark stage between optimization and upload
+- Full test coverage in `src/features/gallery/__tests__/`
+
 **Deliverable:** Watermark editor with interactive positioning, image watermarking, and pipeline integration.
 
 ---
 
-#### Phase 6D: Video Processing & Share Intent
+#### Phase 6D: Video Processing & Share Intent — DONE
 
 **Goal:** Video watermarking + compression (single FFmpeg pass) and Gallery share intent flow target.
 
@@ -565,6 +574,17 @@ Update seed data as sub-phases progress:
 
 **Refer to:** `lib/features/gallery/services/video_optimization_service.dart`, `lib/features/gallery/services/video_processing_service.dart`
 
+**Completed:**
+- `modules/expo-ffmpeg/` — Custom FFmpeg Expo module copied from `../expo-ffmpeg-module/`
+- `videoOptimizationService.ts` rewritten: react-native-compressor replaced with FFmpeg single-pass (overlay + H.264 GPU encode)
+- `videoProcessingNotificationService.ts` — Foreground sticky notification during FFmpeg processing
+- `gallerySharedFilesAdapter.ts` — Converts shared files to upload form assets (images + video)
+- Gallery flow target enabled in `flowTargets.ts` with `image/*` + `video/*` MIME allowlist
+- `UploadTabContainer.tsx` — Share intent consumption + watermark editor wiring
+- `uploadPipeline.ts` — Integrated watermark + FFmpeg + notification stages
+- i18n keys added for video processing (en.ts, ar.ts)
+- Full test coverage in `src/features/gallery/__tests__/`
+
 **Deliverable:** Videos are watermarked and compressed in a single FFmpeg pass with progress tracking and foreground notification. Shared files route to Gallery upload flow.
 
 ---
@@ -614,8 +634,8 @@ Update seed data as sub-phases progress:
 | 5D | Gallery — Download System | DONE | Phase 5B |
 | 6A | Gallery — Upload Screen & Media Selection | DONE | Phase 5A |
 | 6B | Gallery — Upload Pipeline & Image Optimization | DONE | Phase 6A |
-| 6C | Gallery — Watermark System (Images) | **NEXT** | Phase 6B |
-| 6D | Gallery — Video Processing (FFmpeg) & Share Intent | Pending | Phase 6C |
+| 6C | Gallery — Watermark System (Images) | DONE | Phase 6B |
+| 6D | Gallery — Video Processing (FFmpeg) & Share Intent | DONE | Phase 6C |
 | 7 | Shared Components & Polish | Pending | All phases |
 
 Phases 3, 4, and 5A can be worked on in parallel once Phase 2 is complete. 5C and 5D can be worked on in parallel once 5B is complete. 6C and 6D are sequential (6C → 6D).

@@ -508,4 +508,11 @@ export default {
   downloadNotificationAllFailed_one: 'فشل تحميل عنصر واحد',
   downloadNotificationAllFailed_other: 'فشل تحميل {{count}} عناصر',
   downloadNotificationPartialFailure: 'تم تحميل {{completed}} من {{total}}، فشل {{failed}}',
+
+  // Gallery - Video Processing Notifications
+  videoProcessingNotificationChannelName: 'معالجة الفيديو',
+  videoProcessingNotificationTitle: 'معالجة الفيديو',
+  videoProcessingNotificationProgress: 'جاري معالجة الفيديو... {{percentage}}٪',
+  videoProcessingNotificationComplete: 'تمت معالجة الفيديو بنجاح',
+  videoProcessingNotificationFailed: 'فشلت معالجة الفيديو',
 } as const;

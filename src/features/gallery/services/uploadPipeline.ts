@@ -30,6 +30,12 @@ import {
   cancelVideoCompression,
 } from './videoOptimizationService';
 import { checkHash, addItemToAlbums, uploadItem } from './galleryService';
+import { applyWatermarkToImage } from './watermarkApplicatorService';
+import {
+  showVideoProcessingProgress,
+  showVideoProcessingResult,
+  dismissVideoProcessingNotifications,
+} from './videoProcessingNotificationService';
 import { isValidObjectId } from '@/utils/sanitize';
 
 // ---------------------------------------------------------------------------
@@ -54,6 +60,8 @@ export interface UploadPipelineConfig {
   tagIds?: string[];
   projectId?: string;
   watermarkDrafts?: Record<string, WatermarkDraft> | null;
+  /** Local file URI of the bundled watermark logo (e.g. from Asset.fromModule). */
+  logoUri?: string;
 
   /** Called whenever pipeline status changes (progress, item states). */
   onStatusChanged: (status: PipelineStatus) => void;
@@ -353,11 +361,29 @@ export class UploadPipeline {
         continue;
       }
 
-      // Watermark placeholder — apply draft if available
+      // Watermark — apply logo overlay if draft is available and watermark is needed
       const wmDraft = this.getWatermarkDraft(i);
       if (wmDraft) {
         item.watermarkDraft = wmDraft;
         item.noWatermarkNeeded = wmDraft.noWatermarkNeeded;
+
+        if (!wmDraft.noWatermarkNeeded && this.config.logoUri) {
+          this.setItemState(i, 'watermarking');
+          try {
+            const wmResult = await applyWatermarkToImage(
+              item.fileToUploadUri,
+              wmDraft,
+              this.config.logoUri,
+            );
+            if (wmResult.applied && wmResult.uri !== item.fileToUploadUri) {
+              this.tempFileUris.push(wmResult.uri);
+              item.fileToUploadUri = wmResult.uri;
+            }
+          } catch (err) {
+            // Watermark failure is non-fatal — proceed with un-watermarked image
+            console.error('[pipeline] Watermark failed for image', i, err);
+          }
+        }
       }
       this.completedWeight += IMAGE_WATERMARK_WEIGHT;
 
@@ -434,7 +460,7 @@ export class UploadPipeline {
   }
 
   // -----------------------------------------------------------------------
-  // Video processing — GPU-accelerated via react-native-compressor
+  // Video processing — GPU-accelerated via FFmpeg (single pass)
   // -----------------------------------------------------------------------
 
   private async processVideo() {
@@ -450,18 +476,32 @@ export class UploadPipeline {
     const dedupResult = await this.dedupCheck(videoIndex, stableVideoUri);
     if (dedupResult.skip) return;
 
-    // GPU-accelerated video optimization
+    // Resolve video watermark draft (video is always the last item)
+    const videoWmDraft = this.getVideoWatermarkDraft();
+    const noWatermarkNeeded = videoWmDraft?.noWatermarkNeeded ?? true;
+
+    // GPU-accelerated video processing — single FFmpeg pass
+    // If watermark draft is provided, overlays logo + compresses in one command.
+    // If no watermark, compresses only.
     this.setItemState(videoIndex, 'optimizing');
     let videoFileUri = stableVideoUri;
     let videoWasOptimized = false;
+    let videoProcessingSucceeded = false;
     try {
-      const optResult = await optimizeVideo(stableVideoUri, (progress) => {
-        // Update item with compression progress for UI display
-        this.setItemState(videoIndex, 'optimizing', { progressPercent: progress });
-      });
+      const optResult = await optimizeVideo(
+        stableVideoUri,
+        (progress) => {
+          this.setItemState(videoIndex, 'optimizing', { progressPercent: progress });
+          // Update foreground notification with progress
+          showVideoProcessingProgress(progress * 100).catch(() => { /* ignore */ });
+        },
+        noWatermarkNeeded ? null : videoWmDraft,
+        this.config.logoUri ?? null,
+      );
 
       videoFileUri = optResult.uri;
       videoWasOptimized = optResult.wasOptimized;
+      videoProcessingSucceeded = true;
       if (optResult.wasOptimized && optResult.uri !== stableVideoUri) {
         this.tempFileUris.push(optResult.uri);
         this.bytesSaved += optResult.originalSize - optResult.optimizedSize;
@@ -469,6 +509,8 @@ export class UploadPipeline {
     } catch {
       // Optimization failed — proceed with original file
     }
+    // Show result notification (awaited so it lands before any late progress updates)
+    await showVideoProcessingResult(videoProcessingSucceeded).catch(() => { /* ignore */ });
     this.completedWeight += VIDEO_OPTIMIZE_WEIGHT;
 
     // Size check
@@ -493,11 +535,12 @@ export class UploadPipeline {
       const result = await uploadItem({
         fileUri: videoFileUri,
         alreadyOptimized: videoWasOptimized,
-        noWatermarkNeeded: false,
+        noWatermarkNeeded,
         albumIds: this.config.albumIds,
         tagIds: this.config.tagIds,
         projectId: this.config.projectId,
         originalSourceHash: dedupResult.hash,
+        watermarkDraft: noWatermarkNeeded ? undefined : videoWmDraft ?? undefined,
       });
 
       if (result.outcome === 'success') {
@@ -542,6 +585,14 @@ export class UploadPipeline {
     const asset = this.config.images[imageIndex];
     // Watermark drafts are keyed by asset URI (or asset ID if available)
     const key = asset.assetId ?? asset.uri;
+    return drafts[key];
+  }
+
+  private getVideoWatermarkDraft(): WatermarkDraft | undefined {
+    const drafts = this.config.watermarkDrafts;
+    if (!drafts || !this.config.video) return undefined;
+    const video = this.config.video;
+    const key = video.assetId ?? video.uri;
     return drafts[key];
   }
 

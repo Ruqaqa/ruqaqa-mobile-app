@@ -8,7 +8,7 @@ Expo (React Native + TypeScript) mobile app for Ruqaqa employees. It's a migrati
 
 App ID: `sa.ruqaqa.finance` | Version: 1.2.1 | Scheme: `ruqaqa://`
 
-**Migration status:** Phases 0–5 complete (auth, permissions, transactions, reconciliation, gallery browsing/viewing/multi-select/download). Phase 6A–6B complete (upload screen, media pickers, metadata selection, upload pipeline, image optimization, dedup). Phase 6C (watermark editor + image watermarking) and Phase 6D (FFmpeg video processing + share intent) pending. See `EXPO_MIGRATION_PLAN.md` for details.
+**Migration status:** Phases 0–6D complete (auth, permissions, transactions, reconciliation, gallery browsing/viewing/multi-select/download, upload pipeline, image optimization, watermark editor, image watermarking, FFmpeg video processing, share intent). See `EXPO_MIGRATION_PLAN.md` for details.
 
 ## Commands
 
@@ -154,6 +154,20 @@ Cross-cutting concern — receives files from other apps and routes them to the 
 **Download system:** Individual or bulk download with format selection (original vs watermarked). Downloads via `expo-media-library` with cache fallback. Android notification progress (sticky, replaced atomically). In-app `DownloadProgressBar`. `DownloadQueue` (max 2 concurrent, FIFO). Success sound on completion. Queue is in-memory only (no persistence across restarts).
 
 **Key utils:** `mediaUrls.ts` (normalizeMediaUrl, getFullResMediaUrl), `validation.ts` (validateBulkIds — ObjectId validation, dedup, max 50 cap), `parsers.ts`.
+
+### Gallery — Watermark & Video Processing (Phase 6C/6D)
+
+**Watermark editor (6C):** Full-screen modal with interactive watermark positioning. `WatermarkEditorScreen` (orchestrator) → `WatermarkEditorCanvas` (draggable/resizable overlay with corner handles) + `WatermarkThumbnailStrip` (horizontal scroll, tap to switch items) + `OpacitySlider`. `useWatermarkEditor` manages per-item `WatermarkDraft` map, apply-to-all, reset defaults. Returns `Map<number, WatermarkDraft>` keyed by item index.
+
+**Image watermarking (6C):** `watermarkApplicatorService.ts` composites logo overlay onto images using `@shopify/react-native-skia`. Reads source image + logo → draws on offscreen surface with opacity → encodes to JPEG temp file. Falls back to original on any error. Logo is cached after first load. `watermarkSettingsService.ts` fetches defaults from `GET /api/mobile/gallery/watermark-settings` with 5-minute in-memory cache + AsyncStorage persistence.
+
+**Video processing (6D):** `videoOptimizationService.ts` rewritten to use FFmpeg (via `modules/expo-ffmpeg/`) for single-pass watermark overlay + H.264 compression. GPU encoding: `h264_videotoolbox` (iOS), `h264_mediacodec` (Android), `libx264` (software fallback). Progress reported via FFmpeg statistics callback. `videoProcessingNotificationService.ts` shows sticky foreground notification during processing (prevents OS from killing the app).
+
+**Gallery share intent (6D):** `gallerySharedFilesAdapter.ts` converts `SharedFile[]` to `ImagePickerAsset[]` for the upload form. Gallery flow target enabled in `flowTargets.ts` with `image/*` + `video/*` MIME allowlist. `UploadTabContainer` consumes shared files via `useShareIntent()` hook.
+
+**Pipeline integration:** Watermark stage runs between optimization and upload. `uploadPipeline.ts` calls `applyWatermarkToImage()` for images and passes `WatermarkDraft` to FFmpeg for videos. `noWatermarkNeeded` flag skips watermarking per item.
+
+**Key utils:** `watermarkCoordinates.ts` (percentage-to-pixel conversion), `watermarkValidation.ts` (draft clamping, URI validation).
 
 ### Component library
 

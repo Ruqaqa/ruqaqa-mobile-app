@@ -1,8 +1,10 @@
-import React, { useState, useCallback, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useTranslation } from 'react-i18next';
-import { GalleryAlbum, PickerItem, MAX_IMAGES } from '../types';
+import { GalleryAlbum, PickerItem, WatermarkDraft, DEFAULT_WATERMARK_DRAFT, MAX_IMAGES } from '../types';
+import { useShareIntent } from '@/hooks/useShareIntent';
+import { convertSharedFilesToUploadAssets } from '../utils/gallerySharedFilesAdapter';
 import {
   fetchAlbums,
   fetchTags,
@@ -17,6 +19,8 @@ import { UploadScreen } from './UploadScreen';
 import { SearchablePickerSheet } from './SearchablePickerSheet';
 import { DuplicateSheet } from './DuplicateSheet';
 import { UploadProgressCard } from './UploadProgressCard';
+import { WatermarkEditorScreen } from './WatermarkEditorScreen';
+import type { EditorMediaItem } from '../hooks/useWatermarkEditor';
 import type { UploadStage } from '../types';
 
 /** Ref interface exposed to GalleryShell for tab-switch coordination. */
@@ -44,6 +48,27 @@ export const UploadTabContainer = forwardRef<UploadTabContainerRef>(function Upl
 
   // Note: keep-awake is handled by the UploadPipeline class itself
 
+  // --- Consume shared files targeted at gallery on mount ---
+  const { state: shareState, consumeFiles } = useShareIntent();
+  const shareConsumedRef = useRef(false);
+  useEffect(() => {
+    if (
+      !shareConsumedRef.current &&
+      shareState.status === 'flow_selected' &&
+      shareState.targetId === 'gallery'
+    ) {
+      shareConsumedRef.current = true;
+      const sharedFiles = consumeFiles();
+      const { images, video } = convertSharedFilesToUploadAssets(sharedFiles);
+      if (images.length > 0) {
+        form.addImages(images);
+      }
+      if (video) {
+        form.setVideo(video);
+      }
+    }
+  }, [shareState]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Picker sheet visibility
   const [albumPickerVisible, setAlbumPickerVisible] = useState(false);
   const [tagPickerVisible, setTagPickerVisible] = useState(false);
@@ -51,6 +76,9 @@ export const UploadTabContainer = forwardRef<UploadTabContainerRef>(function Upl
 
   // Video loading state
   const [isLoadingVideo, setIsLoadingVideo] = useState(false);
+
+  // Watermark editor
+  const [watermarkEditorVisible, setWatermarkEditorVisible] = useState(false);
 
   // Use pipeline stage to determine lock state (overrides form stage)
   const effectiveStage = pipeline.stage !== 'idle' ? pipeline.stage : form.state.stage;
@@ -162,22 +190,60 @@ export const UploadTabContainer = forwardRef<UploadTabContainerRef>(function Upl
     [],
   );
 
-  // --- Upload pipeline ---
+  // --- Watermark editor ---
+
+  // Build EditorMediaItem[] from current form images + video
+  const editorMediaItems: EditorMediaItem[] = useMemo(() => {
+    const items: EditorMediaItem[] = [];
+    for (const img of form.state.images) {
+      items.push({
+        id: img.uri,
+        type: 'image',
+        uri: img.uri,
+        thumbnailUri: img.uri,
+      });
+    }
+    if (form.state.video) {
+      items.push({
+        id: form.state.video.uri,
+        type: 'video',
+        uri: form.state.video.uri,
+        thumbnailUri: form.state.video.uri,
+      });
+    }
+    return items;
+  }, [form.state.images, form.state.video]);
+
+  const handleWatermarkComplete = useCallback(
+    (drafts: Record<string, WatermarkDraft> | null) => {
+      setWatermarkEditorVisible(false);
+
+      if (!drafts) return; // User cancelled — don't upload
+
+      // Store drafts and start pipeline
+      form.setWatermarkDrafts(drafts);
+
+      pipeline.startUpload({
+        images: form.state.images,
+        video: form.state.video,
+        albums: form.state.albums,
+        tags: form.state.tags,
+        project: form.state.project,
+        watermarkDrafts: drafts,
+      });
+
+      form.setStage('processing');
+    },
+    [form, pipeline],
+  );
+
+  // --- Upload pipeline (direct, bypassing editor — kept for reset flow) ---
 
   const handleUpload = useCallback(() => {
     if (!form.canUpload) return;
-
-    pipeline.startUpload({
-      images: form.state.images,
-      video: form.state.video,
-      albums: form.state.albums,
-      tags: form.state.tags,
-      project: form.state.project,
-      watermarkDrafts: form.state.watermarkDrafts,
-    });
-
-    form.setStage('processing');
-  }, [form, pipeline]);
+    // Open the watermark editor; actual upload starts in handleWatermarkComplete
+    setWatermarkEditorVisible(true);
+  }, [form.canUpload]);
 
   // --- Duplicate resolution ---
 
@@ -308,6 +374,14 @@ export const UploadTabContainer = forwardRef<UploadTabContainerRef>(function Upl
           onResult={handleDuplicateResult}
         />
       )}
+
+      {/* Watermark Editor — opens after metadata selection, before pipeline runs */}
+      <WatermarkEditorScreen
+        visible={watermarkEditorVisible}
+        mediaItems={editorMediaItems}
+        defaultSettings={DEFAULT_WATERMARK_DRAFT}
+        onComplete={handleWatermarkComplete}
+      />
     </>
   );
 });

@@ -240,9 +240,44 @@ export const DEFAULT_WATERMARK_DRAFT: WatermarkDraft = {
   xPct: 40,
   yPct: 40,
   widthPct: 20,
-  opacityPct: 50,
+  opacityPct: 30,
   noWatermarkNeeded: false,
 };
+
+/**
+ * Clamp a WatermarkDraft to valid ranges. Used at trust boundaries:
+ * API responses, AsyncStorage reads, before FFmpeg command construction.
+ */
+export function clampWatermarkDraft(draft: Partial<WatermarkDraft>): WatermarkDraft {
+  const clamp = (val: unknown, min: number, max: number, fallback: number): number => {
+    if (typeof val !== 'number' || !isFinite(val)) return fallback;
+    return Math.min(max, Math.max(min, val));
+  };
+  return {
+    xPct: clamp(draft.xPct, 0, 100, DEFAULT_WATERMARK_DRAFT.xPct),
+    yPct: clamp(draft.yPct, 0, 100, DEFAULT_WATERMARK_DRAFT.yPct),
+    widthPct: clamp(draft.widthPct, 5, 80, DEFAULT_WATERMARK_DRAFT.widthPct),
+    opacityPct: clamp(draft.opacityPct, 10, 100, DEFAULT_WATERMARK_DRAFT.opacityPct),
+    noWatermarkNeeded: typeof draft.noWatermarkNeeded === 'boolean'
+      ? draft.noWatermarkNeeded
+      : false,
+  };
+}
+
+/**
+ * Media item representation for the watermark editor.
+ * Separate from ImagePickerAsset to decouple editor from picker.
+ */
+export interface EditorMediaItem {
+  /** Unique ID (assetId from picker, or URI as fallback). */
+  id: string;
+  /** Full-resolution image URI or video thumbnail URI for editor preview. */
+  uri: string;
+  /** Media type. */
+  type: 'image' | 'video';
+  /** Optional smaller thumbnail URI for the strip. */
+  thumbnailUri?: string;
+}
 
 /** Stages of the upload screen state machine. */
 export type UploadStage = 'idle' | 'processing' | 'done' | 'error';
