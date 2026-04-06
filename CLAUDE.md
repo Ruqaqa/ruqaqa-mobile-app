@@ -8,7 +8,7 @@ Expo (React Native + TypeScript) mobile app for Ruqaqa employees. It's a migrati
 
 App ID: `sa.ruqaqa.finance` | Version: 1.2.1 | Scheme: `ruqaqa://`
 
-**Migration status:** Phases 0–6D complete (auth, permissions, transactions, reconciliation, gallery browsing/viewing/multi-select/download, upload pipeline, image optimization, watermark editor, image watermarking, FFmpeg video processing, share intent). See `EXPO_MIGRATION_PLAN.md` for details.
+**Migration status:** Phases 0–6D complete (auth, permissions, transactions, reconciliation, gallery browsing/viewing/multi-select/download, upload pipeline, image optimization, watermark editor, image watermarking, FFmpeg dual-variant video processing, video watermark download, share intent). See `EXPO_MIGRATION_PLAN.md` for details.
 
 ## Commands
 
@@ -161,11 +161,11 @@ Cross-cutting concern — receives files from other apps and routes them to the 
 
 **Image watermarking (6C):** `watermarkApplicatorService.ts` composites logo overlay onto images using `@shopify/react-native-skia`. Reads source image + logo → draws on offscreen surface with opacity → encodes to JPEG temp file. Falls back to original on any error. Logo is cached after first load. `watermarkSettingsService.ts` fetches defaults from `GET /api/mobile/gallery/watermark-settings` with 5-minute in-memory cache + AsyncStorage persistence.
 
-**Video processing (6D):** `videoOptimizationService.ts` rewritten to use FFmpeg (via `modules/expo-ffmpeg/`) for single-pass watermark overlay + H.264 compression. GPU encoding: `h264_videotoolbox` (iOS), `h264_mediacodec` (Android), `libx264` (software fallback). Progress reported via FFmpeg statistics callback. `videoProcessingNotificationService.ts` shows sticky foreground notification during processing (prevents OS from killing the app).
+**Video processing (6D):** Dual-variant approach via `videoOptimizationService.ts`: `optimizeVideo()` (compress-only) + `watermarkVideo()` (watermark+compress), both from the **original source** to avoid double-encoding. GPU encoding: `h264_mediacodec` (Android), `h264_videotoolbox` (iOS), `libx264` (software fallback). Logo opacity pre-baked via Skia before FFmpeg (the binary only has `overlay`+`scale` filters; `format`+`colorchannelmixer` are not compiled in). Logo scale computed as `(videoWidth * widthPct / 100) / logoIntrinsicWidth` for correct video-relative sizing. Progress reported via FFmpeg statistics callback. `videoProcessingNotificationService.ts` shows sticky foreground notification during processing.
 
 **Gallery share intent (6D):** `gallerySharedFilesAdapter.ts` converts `SharedFile[]` to `ImagePickerAsset[]` for the upload form. Gallery flow target enabled in `flowTargets.ts` with `image/*` + `video/*` MIME allowlist. `UploadTabContainer` consumes shared files via `useShareIntent()` hook.
 
-**Pipeline integration:** Watermark stage runs between optimization and upload. `uploadPipeline.ts` calls `applyWatermarkToImage()` for images and passes `WatermarkDraft` to FFmpeg for videos. `noWatermarkNeeded` flag skips watermarking per item.
+**Pipeline integration:** `uploadPipeline.ts` orchestrates: images get Skia watermark between optimization and upload. Videos get two FFmpeg passes (compress → watermark+compress from original) then both files uploaded via `uploadItem({ fileUri, watermarkedFileUri })`. `galleryService.ts` appends `watermarkedFile` multipart field. `useUploadPipeline.ts` resolves bundled logo asset to local file URI via `expo-asset`. `noWatermarkNeeded` flag skips watermark pass per item. Video weight: 4.0 (1.5 compress + 1.3 watermark + 1.2 upload).
 
 **Key utils:** `watermarkCoordinates.ts` (percentage-to-pixel conversion), `watermarkValidation.ts` (draft clamping, URI validation).
 

@@ -35,7 +35,7 @@ Keycloak OAuth, image compression, cached images, localization/RTL, share intent
 
 ### Note on Video Watermarking
 
-Video watermarking is done **client-side** using a **custom Expo module** that wraps FFmpeg compiled from source. By compiling ourselves, we enable GPU hardware encoding (`h264_videotoolbox` on iOS, `h264_mediacodec` on Android) which the community fork pre-built binaries don't include. FFmpeg applies the watermark overlay and H.264 compression in a **single pass**. The overlay filter runs on CPU, the encoding leverages the device GPU (4-8x faster than software encoding). The module only includes what we need (overlay filter + H.264 encoder), keeping the binary smaller than full FFmpegKit. See Phase 6D for details.
+Video watermarking is done **client-side** using a **custom Expo module** that wraps FFmpeg compiled from source. By compiling ourselves, we enable GPU hardware encoding (`h264_videotoolbox` on iOS, `h264_mediacodec` on Android) which the community fork pre-built binaries don't include. The module only includes what we need (overlay + scale filters, H.264 encoder), keeping the binary smaller than full FFmpegKit. Video upload uses **dual-variant** approach: two separate FFmpeg passes from the original source (compress-only + watermark+compress), both uploaded in a single multipart request so the server can serve either variant for download. See Phase 6D for details.
 
 ---
 
@@ -529,18 +529,21 @@ Update seed data as sub-phases progress:
 - Build scripts in `modules/expo-ffmpeg/scripts/` for reproducible compilation
 - Pre-compiled binaries committed or hosted for CI (avoid recompiling on every build)
 
-**Video Processing — Single FFmpeg Pass (Watermark + Compress):**
-- Watermark overlay and H.264 compression happen in **one FFmpeg command**, not two separate steps
+**Video Processing — Dual-Variant FFmpeg (Compress + Watermark):**
+- Two separate FFmpeg passes, both from the **original source video** (avoids double-encoding):
+  - **Pass 1:** Compress-only → produces the "original" download variant
+  - **Pass 2:** Watermark + compress → produces the "watermarked" download variant
+- Both files uploaded in a single multipart request (`file` + `watermarkedFile` fields), matching the Flutter approach and server expectations
+- Server stores both variants; returns `watermarkedVariantAvailable: true` in the API, enabling the download format sheet to show Original/Watermarked options
 - FFmpeg command uses GPU encoding with software fallback:
-  - iOS: `-i input.mp4 -i logo.png -filter_complex "overlay=x:y" -c:v h264_videotoolbox -b:v 2M output.mp4`
-  - Android: `-i input.mp4 -i logo.png -filter_complex "overlay=x:y" -c:v h264_mediacodec -b:v 2M output.mp4`
+  - Android: `-c:v h264_mediacodec`, iOS: `-c:v h264_videotoolbox`
   - Fallback: `-c:v libx264 -preset fast -crf 23` if hardware encoder unavailable
-- Overlay position/size/opacity from `WatermarkDraft` (percentage-based, converted to pixel values based on video dimensions)
-- Logo: green branded logo (`assets/logo-green.png`) — same logo used on the login page
-- If `noWatermarkNeeded` is set, run compression only (no overlay filter)
-- Fall back to original if FFmpeg processing fails or produces a larger file
-- Video processed **sequentially** in pipeline (one video at a time, not concurrent)
-- Video weight: 3.0 in pipeline progress (2.0 watermark+compress + 1.0 upload)
+- Overlay position/size from `WatermarkDraft` (percentage-based, converted to pixel values). Scale factor computed as `(videoWidth * widthPct / 100) / logoIntrinsicWidth` to size relative to video, not logo
+- **Logo opacity:** Pre-processed via Skia (`@shopify/react-native-skia`) before FFmpeg — the FFmpeg binary only has `overlay` + `scale` filters compiled in; `format` and `colorchannelmixer` needed for runtime opacity are not available
+- Logo: green branded logo (`assets/logo-green.png`), resolved to local file URI via `expo-asset` on hook mount
+- If `noWatermarkNeeded` is set, only the compress pass runs (no watermarked variant uploaded)
+- Watermark failure is non-fatal — uploads original without watermarked variant
+- Video weight: 4.0 in pipeline progress (1.5 compress + 1.3 watermark + 1.2 upload)
 - Limit FFmpeg threads (`-threads 2`) to reduce memory pressure on low-end devices
 
 **FFmpeg Progress Tracking:**
@@ -576,16 +579,18 @@ Update seed data as sub-phases progress:
 
 **Completed:**
 - `modules/expo-ffmpeg/` — Custom FFmpeg Expo module copied from `../expo-ffmpeg-module/`
-- `videoOptimizationService.ts` rewritten: react-native-compressor replaced with FFmpeg single-pass (overlay + H.264 GPU encode)
+- `videoOptimizationService.ts` rewritten: `optimizeVideo()` (compress-only) + `watermarkVideo()` (watermark+compress from original source), with Skia-based logo opacity pre-processing
 - `videoProcessingNotificationService.ts` — Foreground sticky notification during FFmpeg processing
+- `galleryService.ts` — `uploadItem()` supports `watermarkedFileUri` param, appended as `watermarkedFile` multipart field
+- `useUploadPipeline.ts` — Resolves bundled logo asset to local file URI via `expo-asset`
+- `uploadPipeline.ts` — Dual-variant video flow: compress → watermark → upload both files
 - `gallerySharedFilesAdapter.ts` — Converts shared files to upload form assets (images + video)
 - Gallery flow target enabled in `flowTargets.ts` with `image/*` + `video/*` MIME allowlist
 - `UploadTabContainer.tsx` — Share intent consumption + watermark editor wiring
-- `uploadPipeline.ts` — Integrated watermark + FFmpeg + notification stages
 - i18n keys added for video processing (en.ts, ar.ts)
 - Full test coverage in `src/features/gallery/__tests__/`
 
-**Deliverable:** Videos are watermarked and compressed in a single FFmpeg pass with progress tracking and foreground notification. Shared files route to Gallery upload flow.
+**Deliverable:** Videos are compressed and watermarked in two separate FFmpeg passes (both from original source), uploaded as dual variants for download format selection. Shared files route to Gallery upload flow.
 
 ---
 
@@ -648,7 +653,7 @@ Phases 3, 4, and 5A can be worked on in parallel once Phase 2 is complete. 5C an
 
 2. **API base URL** is configurable: dev is `http://192.168.100.53:3000`, production is `https://ruqaqa.sa`. All mobile API routes are under `/api/mobile/`.
 
-3. **Video watermarking** is done client-side via a custom FFmpeg Expo module (`modules/expo-ffmpeg/`) compiled from source with GPU hardware encoding enabled. FFmpeg handles watermark overlay + H.264 compression in a single pass. See Phase 6D for the full approach.
+3. **Video watermarking** is done client-side via a custom FFmpeg Expo module (`modules/expo-ffmpeg/`) compiled from source with GPU hardware encoding enabled. Two FFmpeg passes from the original source produce compress-only and watermark+compress variants, both uploaded for server-side download format selection. Logo opacity is pre-baked via Skia (FFmpeg binary only has overlay+scale filters). See Phase 6D for the full approach.
 
 4. **Use `expo prebuild`** and development builds from day one. Do not rely on Expo Go — too many features require native modules.
 
