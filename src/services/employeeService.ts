@@ -11,9 +11,10 @@ export async function validateEmployee(): Promise<Employee | null> {
     const res = await apiClient.post<ValidateResponse>('/auth/validate', {});
 
     if (res.data.success && res.data.employee) {
-      const { professionalPictureUrl, ...employee } = res.data.employee;
+      const { professionalPictureUrl, firstName, lastName, ...employee } = res.data.employee;
       return {
         ...employee,
+        name: `${firstName ?? ''} ${lastName ?? ''}`.trim() || employee.email,
         avatarUrl: professionalPictureUrl ?? employee.avatarUrl,
       };
     }

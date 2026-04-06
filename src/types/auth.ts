@@ -36,10 +36,15 @@ export interface TokenResponse {
 
 /**
  * Raw employee shape from the validate endpoint.
- * Includes fields the backend sends that aren't on the client Employee type.
+ * The backend sends firstName/lastName separately; employeeService combines them into `name`.
  */
-export interface ValidateEmployeeResponse extends Employee {
+export interface ValidateEmployeeResponse {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  email: string;
   professionalPictureUrl?: string;
+  avatarUrl?: string;
 }
 
 /**

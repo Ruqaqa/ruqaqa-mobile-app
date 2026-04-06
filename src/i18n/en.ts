@@ -65,6 +65,7 @@ export default {
 
   // Common labels
   hello: 'Hello',
+  greeting: 'Hello, {{name}}',
   welcome: 'Welcome',
   history: 'History',
   status: 'Status',

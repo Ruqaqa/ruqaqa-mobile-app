@@ -28,6 +28,9 @@ import {
 import { createDeduplicatedRefresh } from '../utils/deduplicatedRefresh';
 import { initializeEmployeeCache, clearEmployeeCache } from './employeeCacheService';
 import { initializeFinanceChannelCache, clearFinanceChannelCache } from './financeChannelService';
+import { clearFormCache } from './formCacheService';
+import { invalidateCache as invalidateWatermarkCache } from '../features/gallery/services/watermarkSettingsService';
+import { shareIntentStore } from './shareIntent/shareIntentStore';
 
 // ---------------------------------------------------------------------------
 // Context shape
@@ -263,6 +266,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       WebBrowser.dismissBrowser();
       clearEmployeeCache();
       clearFinanceChannelCache();
+      clearFormCache().catch(() => {});
+      invalidateWatermarkCache();
+      shareIntentStore.clear();
       setEmployee(null);
       setPermissions(null);
       setIsAuthenticated(false);

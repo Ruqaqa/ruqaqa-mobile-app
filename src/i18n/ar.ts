@@ -65,6 +65,7 @@ export default {
 
   // Common labels
   hello: 'مرحبا',
+  greeting: 'مرحبا، {{name}}',
   welcome: 'مرحباً بك',
   history: 'السجل',
   status: 'الحالة',

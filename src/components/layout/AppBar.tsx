@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Globe, Wallet, Image as ImageIcon } from 'lucide-react-native';
@@ -6,6 +6,7 @@ import { useTheme } from '../../theme';
 import { useAppModuleContext } from '../../navigation/AppModuleContext';
 import { AuthContext } from '../../services/authContext';
 import { ProfileAvatar } from '../ui/ProfileAvatar';
+import { ProfileMenuSheet } from './ProfileMenuSheet';
 import { changeLanguage } from '../../i18n';
 import type { Language } from '../../i18n';
 
@@ -16,19 +17,31 @@ export function AppBar() {
   const { t, i18n } = useTranslation();
   const { colors, typography, spacing, radius } = useTheme();
   const { canSwitch, openSwitcher, activeModule } = useAppModuleContext();
-  const { employee } = useContext(AuthContext);
+  const { employee, logout } = useContext(AuthContext);
+  const [profileMenuVisible, setProfileMenuVisible] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const currentLang = i18n.language as Language;
   const toggleLang = () =>
     changeLanguage(currentLang === 'ar' ? 'en' : 'ar');
 
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    setProfileMenuVisible(false);
+    await logout();
+  };
+
   return (
     <View style={[styles.bar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
       {/* Profile + language toggle (leading side: left in LTR, right in RTL) */}
       <View style={styles.section}>
-        <View style={{ marginEnd: spacing.sm }}>
-          <ProfileAvatar url={employee?.avatarUrl} size={32} />
-        </View>
+        <Pressable
+          onPress={() => setProfileMenuVisible(true)}
+          style={{ marginEnd: spacing.sm }}
+          accessibilityLabel="Profile menu"
+        >
+          <ProfileAvatar url={employee?.avatarUrl} name={employee?.name} size={32} />
+        </Pressable>
 
         <Pressable
           onPress={toggleLang}
@@ -64,6 +77,14 @@ export function AppBar() {
           </Pressable>
         )}
       </View>
+
+      <ProfileMenuSheet
+        visible={profileMenuVisible}
+        onClose={() => setProfileMenuVisible(false)}
+        employee={employee}
+        onSignOut={handleSignOut}
+        isSigningOut={isSigningOut}
+      />
     </View>
   );
 }
