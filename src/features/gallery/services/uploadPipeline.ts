@@ -371,12 +371,17 @@ export class UploadPipeline {
 
         if (!wmDraft.noWatermarkNeeded && this.config.logoUri) {
           this.setItemState(i, 'watermarking');
+          console.log('[watermark:debug] [pipeline] Calling applyWatermarkToImage for image', i);
+          console.log('[watermark:debug] [pipeline]   fileToUploadUri:', item.fileToUploadUri);
+          console.log('[watermark:debug] [pipeline]   logoUri:', this.config.logoUri);
+          console.log('[watermark:debug] [pipeline]   wmDraft:', JSON.stringify(wmDraft));
           try {
             const wmResult = await applyWatermarkToImage(
               item.fileToUploadUri,
               wmDraft,
               this.config.logoUri,
             );
+            console.log('[watermark:debug] [pipeline] applyWatermarkToImage result for image', i, ':', JSON.stringify({ uri: wmResult.uri, applied: wmResult.applied }));
             if (wmResult.applied && wmResult.uri !== item.fileToUploadUri) {
               this.tempFileUris.push(wmResult.uri);
               item.fileToUploadUri = wmResult.uri;

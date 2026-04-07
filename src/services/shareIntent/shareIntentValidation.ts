@@ -4,11 +4,15 @@ export const ALLOWED_SHARE_MIME_TYPES = [
   'image/jpeg',
   'image/png',
   'image/heic',
+  'image/heif',
   'image/webp',
+  'video/mp4',
+  'video/quicktime',
+  'video/x-matroska',
   'application/pdf',
 ] as const;
 
-export const MAX_SHARE_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+export const MAX_SHARE_FILE_SIZE_BYTES = 100 * 1024 * 1024; // 100 MB (gallery supports large videos)
 export const MAX_SHARE_FILE_COUNT = 20;
 
 export function validateMimeType(mimeType: string): boolean {
@@ -21,8 +25,10 @@ export function validateFileSize(fileSize: number | undefined): boolean {
   return fileSize <= MAX_SHARE_FILE_SIZE_BYTES;
 }
 
-export function resolveFileType(mimeType: string): 'image' | 'document' {
-  return mimeType.startsWith('image/') ? 'image' : 'document';
+export function resolveFileType(mimeType: string): 'image' | 'video' | 'document' {
+  if (mimeType.startsWith('image/')) return 'image';
+  if (mimeType.startsWith('video/')) return 'video';
+  return 'document';
 }
 
 export function sanitizeFileName(name: string): string {

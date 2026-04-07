@@ -423,6 +423,8 @@ export default {
   shareFlowGallery: 'Gallery Album',
   shareFlowGalleryDesc: 'Upload to a gallery album',
   shareFlowComingSoon: 'Coming soon',
+  shareFilesDropped_one: '1 file exceeded the limit and was not added',
+  shareFilesDropped_other: '{{count}} files exceeded the limit and were not added',
 
   // Search enhancements
   partnerEmployee: 'Partner',

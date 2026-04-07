@@ -33,9 +33,9 @@ describe('handleIncomingFiles', () => {
   it('rejects files with invalid MIME types', () => {
     handleIncomingFiles([
       {
-        path: 'file:///local/movie.mp4',
-        mimeType: 'video/mp4',
-        fileName: 'movie.mp4',
+        path: 'file:///local/archive.zip',
+        mimeType: 'application/zip',
+        fileName: 'archive.zip',
         size: 5000,
       },
     ]);
@@ -43,17 +43,49 @@ describe('handleIncomingFiles', () => {
     expect(shareIntentStore.getState().status).toBe('idle');
   });
 
-  it('rejects oversized files', () => {
+  it('accepts video files', () => {
     handleIncomingFiles([
       {
-        path: 'file:///local/huge.jpg',
-        mimeType: 'image/jpeg',
-        fileName: 'huge.jpg',
-        size: 15 * 1024 * 1024,
+        path: 'file:///local/movie.mp4',
+        mimeType: 'video/mp4',
+        fileName: 'movie.mp4',
+        size: 5000,
+      },
+    ]);
+
+    const state = shareIntentStore.getState();
+    expect(state.status).toBe('files_received');
+    if (state.status === 'files_received') {
+      expect(state.files).toHaveLength(1);
+      expect(state.files[0].fileType).toBe('video');
+    }
+  });
+
+  it('rejects oversized files above 100 MB', () => {
+    handleIncomingFiles([
+      {
+        path: 'file:///local/huge.mp4',
+        mimeType: 'video/mp4',
+        fileName: 'huge.mp4',
+        size: 101 * 1024 * 1024,
       },
     ]);
 
     expect(shareIntentStore.getState().status).toBe('idle');
+  });
+
+  it('accepts files up to 100 MB', () => {
+    handleIncomingFiles([
+      {
+        path: 'file:///local/large_video.mp4',
+        mimeType: 'video/mp4',
+        fileName: 'large_video.mp4',
+        size: 99 * 1024 * 1024,
+      },
+    ]);
+
+    const state = shareIntentStore.getState();
+    expect(state.status).toBe('files_received');
   });
 
   it('skips files with no path', () => {
@@ -83,12 +115,20 @@ describe('handleIncomingFiles', () => {
         fileName: 'movie.mp4',
         size: 5000,
       },
+      {
+        path: 'file:///local/archive.zip',
+        mimeType: 'application/zip',
+        fileName: 'archive.zip',
+        size: 1024,
+      },
     ]);
 
     const state = shareIntentStore.getState();
+    expect(state.status).toBe('files_received');
     if (state.status === 'files_received') {
-      expect(state.files).toHaveLength(1);
+      expect(state.files).toHaveLength(2);
       expect(state.files[0].mimeType).toBe('image/jpeg');
+      expect(state.files[1].mimeType).toBe('video/mp4');
     }
   });
 

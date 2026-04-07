@@ -47,11 +47,12 @@
       }],
       ["expo-share-intent", {
         "iosActivationRules": {
-          "NSExtensionActivationSupportsImageWithMaxCount": 4,
+          "NSExtensionActivationSupportsImageWithMaxCount": 20,
+          "NSExtensionActivationSupportsMovieWithMaxCount": 1,
           "NSExtensionActivationSupportsFileWithMaxCount": 4
         },
-        "androidIntentFilters": ["image/*", "application/pdf"],
-        "androidMultiIntentFilters": ["image/*"]
+        "androidIntentFilters": ["image/*", "video/*", "application/pdf"],
+        "androidMultiIntentFilters": ["image/*", "video/*"]
       }]
     ],
     "extra": {

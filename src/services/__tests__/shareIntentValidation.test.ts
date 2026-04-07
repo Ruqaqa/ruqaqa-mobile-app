@@ -26,14 +26,17 @@ describe('validateMimeType', () => {
     'image/jpeg',
     'image/png',
     'image/heic',
+    'image/heif',
     'image/webp',
+    'video/mp4',
+    'video/quicktime',
+    'video/x-matroska',
     'application/pdf',
   ])('accepts allowed type: %s', (mime) => {
     expect(validateMimeType(mime)).toBe(true);
   });
 
   it.each([
-    'video/mp4',
     'application/zip',
     'text/plain',
     'audio/mpeg',
@@ -59,16 +62,16 @@ describe('validateMimeType', () => {
 // ---------------------------------------------------------------------------
 
 describe('validateFileSize', () => {
-  it('accepts files under 10MB', () => {
-    expect(validateFileSize(5 * 1024 * 1024)).toBe(true);
+  it('accepts files under 100MB', () => {
+    expect(validateFileSize(50 * 1024 * 1024)).toBe(true);
   });
 
-  it('accepts files exactly at 10MB', () => {
-    expect(validateFileSize(10 * 1024 * 1024)).toBe(true);
+  it('accepts files exactly at 100MB', () => {
+    expect(validateFileSize(100 * 1024 * 1024)).toBe(true);
   });
 
-  it('rejects files over 10MB', () => {
-    expect(validateFileSize(10 * 1024 * 1024 + 1)).toBe(false);
+  it('rejects files over 100MB', () => {
+    expect(validateFileSize(100 * 1024 * 1024 + 1)).toBe(false);
   });
 
   it('accepts zero-byte files', () => {
@@ -90,6 +93,12 @@ describe('resolveFileType', () => {
     expect(resolveFileType('image/png')).toBe('image');
     expect(resolveFileType('image/heic')).toBe('image');
     expect(resolveFileType('image/webp')).toBe('image');
+  });
+
+  it('maps video MIME types to video', () => {
+    expect(resolveFileType('video/mp4')).toBe('video');
+    expect(resolveFileType('video/quicktime')).toBe('video');
+    expect(resolveFileType('video/x-matroska')).toBe('video');
   });
 
   it('maps application/pdf to document', () => {
@@ -147,13 +156,13 @@ describe('validateSharedFiles', () => {
     uri: 'file:///data/big.pdf',
     mimeType: 'application/pdf',
     fileName: 'big.pdf',
-    fileSize: 15 * 1024 * 1024,
+    fileSize: 101 * 1024 * 1024,
   };
 
   const unsupportedFile = {
-    uri: 'file:///data/movie.mp4',
-    mimeType: 'video/mp4',
-    fileName: 'movie.mp4',
+    uri: 'file:///data/archive.zip',
+    mimeType: 'application/zip',
+    fileName: 'archive.zip',
     fileSize: 5000,
   };
 
@@ -170,7 +179,7 @@ describe('validateSharedFiles', () => {
     expect(result.rejected[0].reason).toBe('invalidFileType');
   });
 
-  it('rejects files over 10MB', () => {
+  it('rejects files over 100MB', () => {
     const result = validateSharedFiles([largePdf]);
     expect(result.valid).toHaveLength(0);
     expect(result.rejected).toHaveLength(1);
@@ -208,9 +217,11 @@ describe('validateSharedFiles', () => {
     const result = validateSharedFiles([
       validFile,
       { ...validFile, uri: 'file:///doc.pdf', mimeType: 'application/pdf', fileName: 'doc.pdf' },
+      { ...validFile, uri: 'file:///clip.mp4', mimeType: 'video/mp4', fileName: 'clip.mp4' },
     ]);
     expect(result.valid[0].fileType).toBe('image');
     expect(result.valid[1].fileType).toBe('document');
+    expect(result.valid[2].fileType).toBe('video');
   });
 
   it('returns empty arrays for empty input', () => {
@@ -225,8 +236,8 @@ describe('validateSharedFiles', () => {
 // ---------------------------------------------------------------------------
 
 describe('constants consistency', () => {
-  it('max file size matches receipt picker (10MB)', () => {
-    expect(MAX_SHARE_FILE_SIZE_BYTES).toBe(10 * 1024 * 1024);
+  it('max file size is 100MB for gallery video support', () => {
+    expect(MAX_SHARE_FILE_SIZE_BYTES).toBe(100 * 1024 * 1024);
   });
 
   it('allowed MIME types include all receipt picker types', () => {
@@ -234,6 +245,17 @@ describe('constants consistency', () => {
     for (const mime of expected) {
       expect(ALLOWED_SHARE_MIME_TYPES).toContain(mime);
     }
+  });
+
+  it('allowed MIME types include video types for gallery', () => {
+    const videoTypes = ['video/mp4', 'video/quicktime', 'video/x-matroska'];
+    for (const mime of videoTypes) {
+      expect(ALLOWED_SHARE_MIME_TYPES).toContain(mime);
+    }
+  });
+
+  it('allowed MIME types include image/heif', () => {
+    expect(ALLOWED_SHARE_MIME_TYPES).toContain('image/heif');
   });
 
   it('max file count is 20', () => {

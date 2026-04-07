@@ -59,12 +59,15 @@ export const UploadTabContainer = forwardRef<UploadTabContainerRef>(function Upl
     ) {
       shareConsumedRef.current = true;
       const sharedFiles = consumeFiles();
-      const { images, video } = convertSharedFilesToUploadAssets(sharedFiles);
+      const { images, video, droppedCount } = convertSharedFilesToUploadAssets(sharedFiles);
       if (images.length > 0) {
         form.addImages(images);
       }
       if (video) {
         form.setVideo(video);
+      }
+      if (droppedCount > 0) {
+        Alert.alert('', t('shareFilesDropped', { count: droppedCount }));
       }
     }
   }, [shareState]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -259,6 +262,7 @@ export const UploadTabContainer = forwardRef<UploadTabContainerRef>(function Upl
   const handleReset = useCallback(() => {
     pipeline.reset();
     form.reset();
+    shareConsumedRef.current = false;
   }, [pipeline, form]);
 
   // Expose pipeline state and reset to parent (GalleryShell) for tab-switch coordination

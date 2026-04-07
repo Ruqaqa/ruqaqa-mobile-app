@@ -13,14 +13,15 @@ jest.mock('expo-file-system', () => {
   return {
     File: jest.fn().mockImplementation((uriOrBase: string, name?: string) => {
       const uri = name ? `${uriOrBase}/${name}` : uriOrBase;
+      const isLogo = uri.includes('logo');
+      const isOutput = uri.includes('wm_');
       callCount++;
       return {
         uri,
         get exists() {
-          // Logo file check
-          if (uri.includes('logo')) return mockLogoExists();
-          // Output file check
-          return mockOutputExists();
+          if (isLogo) return mockLogoExists();
+          if (isOutput) return mockOutputExists();
+          return true;
         },
         delete: mockOutputDelete,
         write: mockOutputWrite,
@@ -60,7 +61,7 @@ jest.mock('@shopify/react-native-skia', () => ({
     },
     Data: {
       fromBytes: jest.fn().mockReturnValue({}),
-      fromURI: jest.fn().mockReturnValue({}),
+      fromURI: jest.fn().mockResolvedValue({}),
     },
     Paint: jest.fn().mockReturnValue({
       setAlphaf: jest.fn(),
@@ -94,12 +95,15 @@ beforeEach(() => {
   const { File } = require('expo-file-system');
   (File as jest.Mock).mockImplementation((uriOrBase: string, name?: string) => {
     const uri = name ? `${uriOrBase}/${name}` : uriOrBase;
+    const isLogo = uri.includes('logo');
+    const isOutput = uri.includes('wm_');
     callCount++;
     return {
       uri,
       get exists() {
-        if (uri.includes('logo')) return mockLogoExists();
-        return mockOutputExists();
+        if (isLogo) return mockLogoExists();
+        if (isOutput) return mockOutputExists();
+        return true;
       },
       delete: mockOutputDelete,
       write: mockOutputWrite,

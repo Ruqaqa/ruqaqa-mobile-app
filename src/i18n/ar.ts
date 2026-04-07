@@ -423,6 +423,8 @@ export default {
   shareFlowGallery: 'ألبوم المعرض',
   shareFlowGalleryDesc: 'رفع إلى ألبوم في المعرض',
   shareFlowComingSoon: 'قريباً',
+  shareFilesDropped_one: 'ملف واحد تجاوز الحد ولم تتم إضافته',
+  shareFilesDropped_other: '{{count}} ملفات تجاوزت الحد ولم تتم إضافتها',
 
   // Search enhancements
   partnerEmployee: 'الشريك',

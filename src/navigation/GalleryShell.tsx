@@ -5,6 +5,7 @@ import { Plus } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../theme';
 import { useAppModuleContext } from './AppModuleContext';
+import { useShareIntent } from '../hooks/useShareIntent';
 import { AppBar } from '../components/layout/AppBar';
 import { AlbumGridScreen } from '../features/gallery/components/AlbumGridScreen';
 import { UploadTabContainer, UploadTabContainerRef } from '../features/gallery/components/UploadTabContainer';
@@ -32,6 +33,14 @@ export function GalleryShell() {
     albums: t('galleryTab'),
     upload: t('upload'),
   };
+
+  // Auto-switch to upload tab when share intent targets gallery
+  const { state: shareState } = useShareIntent();
+  useEffect(() => {
+    if (shareState.status === 'flow_selected' && shareState.targetId === 'gallery') {
+      setActiveTab('upload');
+    }
+  }, [shareState]);
 
   const openCreateSheet = useCallback(() => setShowCreateSheet(true), []);
   const closeCreateSheet = useCallback(() => setShowCreateSheet(false), []);

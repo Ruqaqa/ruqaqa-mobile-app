@@ -92,6 +92,9 @@ export default function AppLayout() {
   const handleFlowSelect = useCallback((target: ShareFlowTarget) => {
     selectFlow(target);
     setFlowSelectorVisible(false);
+    if (target === 'gallery') {
+      setActiveModule('gallery');
+    }
   }, [selectFlow]);
 
   const handleFlowDismiss = useCallback(() => {
@@ -170,6 +173,7 @@ export default function AppLayout() {
           <FlowSelectorSheet
             visible={flowSelectorVisible}
             files={flowSelectorFiles}
+            permissions={effectivePermissions}
             onSelect={handleFlowSelect}
             onDismiss={handleFlowDismiss}
             onRemoveFile={handleRemoveSharedFile}

@@ -14,6 +14,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/theme';
 import { withAlpha } from '@/utils/colorUtils';
+import type { UserPermissions } from '@/types/permissions';
 import { SharedFile, SharedFilesPreview } from './SharedFilesPreview';
 
 export type ShareFlowTarget = 'transaction' | 'reconciliation' | 'gallery';
@@ -21,6 +22,7 @@ export type ShareFlowTarget = 'transaction' | 'reconciliation' | 'gallery';
 interface FlowSelectorSheetProps {
   visible: boolean;
   files: SharedFile[];
+  permissions?: UserPermissions;
   onSelect: (target: ShareFlowTarget) => void;
   onDismiss: () => void;
   onRemoveFile?: (index: number) => void;
@@ -37,6 +39,7 @@ interface FlowOption {
 export function FlowSelectorSheet({
   visible,
   files,
+  permissions,
   onSelect,
   onDismiss,
   onRemoveFile,
@@ -61,10 +64,10 @@ export function FlowSelectorSheet({
     },
     {
       target: 'gallery',
-      icon: <ImageIcon size={22} color={colors.foregroundSecondary} />,
+      icon: <ImageIcon size={22} color={permissions?.canCreateGallery ? colors.green : colors.foregroundSecondary} />,
       titleKey: 'shareFlowGallery',
       descriptionKey: 'shareFlowGalleryDesc',
-      enabled: false,
+      enabled: permissions?.canCreateGallery ?? false,
     },
   ];
 

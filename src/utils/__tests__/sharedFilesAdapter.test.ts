@@ -95,4 +95,50 @@ describe('convertSharedFilesToAttachments (shared)', () => {
     expect(result.attachments).toHaveLength(5);
     expect(result.overflow).toBe(0);
   });
+
+  it('filters out video files', () => {
+    const shared = [
+      makeSharedFile({ uri: 'file:///data/photo.jpg' }),
+      makeSharedFile({
+        uri: 'file:///data/video.mp4',
+        mimeType: 'video/mp4',
+        fileType: 'video',
+        fileName: 'video.mp4',
+      }),
+      makeSharedFile({ uri: 'file:///data/photo2.jpg', fileName: 'photo2.jpg' }),
+    ];
+    const result = convertSharedFilesToAttachments(shared, 0, 4);
+    expect(result.attachments).toHaveLength(2);
+    expect(result.attachments.every((a) => a.mimeType !== 'video/mp4')).toBe(true);
+  });
+
+  it('returns zero overflow when only video files are shared', () => {
+    const shared = [
+      makeSharedFile({
+        uri: 'file:///data/video.mp4',
+        mimeType: 'video/mp4',
+        fileType: 'video',
+        fileName: 'video.mp4',
+      }),
+    ];
+    const result = convertSharedFilesToAttachments(shared, 0, 4);
+    expect(result.attachments).toHaveLength(0);
+    expect(result.overflow).toBe(0);
+  });
+
+  it('filters out files exceeding 10 MB', () => {
+    const shared = [
+      makeSharedFile({ uri: 'file:///data/small.jpg', fileSize: 5 * 1024 * 1024 }),
+      makeSharedFile({ uri: 'file:///data/huge.jpg', fileSize: 50 * 1024 * 1024, fileName: 'huge.jpg' }),
+    ];
+    const result = convertSharedFilesToAttachments(shared, 0, 4);
+    expect(result.attachments).toHaveLength(1);
+    expect(result.attachments[0].uri).toBe('file:///data/small.jpg');
+  });
+
+  it('allows files with null fileSize through', () => {
+    const shared = [makeSharedFile({ fileSize: null })];
+    const result = convertSharedFilesToAttachments(shared, 0, 4);
+    expect(result.attachments).toHaveLength(1);
+  });
 });

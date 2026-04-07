@@ -4,7 +4,7 @@ import type { UserPermissions } from '@/types/permissions';
 export interface SharedFile {
   uri: string;
   mimeType: string;
-  fileType: 'image' | 'document';
+  fileType: 'image' | 'video' | 'document';
   fileName: string | null;
   fileSize: number | null;
 }

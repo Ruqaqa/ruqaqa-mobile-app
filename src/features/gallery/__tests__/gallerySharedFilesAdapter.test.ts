@@ -19,7 +19,7 @@ function makeSharedVideo(overrides: Partial<SharedFile> = {}): SharedFile {
   return {
     uri: 'file:///data/video.mp4',
     mimeType: 'video/mp4',
-    fileType: 'image', // SharedFile fileType is always 'image' or 'document'
+    fileType: 'video',
     fileName: 'video.mp4',
     fileSize: 50_000_000,
     ...overrides,
