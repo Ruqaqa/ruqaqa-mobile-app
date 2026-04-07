@@ -618,14 +618,14 @@ Update seed data as sub-phases progress:
 - Pull-to-refresh: RefreshControl in transaction list, reconciliation list, album grid, and media grid
 - Module switcher bottom sheet: Finance/Gallery toggle (`src/components/layout/ModuleSwitcherSheet.tsx`, Phase 0)
 
-**Remaining:**
-- Deep linking support for feature-specific routes (if needed for future features)
-
 **Recently completed:**
 - [x] Profile avatar initials fallback (first+last initials, Arabic/Latin support, primary color background)
 - [x] Profile menu sheet: tap avatar → greeting ("مرحبا، {name}") + sign out button with loading state
 - [x] Employee name fix: combine firstName/lastName from backend validate endpoint
 - [x] Logout security hardening: clear formCache, watermarkSettings, shareIntentStore on logout
+
+**Remaining:**
+- [ ] Test app update detection flow (VersionGate: forced update, optional update, maintenance mode)
 
 **Refer to:** `lib/widgets/`, `lib/core/services/sound_service.dart`
 
@@ -650,7 +650,7 @@ Update seed data as sub-phases progress:
 | 6B | Gallery — Upload Pipeline & Image Optimization | DONE | Phase 6A |
 | 6C | Gallery — Watermark System (Images) | DONE | Phase 6B |
 | 6D | Gallery — Video Processing (FFmpeg) & Share Intent | DONE | Phase 6C |
-| 7 | Shared Components & Polish | **NEXT** | All phases |
+| 7 | Shared Components & Polish | DONE (testing update flow) | All phases |
 
 Phases 3, 4, and 5A can be worked on in parallel once Phase 2 is complete. 5C and 5D can be worked on in parallel once 5B is complete. 6C and 6D are sequential (6C → 6D).
 
