@@ -20,6 +20,7 @@
     "@react-native-community/datetimepicker": "^8.6.0",
     "@shopify/react-native-skia": "^2.6.2",
     "axios": "^1.13.6",
+    "babel-preset-expo": "^55.0.15",
     "expo": "~55.0.8",
     "expo-audio": "^55.0.9",
     "expo-auth-session": "^55.0.9",

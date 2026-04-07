@@ -24,18 +24,18 @@ export default function RootLayout() {
     bootstrap();
   }, []);
 
-  if (!ready) return null;
-
+  // Always render Slot — expo-router requires a navigator on the first render.
+  // Splash screen covers the UI until i18n is ready.
   return (
     <DirectionProvider>
       <ThemeProvider>
         <AuthProvider>
-          <ShareIntentBridge />
+          {ready && <ShareIntentBridge />}
           <VersionGate>
             <StatusBar style="auto" />
             <Slot />
           </VersionGate>
-          <SessionExpiredOverlay />
+          {ready && <SessionExpiredOverlay />}
         </AuthProvider>
       </ThemeProvider>
     </DirectionProvider>

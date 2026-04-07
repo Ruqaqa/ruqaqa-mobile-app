@@ -78,8 +78,9 @@ export function VersionGate({ children }: VersionGateProps) {
     [t],
   );
 
-  // While checking on first launch, show nothing (splash screen still visible)
-  if (checking) return null;
+  // While checking on first launch, still render children so Slot stays mounted.
+  // Splash screen covers the UI during this time.
+  if (checking) return <>{children}</>;
 
   const showMaintenance = result?.maintenanceMode && !dismissed;
   const showForceUpdate = result?.updateRequired && !result.maintenanceMode && !dismissed;
