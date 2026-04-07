@@ -64,17 +64,22 @@ function isTrustedDomain(hostname: string): boolean {
 
 /**
  * Normalize download URLs — handle malformed URLs from the backend.
+ * Resolves relative paths against the API base URL.
  * Only allows URLs on trusted domains. Returns undefined for untrusted domains.
  */
 export function normalizeDownloadUrl(url: unknown): string | undefined {
   if (!url || typeof url !== 'string') return undefined;
   let normalized = url.trim();
   if (!normalized) return undefined;
+  // Resolve relative paths against API base URL (inherently trusted — came from our backend)
+  if (normalized.startsWith('/')) {
+    return `${config.apiBaseUrl}${normalized}`;
+  }
   // Ensure protocol
   if (!normalized.startsWith('http://') && !normalized.startsWith('https://')) {
     normalized = `https://${normalized}`;
   }
-  // Validate domain
+  // Validate domain for absolute URLs
   try {
     const parsed = new URL(normalized);
     if (!isTrustedDomain(parsed.hostname)) {

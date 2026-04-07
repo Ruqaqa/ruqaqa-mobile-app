@@ -133,6 +133,12 @@ describe('normalizeDownloadUrl', () => {
       normalizeDownloadUrl('https://ruqaqa.sa.evil.com/app.apk'),
     ).toBeUndefined();
   });
+
+  it('resolves relative paths against API base URL', () => {
+    expect(normalizeDownloadUrl('/api/media/file/app-debug.apk')).toBe(
+      'https://ruqaqa.sa/api/media/file/app-debug.apk',
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
