@@ -5,7 +5,6 @@ import {
   Modal,
   StyleSheet,
   Pressable,
-  ActivityIndicator,
   Linking,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -15,6 +14,7 @@ import { Button } from '../ui/Button';
 import { VersionCheckResult } from '../../types/version';
 import { checkAppVersion } from '../../services/versionCheckService';
 import { isFirstLaunch, markLaunched } from '../../services/appLifecycle';
+import { downloadAndInstallApk } from '../../services/apkUpdateService';
 
 interface VersionGateProps {
   children: React.ReactNode;
@@ -33,6 +33,9 @@ export function VersionGate({ children }: VersionGateProps) {
   const [checking, setChecking] = useState(true);
   const [result, setResult] = useState<VersionCheckResult | null>(null);
   const [dismissed, setDismissed] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadPercent, setDownloadPercent] = useState(0);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const runCheck = useCallback(async () => {
     const vResult = await checkAppVersion();
@@ -56,6 +59,24 @@ export function VersionGate({ children }: VersionGateProps) {
     }
     init();
   }, [runCheck]);
+
+  const handleDownloadAndInstall = useCallback(
+    async (url: string) => {
+      setDownloading(true);
+      setDownloadPercent(0);
+      setDownloadError(null);
+
+      const { success, error } = await downloadAndInstallApk(url, (progress) => {
+        setDownloadPercent(progress.percent);
+      });
+
+      setDownloading(false);
+      if (!success) {
+        setDownloadError(error ?? t('downloadFailed'));
+      }
+    },
+    [t],
+  );
 
   // While checking on first launch, show nothing (splash screen still visible)
   if (checking) return null;
@@ -174,13 +195,59 @@ export function VersionGate({ children }: VersionGateProps) {
             )}
             <View style={{ marginTop: spacing.xxl, width: '100%' }}>
               {result?.downloadUrl ? (
-                <Button
-                  testID="force-update-button"
-                  title={t('updateNow')}
-                  onPress={() => Linking.openURL(result.downloadUrl!)}
-                  variant="gradient"
-                  size="lg"
-                />
+                downloading ? (
+                  <View style={{ alignItems: 'center', width: '100%' }}>
+                    <Text
+                      style={[
+                        typography.bodyMedium,
+                        { color: colors.foreground, marginBottom: spacing.md },
+                      ]}
+                    >
+                      {t('downloadingProgress', { percent: downloadPercent })}
+                    </Text>
+                    <View
+                      style={[
+                        styles.progressTrack,
+                        { backgroundColor: colors.surface, borderRadius: radius.full },
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.progressFill,
+                          {
+                            backgroundColor: colors.primary,
+                            borderRadius: radius.full,
+                            width: `${downloadPercent}%`,
+                          },
+                        ]}
+                      />
+                    </View>
+                  </View>
+                ) : (
+                  <>
+                    {downloadError && (
+                      <Text
+                        style={[
+                          typography.bodySmall,
+                          {
+                            color: colors.error,
+                            textAlign: 'center',
+                            marginBottom: spacing.md,
+                          },
+                        ]}
+                      >
+                        {downloadError}
+                      </Text>
+                    )}
+                    <Button
+                      testID="force-update-button"
+                      title={t('updateNow')}
+                      onPress={() => handleDownloadAndInstall(result.downloadUrl!)}
+                      variant="gradient"
+                      size="lg"
+                    />
+                  </>
+                )
               ) : (
                 <Text
                   style={[
@@ -191,7 +258,7 @@ export function VersionGate({ children }: VersionGateProps) {
                   {t('updateRequiredNoUrl')}
                 </Text>
               )}
-              {__DEV__ && (
+              {__DEV__ && !downloading && (
                 <Button
                   testID="dev-skip-update"
                   title="Skip (dev only)"
@@ -273,25 +340,55 @@ export function VersionGate({ children }: VersionGateProps) {
                 {result.releaseNotes}
               </Text>
             )}
-            <View style={[styles.sheetButtons, { marginTop: spacing.lg, gap: spacing.md }]}>
-              <Pressable
-                onPress={() => setDismissed(true)}
-                style={{ paddingVertical: spacing.md, paddingHorizontal: spacing.base }}
-              >
-                <Text style={[typography.bodyMedium, { color: colors.foregroundSecondary }]}>
-                  {t('later')}
+            {downloading ? (
+              <View style={{ alignItems: 'center', width: '100%', marginTop: spacing.lg }}>
+                <Text
+                  style={[
+                    typography.bodyMedium,
+                    { color: colors.foreground, marginBottom: spacing.md },
+                  ]}
+                >
+                  {t('downloadingProgress', { percent: downloadPercent })}
                 </Text>
-              </Pressable>
-              <View style={{ flex: 1 }}>
-                <Button
-                  testID="optional-update-button"
-                  title={t('updateNow')}
-                  onPress={() => Linking.openURL(result.downloadUrl!)}
-                  variant="default"
-                  size="lg"
-                />
+                <View
+                  style={[
+                    styles.progressTrack,
+                    { backgroundColor: colors.border, borderRadius: radius.full },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.progressFill,
+                      {
+                        backgroundColor: colors.primary,
+                        borderRadius: radius.full,
+                        width: `${downloadPercent}%`,
+                      },
+                    ]}
+                  />
+                </View>
               </View>
-            </View>
+            ) : (
+              <View style={[styles.sheetButtons, { marginTop: spacing.lg, gap: spacing.md }]}>
+                <Pressable
+                  onPress={() => setDismissed(true)}
+                  style={{ paddingVertical: spacing.md, paddingHorizontal: spacing.base }}
+                >
+                  <Text style={[typography.bodyMedium, { color: colors.foregroundSecondary }]}>
+                    {t('later')}
+                  </Text>
+                </Pressable>
+                <View style={{ flex: 1 }}>
+                  <Button
+                    testID="optional-update-button"
+                    title={t('updateNow')}
+                    onPress={() => handleDownloadAndInstall(result.downloadUrl!)}
+                    variant="default"
+                    size="lg"
+                  />
+                </View>
+              </View>
+            )}
           </View>
         </Modal>
       )}
@@ -333,5 +430,13 @@ const styles = StyleSheet.create({
   sheetButtons: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  progressTrack: {
+    width: '100%',
+    height: 8,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
   },
 });
