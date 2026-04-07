@@ -10,7 +10,7 @@
     "ios:build": "expo run:ios --port 5173",
     "web": "expo start --web --port 5173",
     "test": "jest",
-    "test:e2e": "adb shell pm clear sa.ruqaqa.finance && adb reverse tcp:5173 tcp:5173 && maestro test .maestro/",
+    "test:e2e": "adb shell pm clear sa.ruqaqa.app && adb reverse tcp:5173 tcp:5173 && maestro test .maestro/",
     "test:e2e:flow": "maestro test",
     "seed:gallery": "tsx scripts/seed-gallery.ts",
     "seed:gallery:clean": "tsx scripts/seed-gallery.ts --clean"

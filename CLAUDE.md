@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Expo (React Native + TypeScript) mobile app for Ruqaqa employees. It's a migration from the Flutter app at `../finance_mobile/lib/` — that codebase is the source of truth for business logic, API contracts, validation rules, and edge cases.
 
-App ID: `sa.ruqaqa.finance` | Version: 1.2.1 | Scheme: `ruqaqa://`
+App ID: `sa.ruqaqa.app` | Version: 1.2.1 | Scheme: `ruqaqa://`
 
 **Migration status:** Phases 0–6D complete (auth, permissions, transactions, reconciliation, gallery browsing/viewing/multi-select/download, upload pipeline, image optimization, watermark editor, image watermarking, FFmpeg dual-variant video processing, video watermark download, share intent with gallery album flow, profile avatar initials, profile menu with signout). See `EXPO_MIGRATION_PLAN.md` for details.
 
@@ -36,7 +36,7 @@ For Android physical devices connected via USB:
 adb reverse tcp:5173 tcp:5173   # Forward Metro port to device
 ```
 
-**Important:** Never use `adb shell pm clear sa.ruqaqa.finance` while Metro is running without re-running `adb reverse` — clearing app data drops the port forward and the app can't reconnect to Metro.
+**Important:** Never use `adb shell pm clear sa.ruqaqa.app` while Metro is running without re-running `adb reverse` — clearing app data drops the port forward and the app can't reconnect to Metro.
 
 ### First time / native rebuild
 
@@ -67,7 +67,7 @@ pnpm test:e2e
 
 Key points:
 - Use `- launchApp` without `clearState` or `clearKeychain` — both break Metro on dev builds
-- Use standalone `- clearState: sa.ruqaqa.finance` before `- launchApp` when needed
+- Use standalone `- clearState: sa.ruqaqa.app` before `- launchApp` when needed
 - All `extendedWaitUntil` timeouts must be **10 seconds max**
 - Wait for content first, then optionally skip version gate (not the other way around)
 - Brave browser is the default on the test device (avoids Chrome's autofill/welcome issues)

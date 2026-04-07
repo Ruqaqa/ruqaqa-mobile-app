@@ -596,7 +596,7 @@ The library auto-generates an iOS Share Extension via its config plugin. Key set
 
 - **Activation rules**: Max 4 images, max 4 files (matching transaction limit)
 - **App group**: Shared container for passing files from the extension to the main app
-- **Bundle ID**: `sa.ruqaqa.finance.ShareExtension`
+- **Bundle ID**: `sa.ruqaqa.app.ShareExtension`
 
 ---
 

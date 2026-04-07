@@ -81,7 +81,7 @@ describe('normalizeMediaUrl', () => {
 
   it('rejects file: scheme (local file read)', () => {
     expect(normalizeMediaUrl('file:///etc/passwd')).toBeNull();
-    expect(normalizeMediaUrl('file:///data/data/sa.ruqaqa.finance/shared_prefs/auth.xml')).toBeNull();
+    expect(normalizeMediaUrl('file:///data/data/sa.ruqaqa.app/shared_prefs/auth.xml')).toBeNull();
   });
 
   it('rejects content: scheme (Android content provider)', () => {

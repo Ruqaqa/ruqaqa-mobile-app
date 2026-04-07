@@ -1,4 +1,4 @@
-appId: sa.ruqaqa.finance
+appId: sa.ruqaqa.app
 env:
   TEST_USERNAME: ${TEST_USERNAME}
   TEST_PASSWORD: ${TEST_PASSWORD}
@@ -10,7 +10,7 @@ tags:
 # Clear Brave cookies (kills Keycloak browser session)
 - clearState: com.brave.browser
 # Clear app data
-- clearState: sa.ruqaqa.finance
+- clearState: sa.ruqaqa.app
 
 - launchApp
 

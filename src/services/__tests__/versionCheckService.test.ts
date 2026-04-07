@@ -113,9 +113,9 @@ describe('normalizeDownloadUrl', () => {
   it('accepts URLs on play.google.com domain', () => {
     expect(
       normalizeDownloadUrl(
-        'https://play.google.com/store/apps/details?id=sa.ruqaqa.finance',
+        'https://play.google.com/store/apps/details?id=sa.ruqaqa.app',
       ),
-    ).toBe('https://play.google.com/store/apps/details?id=sa.ruqaqa.finance');
+    ).toBe('https://play.google.com/store/apps/details?id=sa.ruqaqa.app');
   });
 
   it('accepts URLs on apps.apple.com domain', () => {

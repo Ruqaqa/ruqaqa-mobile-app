@@ -14,10 +14,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "sa.ruqaqa.finance"
+      "bundleIdentifier": "sa.ruqaqa.app"
     },
     "android": {
-      "package": "sa.ruqaqa.finance",
+      "package": "sa.ruqaqa.app",
       "adaptiveIcon": {
         "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/android-icon-foreground.png",

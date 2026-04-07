@@ -1,4 +1,4 @@
-appId: sa.ruqaqa.finance
+appId: sa.ruqaqa.app
 ---
 # Verify app bootstrap: splash -> version check or login
 - launchApp

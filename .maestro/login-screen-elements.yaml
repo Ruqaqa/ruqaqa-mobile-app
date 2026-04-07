@@ -1,4 +1,4 @@
-appId: sa.ruqaqa.finance
+appId: sa.ruqaqa.app
 ---
 # Verify all login screen elements are present
 - launchApp

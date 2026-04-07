@@ -224,7 +224,7 @@ async function copyToSandbox(
 **Required:** Files must be stored in `FileSystem.cacheDirectory` (app-private on both Android and iOS). The `copyToSandbox` function above already does this. Do NOT use `FileSystem.documentDirectory` for temporary shared files — cache directory is appropriate because these are transient.
 
 **Verify:** `expo-file-system`'s `cacheDirectory` maps to:
-- Android: `/data/data/sa.ruqaqa.finance/cache/` (app-private)
+- Android: `/data/data/sa.ruqaqa.app/cache/` (app-private)
 - iOS: `Library/Caches/` (app-private)
 
 Both are inaccessible to other apps.

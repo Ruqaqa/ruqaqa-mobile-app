@@ -1,4 +1,4 @@
-appId: sa.ruqaqa.finance
+appId: sa.ruqaqa.app
 ---
 # Verify app launches and loads correctly
 - launchApp

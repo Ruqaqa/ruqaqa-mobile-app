@@ -1084,8 +1084,8 @@ describe('UploadPipeline', () => {
       const onStatusChanged = jest.fn();
       const pipeline = new UploadPipeline({
         images: [
-          makeImage('file:///data/user/0/sa.ruqaqa.finance/cache/ImagePicker/aaa.jpeg'),
-          makeImage('file:///data/user/0/sa.ruqaqa.finance/cache/ImagePicker/bbb.jpeg'),
+          makeImage('file:///data/user/0/sa.ruqaqa.app/cache/ImagePicker/aaa.jpeg'),
+          makeImage('file:///data/user/0/sa.ruqaqa.app/cache/ImagePicker/bbb.jpeg'),
         ],
         video: null,
         albumIds: ['album1'],
@@ -1101,7 +1101,7 @@ describe('UploadPipeline', () => {
     });
 
     it('never passes the original ImagePicker URI to optimizeImage', async () => {
-      const originalUri = 'file:///data/user/0/sa.ruqaqa.finance/cache/ImagePicker/orig.jpeg';
+      const originalUri = 'file:///data/user/0/sa.ruqaqa.app/cache/ImagePicker/orig.jpeg';
       const onStatusChanged = jest.fn();
       const pipeline = new UploadPipeline({
         images: [makeImage(originalUri)],
@@ -1122,7 +1122,7 @@ describe('UploadPipeline', () => {
     });
 
     it('never passes the original ImagePicker URI to uploadItem when optimization is skipped', async () => {
-      const originalUri = 'file:///data/user/0/sa.ruqaqa.finance/cache/ImagePicker/skip.jpeg';
+      const originalUri = 'file:///data/user/0/sa.ruqaqa.app/cache/ImagePicker/skip.jpeg';
 
       // Optimization returns the input URI unchanged (wasOptimized: false)
       mockOptimizeImage.mockImplementation((uri: string) =>
@@ -1148,7 +1148,7 @@ describe('UploadPipeline', () => {
     });
 
     it('copies video to a stable path before processing', async () => {
-      const originalVideoUri = 'file:///data/user/0/sa.ruqaqa.finance/cache/ImagePicker/vid.mp4';
+      const originalVideoUri = 'file:///data/user/0/sa.ruqaqa.app/cache/ImagePicker/vid.mp4';
       const onStatusChanged = jest.fn();
       const pipeline = new UploadPipeline({
         images: [],

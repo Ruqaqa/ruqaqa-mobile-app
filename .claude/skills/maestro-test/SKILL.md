@@ -9,7 +9,7 @@ When creating or modifying Maestro E2E test flows in `.maestro/`, follow these r
 
 ## Project context
 
-- App ID: `sa.ruqaqa.finance`
+- App ID: `sa.ruqaqa.app`
 - Maestro flows live in `.maestro/` directory
 - Credentials are in `.maestro/.env` (gitignored), passed via `-e` flags
 - Test device uses **Brave browser** (`com.brave.browser`) as default — not Chrome
@@ -46,7 +46,7 @@ Always use this pattern at the start of every flow:
     clearState: true
 
 # RIGHT — use standalone clearState before launchApp
-- clearState: sa.ruqaqa.finance
+- clearState: sa.ruqaqa.app
 - launchApp
 ```
 
@@ -102,7 +102,7 @@ Prefer `id:` (maps to `testID` in React Native) over `text:` — it's faster and
 Clear Brave + app state first, then assert Keycloak form appears (no `runFlow` conditional):
 ```yaml
 - clearState: com.brave.browser
-- clearState: sa.ruqaqa.finance
+- clearState: sa.ruqaqa.app
 - launchApp
 # ... (app launch pattern) ...
 - tapOn:
@@ -120,13 +120,13 @@ Clear Brave + app state first, then assert Keycloak form appears (no `runFlow` c
     timeout: 10000
 ```
 
-### After `clearState: sa.ruqaqa.finance`
+### After `clearState: sa.ruqaqa.app`
 Metro port forward is dropped. The test script (`pnpm test:e2e`) handles re-forwarding. If running manually, you need `adb reverse tcp:5173 tcp:5173` before the flow or the app won't connect to Metro.
 
 ## Flow file structure
 
 ```yaml
-appId: sa.ruqaqa.finance
+appId: sa.ruqaqa.app
 env:                          # Only if credentials needed
   TEST_USERNAME: ${TEST_USERNAME}
   TEST_PASSWORD: ${TEST_PASSWORD}
