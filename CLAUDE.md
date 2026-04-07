@@ -8,7 +8,7 @@ Expo (React Native + TypeScript) mobile app for Ruqaqa employees. It's a migrati
 
 App ID: `sa.ruqaqa.finance` | Version: 1.2.1 | Scheme: `ruqaqa://`
 
-**Migration status:** Phases 0–6D complete (auth, permissions, transactions, reconciliation, gallery browsing/viewing/multi-select/download, upload pipeline, image optimization, watermark editor, image watermarking, FFmpeg dual-variant video processing, video watermark download, share intent, profile avatar initials, profile menu with signout). See `EXPO_MIGRATION_PLAN.md` for details.
+**Migration status:** Phases 0–6D complete (auth, permissions, transactions, reconciliation, gallery browsing/viewing/multi-select/download, upload pipeline, image optimization, watermark editor, image watermarking, FFmpeg dual-variant video processing, video watermark download, share intent with gallery album flow, profile avatar initials, profile menu with signout). See `EXPO_MIGRATION_PLAN.md` for details.
 
 ## Commands
 

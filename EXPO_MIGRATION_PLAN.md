@@ -589,8 +589,12 @@ Update seed data as sub-phases progress:
 - `UploadTabContainer.tsx` — Share intent consumption + watermark editor wiring
 - i18n keys added for video processing (en.ts, ar.ts)
 - Full test coverage in `src/features/gallery/__tests__/`
+- **Share intent fully activated:** Gallery Album option enabled in FlowSelectorSheet (permission-gated via `canCreateGallery`), video MIME types added to share intent validation, auto-switch to gallery module + upload tab on flow selection, dropped files alert when exceeding limits (max 20 images / 1 video)
+- **Security hardening:** Generic shared files adapter filters out video files and oversized files (>10MB) from transaction/reconciliation targets; `shareConsumedRef` reset on form reset for subsequent shares
+- **Watermark bug fix:** `Skia.Data.fromURI()` is async — was called without `await`, causing "Object is not a HostObject" errors (watermarks silently skipped). Now properly awaited.
+- `app.json` intent filters updated: added `video/*` to `androidIntentFilters` and `androidMultiIntentFilters`, iOS image count raised to 20 + 1 movie
 
-**Deliverable:** Videos are compressed and watermarked in two separate FFmpeg passes (both from original source), uploaded as dual variants for download format selection. Shared files route to Gallery upload flow.
+**Deliverable:** Videos are compressed and watermarked in two separate FFmpeg passes (both from original source), uploaded as dual variants for download format selection. Shared files route to Gallery upload flow. Share intent fully functional for images and videos from external apps.
 
 ---
 
