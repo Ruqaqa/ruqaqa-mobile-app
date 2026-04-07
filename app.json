@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1428a0"
+      "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": true,
@@ -19,7 +19,7 @@
     "android": {
       "package": "sa.ruqaqa.finance",
       "adaptiveIcon": {
-        "backgroundColor": "#1428a0",
+        "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -43,7 +43,7 @@
       }],
       ["expo-notifications", {
         "icon": "./assets/icon.png",
-        "color": "#1428a0"
+        "color": "#208f5a"
       }],
       ["expo-share-intent", {
         "iosActivationRules": {
