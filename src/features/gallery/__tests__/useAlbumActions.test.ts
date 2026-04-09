@@ -3,12 +3,25 @@ import { useAlbumActions } from '../hooks/useAlbumActions';
 import * as galleryService from '../services/galleryService';
 import { GalleryAlbum } from '../types';
 
+jest.mock('expo-constants', () => ({
+  expoConfig: {
+    version: '1.0.0',
+    extra: { releaseChannel: 'development' },
+  },
+}));
+
+jest.mock('@/services/apiClient', () => {
+  const mockAxios = require('axios').create();
+  return { apiClient: mockAxios };
+});
+
 jest.mock('../services/galleryService', () => {
   const actual = jest.requireActual('../services/galleryService');
   return {
     ...actual,
     createAlbum: jest.fn(),
     updateAlbumTitle: jest.fn(),
+    deleteAlbum: jest.fn(),
   };
 });
 
@@ -24,6 +37,9 @@ const mockCreateAlbum = galleryService.createAlbum as jest.MockedFunction<
 >;
 const mockUpdateAlbumTitle = galleryService.updateAlbumTitle as jest.MockedFunction<
   typeof galleryService.updateAlbumTitle
+>;
+const mockDeleteAlbum = galleryService.deleteAlbum as jest.MockedFunction<
+  typeof galleryService.deleteAlbum
 >;
 
 const makeAlbum = (id: string): GalleryAlbum => ({
@@ -135,6 +151,76 @@ describe('useAlbumActions', () => {
 
     expect(success).toBe(false);
     expect(result.current.error).toBe('failedToUpdateAlbumName');
+  });
+
+  it('deleteAlbum calls service with album id', async () => {
+    mockDeleteAlbum.mockResolvedValue(true);
+
+    const { result } = renderHook(() => useAlbumActions());
+
+    await act(async () => {
+      await result.current.deleteAlbum('album-1');
+    });
+
+    expect(mockDeleteAlbum).toHaveBeenCalledWith('album-1');
+  });
+
+  it('deleteAlbum returns true on success', async () => {
+    mockDeleteAlbum.mockResolvedValue(true);
+
+    const { result } = renderHook(() => useAlbumActions());
+
+    let success = false;
+    await act(async () => {
+      success = await result.current.deleteAlbum('album-1');
+    });
+
+    expect(success).toBe(true);
+    expect(result.current.error).toBeNull();
+  });
+
+  it('deleteAlbum returns false and sets error on failure', async () => {
+    mockDeleteAlbum.mockRejectedValue(new Error('Server error'));
+
+    const { result } = renderHook(() => useAlbumActions());
+
+    let success = true;
+    await act(async () => {
+      success = await result.current.deleteAlbum('album-1');
+    });
+
+    expect(success).toBe(false);
+    expect(result.current.error).toBe('failedToDeleteAlbum');
+  });
+
+  it('deleteAlbum sets isDeleting during operation', async () => {
+    let resolveDelete: (value: boolean) => void;
+    mockDeleteAlbum.mockImplementation(
+      () =>
+        new Promise<boolean>((resolve) => {
+          resolveDelete = resolve;
+        }),
+    );
+
+    const { result } = renderHook(() => useAlbumActions());
+
+    expect(result.current.isDeleting).toBe(false);
+
+    let deletePromise!: Promise<boolean>;
+    act(() => {
+      deletePromise = result.current.deleteAlbum('album-1');
+    });
+
+    await waitFor(() => {
+      expect(result.current.isDeleting).toBe(true);
+    });
+
+    await act(async () => {
+      resolveDelete!(true);
+      await deletePromise;
+    });
+
+    expect(result.current.isDeleting).toBe(false);
   });
 
   it('clearError resets error state', async () => {

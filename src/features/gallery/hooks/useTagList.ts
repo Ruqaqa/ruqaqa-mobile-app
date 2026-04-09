@@ -1,10 +1,9 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { fetchAlbums } from '../services/galleryService';
-import { GalleryAlbum } from '../types';
-import { sanitizeAlbumSearch } from '../utils/validation';
+import { fetchTags } from '../services/galleryService';
+import { PickerItem } from '../types';
 
-export interface UseAlbumListReturn {
-  albums: GalleryAlbum[];
+export interface UseTagListReturn {
+  tags: PickerItem[];
   isLoading: boolean;
   isRefreshing: boolean;
   error: { code: string } | null;
@@ -13,13 +12,13 @@ export interface UseAlbumListReturn {
   hasActiveFilters: boolean;
   refresh: () => Promise<void>;
   retry: () => void;
-  updateAlbumLocally: (id: string, partial: Partial<GalleryAlbum>) => void;
-  addAlbumLocally: (album: GalleryAlbum) => void;
-  removeAlbumLocally: (id: string) => void;
+  updateTagLocally: (id: string, partial: Partial<PickerItem>) => void;
+  addTagLocally: (tag: PickerItem) => void;
+  removeTagLocally: (id: string) => void;
 }
 
-export function useAlbumList(): UseAlbumListReturn {
-  const [albums, setAlbums] = useState<GalleryAlbum[]>([]);
+export function useTagList(): UseTagListReturn {
+  const [tags, setTags] = useState<PickerItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<{ code: string } | null>(null);
@@ -36,16 +35,11 @@ export function useAlbumList(): UseAlbumListReturn {
     };
   }, []);
 
-  const doFetch = useCallback(async (searchQuery?: string) => {
-    const params: { search?: string } = {};
-    if (searchQuery) {
-      params.search = searchQuery;
-    }
-
+  const doFetch = useCallback(async (query: string) => {
     try {
-      const result = await fetchAlbums(params);
+      const result = await fetchTags(query);
       if (!isMountedRef.current) return;
-      setAlbums(result.albums);
+      setTags(result);
       setError(null);
     } catch (err) {
       if (!isMountedRef.current) return;
@@ -57,10 +51,9 @@ export function useAlbumList(): UseAlbumListReturn {
     }
   }, []);
 
-  // Initial fetch on mount
   useEffect(() => {
     setIsLoading(true);
-    doFetch().finally(() => {
+    doFetch('').finally(() => {
       if (isMountedRef.current) setIsLoading(false);
     });
   }, [doFetch]);
@@ -72,8 +65,7 @@ export function useAlbumList(): UseAlbumListReturn {
       if (debounceRef.current) clearTimeout(debounceRef.current);
 
       debounceRef.current = setTimeout(() => {
-        const sanitized = sanitizeAlbumSearch(query);
-        doFetch(sanitized || undefined);
+        doFetch(query);
       }, 300);
     },
     [doFetch],
@@ -81,39 +73,38 @@ export function useAlbumList(): UseAlbumListReturn {
 
   const refresh = useCallback(async () => {
     setIsRefreshing(true);
-    const sanitized = sanitizeAlbumSearch(search);
-    await doFetch(sanitized || undefined);
+    await doFetch(search);
     if (isMountedRef.current) setIsRefreshing(false);
   }, [doFetch, search]);
 
   const retry = useCallback(() => {
     setIsLoading(true);
     setError(null);
-    setAlbums([]);
-    doFetch().finally(() => {
+    setTags([]);
+    doFetch(search).finally(() => {
       if (isMountedRef.current) setIsLoading(false);
     });
-  }, [doFetch]);
+  }, [doFetch, search]);
 
-  const updateAlbumLocally = useCallback(
-    (id: string, partial: Partial<GalleryAlbum>) => {
-      setAlbums((prev) =>
-        prev.map((album) => (album.id === id ? { ...album, ...partial } : album)),
+  const updateTagLocally = useCallback(
+    (id: string, partial: Partial<PickerItem>) => {
+      setTags((prev) =>
+        prev.map((tag) => (tag.id === id ? { ...tag, ...partial } : tag)),
       );
     },
     [],
   );
 
-  const addAlbumLocally = useCallback((album: GalleryAlbum) => {
-    setAlbums((prev) => [album, ...prev]);
+  const addTagLocally = useCallback((tag: PickerItem) => {
+    setTags((prev) => [tag, ...prev]);
   }, []);
 
-  const removeAlbumLocally = useCallback((id: string) => {
-    setAlbums((prev) => prev.filter((album) => album.id !== id));
+  const removeTagLocally = useCallback((id: string) => {
+    setTags((prev) => prev.filter((tag) => tag.id !== id));
   }, []);
 
   return {
-    albums,
+    tags,
     isLoading,
     isRefreshing,
     error,
@@ -122,8 +113,8 @@ export function useAlbumList(): UseAlbumListReturn {
     hasActiveFilters: search.trim().length > 0,
     refresh,
     retry,
-    updateAlbumLocally,
-    addAlbumLocally,
-    removeAlbumLocally,
+    updateTagLocally,
+    addTagLocally,
+    removeTagLocally,
   };
 }

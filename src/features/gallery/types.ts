@@ -289,6 +289,41 @@ export interface PickerItem {
   name: string;
 }
 
+/**
+ * Error codes that may come back from `DELETE /tags/{id}` as a 409 response.
+ * Every code the UI understands is whitelisted here; unknown codes are never
+ * passed up from the service layer.
+ */
+export type DeleteTagErrorCode =
+  | 'TAG_ONLY_ON_ITEMS'
+  | 'TAG_DETACH_CONFLICT'
+  | 'TAG_RACE_CONFLICT'
+  | 'TAG_HAS_TOO_MANY_REFERENCES';
+
+/** Result of `galleryService.deleteTag`. Discriminated union. */
+export type DeleteTagResult =
+  | { success: true; detachedFromItemCount: number }
+  | {
+      success: false;
+      code: 'TAG_ONLY_ON_ITEMS';
+      /** ObjectIds of items that would become tagless. Validated + capped at 50. */
+      itemIds: string[];
+      /** Count reported by the server (may exceed itemIds.length when capped). */
+      count: number;
+    }
+  | { success: false; code: 'TAG_DETACH_CONFLICT'; itemId: string }
+  | { success: false; code: 'TAG_RACE_CONFLICT' }
+  | {
+      success: false;
+      code: 'TAG_HAS_TOO_MANY_REFERENCES';
+      affectedItemCount: number;
+    };
+
+/** Result of `galleryService.renameTag`. Discriminated union. */
+export type RenameTagResult =
+  | { success: true; tag: PickerItem }
+  | { success: false; code: 'TAG_NAME_TAKEN' };
+
 /** Decision when a duplicate is detected during upload. */
 export type DuplicateDecision = 'addToAlbums' | 'skip';
 

@@ -1,3 +1,27 @@
+// jest-expo automocks react-native; service tests pulling in type exports
+// from UI components need a fuller module surface.
+jest.unmock('react-native');
+
+// Mock expo-constants so src/services/config.ts loads without the native module.
+jest.mock('expo-constants', () => ({
+  expoConfig: {
+    version: '1.0.0',
+    extra: { releaseChannel: 'development' },
+  },
+}));
+
+// Stub lucide-react-native so transitive load of ReceiptPickerSection (for its
+// ReceiptAttachment type export) does not trigger react-native-svg native boot.
+jest.mock('lucide-react-native', () => {
+  const stub = () => null;
+  return new Proxy(
+    {},
+    {
+      get: () => stub,
+    },
+  );
+});
+
 import MockAdapter from 'axios-mock-adapter';
 import { apiClient, uploadMultipart } from '@/services/apiClient';
 import {

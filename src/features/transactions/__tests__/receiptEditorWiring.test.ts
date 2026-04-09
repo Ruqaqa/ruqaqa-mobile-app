@@ -1,3 +1,28 @@
+// jest-expo automocks react-native; component/hook tests need it unmocked.
+jest.unmock('react-native');
+
+jest.mock('expo-constants', () => ({
+  expoConfig: {
+    version: '1.0.0',
+    extra: { releaseChannel: 'development' },
+  },
+}));
+
+jest.mock('@/services/apiClient', () => {
+  const mockAxios = require('axios').create();
+  return { apiClient: mockAxios, uploadMultipart: jest.fn() };
+});
+
+jest.mock('lucide-react-native', () => {
+  const stub = () => null;
+  return new Proxy(
+    {},
+    {
+      get: () => stub,
+    },
+  );
+});
+
 import { TransactionReceipt } from '../types';
 import * as receiptService from '../services/receiptService';
 import { ReceiptAttachment } from '../components/ReceiptPickerSection';

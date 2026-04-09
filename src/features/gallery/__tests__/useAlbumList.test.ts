@@ -3,6 +3,18 @@ import { useAlbumList } from '../hooks/useAlbumList';
 import * as galleryService from '../services/galleryService';
 import { GalleryAlbum } from '../types';
 
+jest.mock('expo-constants', () => ({
+  expoConfig: {
+    version: '1.0.0',
+    extra: { releaseChannel: 'development' },
+  },
+}));
+
+jest.mock('@/services/apiClient', () => {
+  const mockAxios = require('axios').create();
+  return { apiClient: mockAxios };
+});
+
 jest.mock('../services/galleryService', () => {
   const actual = jest.requireActual('../services/galleryService');
   return {
@@ -183,6 +195,43 @@ describe('useAlbumList', () => {
     // Other album unchanged
     expect(result.current.albums[1].id).toBe('2');
     expect(result.current.albums[1].title).toBe('Album 2');
+  });
+
+  it('removeAlbumLocally removes album from list', async () => {
+    mockFetchAlbums.mockResolvedValue({
+      albums: [makeAlbum('1'), makeAlbum('2'), makeAlbum('3')],
+    });
+
+    const { result } = renderHook(() => useAlbumList());
+
+    await waitFor(() => {
+      expect(result.current.albums).toHaveLength(3);
+    });
+
+    act(() => {
+      result.current.removeAlbumLocally('2');
+    });
+
+    expect(result.current.albums).toHaveLength(2);
+    expect(result.current.albums.map((a) => a.id)).toEqual(['1', '3']);
+  });
+
+  it('removeAlbumLocally is a no-op when id does not exist', async () => {
+    mockFetchAlbums.mockResolvedValue({
+      albums: [makeAlbum('1'), makeAlbum('2')],
+    });
+
+    const { result } = renderHook(() => useAlbumList());
+
+    await waitFor(() => {
+      expect(result.current.albums).toHaveLength(2);
+    });
+
+    act(() => {
+      result.current.removeAlbumLocally('nonexistent');
+    });
+
+    expect(result.current.albums).toHaveLength(2);
   });
 
   it('addAlbumLocally prepends album to list', async () => {

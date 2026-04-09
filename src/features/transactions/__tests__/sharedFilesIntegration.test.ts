@@ -5,6 +5,20 @@
  * are correctly mapped to ReceiptAttachment format and respect limits.
  */
 
+// jest-expo automocks react-native; this test pulls in ReceiptPickerSection
+// which imports lucide-react-native → react-native-svg.
+jest.unmock('react-native');
+
+jest.mock('lucide-react-native', () => {
+  const stub = () => null;
+  return new Proxy(
+    {},
+    {
+      get: () => stub,
+    },
+  );
+});
+
 import { convertSharedFilesToAttachments } from '../utils/sharedFilesAdapter';
 import { MAX_ATTACHMENTS } from '../components/ReceiptPickerSection';
 import type { SharedFile } from '@/services/shareIntent/shareIntentTypes';

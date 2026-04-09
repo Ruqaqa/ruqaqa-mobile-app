@@ -1,10 +1,17 @@
 import {
   validateAlbumName,
+  validateTagName,
   sanitizeAlbumSearch,
   hasActiveAlbumFilters,
   validateBulkIds,
 } from '../utils/validation';
-import { ALBUM_TITLE_MAX_LENGTH, AlbumFilters, EMPTY_ALBUM_FILTERS, MAX_BULK_SELECTION } from '../types';
+import {
+  ALBUM_TITLE_MAX_LENGTH,
+  TAG_NAME_MAX_LENGTH,
+  AlbumFilters,
+  EMPTY_ALBUM_FILTERS,
+  MAX_BULK_SELECTION,
+} from '../types';
 
 describe('validateAlbumName', () => {
   it('accepts a valid album name', () => {
@@ -46,6 +53,49 @@ describe('validateAlbumName', () => {
 
   it('rejects name that becomes empty after stripping control chars', () => {
     const result = validateAlbumName('\x00\x01\x02');
+    expect(result.valid).toBe(false);
+  });
+});
+
+describe('validateTagName', () => {
+  it('accepts a valid tag name', () => {
+    const result = validateTagName('nature');
+    expect(result.valid).toBe(true);
+    expect(result.error).toBeUndefined();
+  });
+
+  it('rejects an empty string', () => {
+    const result = validateTagName('');
+    expect(result.valid).toBe(false);
+    expect(result.error).toBeDefined();
+  });
+
+  it('rejects whitespace-only string', () => {
+    const result = validateTagName('   ');
+    expect(result.valid).toBe(false);
+    expect(result.error).toBeDefined();
+  });
+
+  it('rejects name exceeding TAG_NAME_MAX_LENGTH', () => {
+    const longName = 'a'.repeat(TAG_NAME_MAX_LENGTH + 1);
+    const result = validateTagName(longName);
+    expect(result.valid).toBe(false);
+    expect(result.error).toBeDefined();
+  });
+
+  it('accepts name at exactly TAG_NAME_MAX_LENGTH', () => {
+    const maxName = 'a'.repeat(TAG_NAME_MAX_LENGTH);
+    const result = validateTagName(maxName);
+    expect(result.valid).toBe(true);
+  });
+
+  it('strips control characters and validates trimmed result', () => {
+    const result = validateTagName('tag\x00name');
+    expect(result.valid).toBe(true);
+  });
+
+  it('rejects name that becomes empty after stripping control chars', () => {
+    const result = validateTagName('\x00\x01\x02');
     expect(result.valid).toBe(false);
   });
 });

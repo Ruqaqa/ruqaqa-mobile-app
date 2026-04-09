@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { View, StyleSheet, Pressable, Text, Alert, BackHandler, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus } from 'lucide-react-native';
+import { Plus, Settings } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../theme';
 import { useAppModuleContext } from './AppModuleContext';
@@ -9,6 +9,7 @@ import { useShareIntent } from '../hooks/useShareIntent';
 import { AppBar } from '../components/layout/AppBar';
 import { AlbumGridScreen } from '../features/gallery/components/AlbumGridScreen';
 import { UploadTabContainer, UploadTabContainerRef } from '../features/gallery/components/UploadTabContainer';
+import { ManageTagsScreen } from '../features/gallery/components/ManageTagsScreen';
 
 type GalleryTab = 'albums' | 'upload';
 
@@ -22,6 +23,7 @@ export function GalleryShell() {
   const { permissions } = useAppModuleContext();
   const [activeTab, setActiveTab] = useState<GalleryTab>('albums');
   const [showCreateSheet, setShowCreateSheet] = useState(false);
+  const [showManageTags, setShowManageTags] = useState(false);
   const [isInAlbumDetail, setIsInAlbumDetail] = useState(false);
   const uploadTabRef = useRef<UploadTabContainerRef>(null);
 
@@ -85,6 +87,15 @@ export function GalleryShell() {
   }, [activeTab, t]);
 
   const showFab = activeTab === 'albums' && permissions.canCreateGallery && !isInAlbumDetail;
+  const canManageTags =
+    permissions.canCreateGallery ||
+    permissions.canUpdateGallery ||
+    permissions.canDeleteGallery;
+  const showManageTagsButton =
+    activeTab === 'albums' && canManageTags && !isInAlbumDetail;
+
+  const openManageTags = useCallback(() => setShowManageTags(true), []);
+  const closeManageTags = useCallback(() => setShowManageTags(false), []);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -106,6 +117,27 @@ export function GalleryShell() {
         )}
       </View>
 
+      {/* Manage tags button — small floating button above the FAB on Albums tab */}
+      {showManageTagsButton && (
+        <Pressable
+          onPress={openManageTags}
+          style={({ pressed }) => [
+            styles.manageTagsFab,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              borderRadius: radius.full,
+              opacity: pressed ? 0.7 : 1,
+            },
+          ]}
+          accessibilityLabel={t('manageTags')}
+          accessibilityRole="button"
+          testID="fab-manage-tags"
+        >
+          <Settings size={20} color={colors.foreground} />
+        </Pressable>
+      )}
+
       {/* FAB — only on Albums tab with create permission */}
       {showFab && (
         <Pressable
@@ -126,6 +158,13 @@ export function GalleryShell() {
           <Plus size={28} color={colors.onPrimary} strokeWidth={2.5} />
         </Pressable>
       )}
+
+      {/* Manage tags modal — overlays both tabs */}
+      <ManageTagsScreen
+        visible={showManageTags}
+        permissions={permissions}
+        onClose={closeManageTags}
+      />
 
       {tabs.length > 1 && (
         <View
@@ -186,6 +225,17 @@ const styles = StyleSheet.create({
     height: 56,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 10,
+  },
+  manageTagsFab: {
+    position: 'absolute',
+    bottom: 148,
+    end: 28,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
     zIndex: 10,
   },
   tabBar: {

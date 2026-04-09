@@ -1,3 +1,34 @@
+// jest-expo's preset automocks react-native. Component/hook tests that reach
+// into real modules need the full native module surface.
+jest.unmock('react-native');
+
+// Mock expo-constants so transitive loads of src/services/config.ts succeed
+// without booting the native expo-constants module.
+jest.mock('expo-constants', () => ({
+  expoConfig: {
+    version: '1.0.0',
+    extra: { releaseChannel: 'development' },
+  },
+}));
+
+// Short-circuit apiClient so lower-level expo native modules don't load at all.
+jest.mock('@/services/apiClient', () => {
+  const mockAxios = require('axios').create();
+  return { apiClient: mockAxios, uploadMultipart: jest.fn() };
+});
+
+// Stub lucide-react-native to avoid react-native-svg native load when
+// ReceiptPickerSection is imported transitively for its type exports.
+jest.mock('lucide-react-native', () => {
+  const stub = () => null;
+  return new Proxy(
+    {},
+    {
+      get: () => stub,
+    },
+  );
+});
+
 import { renderHook, act } from '@testing-library/react-native';
 import { useReceiptEditor } from '../hooks/useReceiptEditor';
 import * as receiptService from '../services/receiptService';

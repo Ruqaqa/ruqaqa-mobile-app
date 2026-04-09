@@ -1,3 +1,15 @@
+// jest-expo automocks react-native; hook tests need it unmocked.
+jest.unmock('react-native');
+
+// Mock expo-constants so transitive loads of src/services/config.ts succeed
+// without booting the native expo-constants module.
+jest.mock('expo-constants', () => ({
+  expoConfig: {
+    version: '1.0.0',
+    extra: { releaseChannel: 'development' },
+  },
+}));
+
 import { renderHook, act, waitFor } from '@testing-library/react-native';
 import { useApprovalAction } from '../hooks/useApprovalAction';
 import * as transactionService from '../services/transactionService';

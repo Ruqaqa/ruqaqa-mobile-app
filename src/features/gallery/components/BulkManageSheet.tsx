@@ -13,16 +13,20 @@ import {
   Minus,
   Square,
   Search,
+  PlusCircle,
 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/theme';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
 import { withAlpha } from '@/utils/colorUtils';
+import { UserPermissions } from '@/types/permissions';
 import {
   CheckState,
   ManageSheetState,
   BulkActionProgress,
+  GalleryAlbum,
+  PickerItem,
 } from '../types';
 
 interface BulkManageSheetProps {
@@ -33,6 +37,11 @@ interface BulkManageSheetProps {
   isFetchingState: boolean;
   isProcessing: boolean;
   progress: BulkActionProgress | null;
+  permissions: UserPermissions;
+  /** Create a new album from free text. Return null on failure. */
+  onCreateAlbum: (name: string) => Promise<GalleryAlbum | null>;
+  /** Create a new tag from free text. Return null on failure. */
+  onCreateTag: (name: string) => Promise<PickerItem | null>;
   onConfirm: (changes: ManageSheetChanges) => void;
   onClose: () => void;
 }
@@ -57,6 +66,9 @@ export function BulkManageSheet({
   isFetchingState,
   isProcessing,
   progress,
+  permissions,
+  onCreateAlbum,
+  onCreateTag,
   onConfirm,
   onClose,
 }: BulkManageSheetProps) {
@@ -72,6 +84,15 @@ export function BulkManageSheet({
   );
   const [albumSearch, setAlbumSearch] = useState('');
   const [tagSearch, setTagSearch] = useState('');
+  // Locally-created rows (appended on top of manageState after inline create)
+  const [extraAlbums, setExtraAlbums] = useState<
+    { id: string; title: string }[]
+  >([]);
+  const [extraTags, setExtraTags] = useState<{ id: string; name: string }[]>(
+    [],
+  );
+  const [isCreatingAlbum, setIsCreatingAlbum] = useState(false);
+  const [isCreatingTag, setIsCreatingTag] = useState(false);
 
   // Reset local state when the sheet opens with fresh data
   React.useEffect(() => {
@@ -80,25 +101,41 @@ export function BulkManageSheet({
       setTagOverrides(new Map());
       setAlbumSearch('');
       setTagSearch('');
+      setExtraAlbums([]);
+      setExtraTags([]);
+      setIsCreatingAlbum(false);
+      setIsCreatingTag(false);
     }
   }, [visible, manageState]);
 
-  // Merge fetched state with local overrides
+  // Merge fetched state + locally-created rows with local overrides
   const albumRows = useMemo(() => {
     if (!manageState) return [];
-    return manageState.albums.map((a) => ({
+    const base = manageState.albums.map((a) => ({
       ...a,
       state: albumOverrides.get(a.id) ?? a.state,
     }));
-  }, [manageState, albumOverrides]);
+    const extras = extraAlbums.map((a) => ({
+      id: a.id,
+      title: a.title,
+      state: (albumOverrides.get(a.id) ?? 'unchecked') as CheckState,
+    }));
+    return [...extras, ...base];
+  }, [manageState, albumOverrides, extraAlbums]);
 
   const tagRows = useMemo(() => {
     if (!manageState) return [];
-    return manageState.tags.map((tg) => ({
+    const base = manageState.tags.map((tg) => ({
       ...tg,
       state: tagOverrides.get(tg.id) ?? tg.state,
     }));
-  }, [manageState, tagOverrides]);
+    const extras = extraTags.map((tg) => ({
+      id: tg.id,
+      name: tg.name,
+      state: (tagOverrides.get(tg.id) ?? 'unchecked') as CheckState,
+    }));
+    return [...extras, ...base];
+  }, [manageState, tagOverrides, extraTags]);
 
   // Filter by search
   const filteredAlbums = useMemo(() => {
@@ -112,6 +149,75 @@ export function BulkManageSheet({
     const q = tagSearch.trim().toLowerCase();
     return tagRows.filter((tg) => tg.name.toLowerCase().includes(q));
   }, [tagRows, tagSearch]);
+
+  // --- Inline create visibility ---
+  // Show the create-album row when: user can create, search is non-empty,
+  // and no existing album matches the query exactly (case-insensitive).
+  const showCreateAlbumRow = useMemo(() => {
+    if (!permissions.canCreateGallery) return false;
+    const trimmed = albumSearch.trim();
+    if (trimmed.length === 0) return false;
+    const q = trimmed.toLowerCase();
+    return !albumRows.some((a) => a.title.toLowerCase() === q);
+  }, [permissions.canCreateGallery, albumSearch, albumRows]);
+
+  const showCreateTagRow = useMemo(() => {
+    if (!permissions.canCreateGallery) return false;
+    const trimmed = tagSearch.trim();
+    if (trimmed.length === 0) return false;
+    const q = trimmed.toLowerCase();
+    return !tagRows.some((tg) => tg.name.toLowerCase() === q);
+  }, [permissions.canCreateGallery, tagSearch, tagRows]);
+
+  const handleCreateAlbum = useCallback(async () => {
+    if (isCreatingAlbum) return;
+    const trimmed = albumSearch.trim();
+    if (trimmed.length === 0) return;
+
+    setIsCreatingAlbum(true);
+    try {
+      const created = await onCreateAlbum(trimmed);
+      if (created) {
+        setExtraAlbums((prev) => [
+          ...prev,
+          { id: created.id, title: created.title },
+        ]);
+        setAlbumOverrides((prev) => {
+          const next = new Map(prev);
+          next.set(created.id, 'checked');
+          return next;
+        });
+        setAlbumSearch('');
+      }
+    } finally {
+      setIsCreatingAlbum(false);
+    }
+  }, [albumSearch, onCreateAlbum, isCreatingAlbum]);
+
+  const handleCreateTag = useCallback(async () => {
+    if (isCreatingTag) return;
+    const trimmed = tagSearch.trim();
+    if (trimmed.length === 0) return;
+
+    setIsCreatingTag(true);
+    try {
+      const created = await onCreateTag(trimmed);
+      if (created) {
+        setExtraTags((prev) => [
+          ...prev,
+          { id: created.id, name: created.name },
+        ]);
+        setTagOverrides((prev) => {
+          const next = new Map(prev);
+          next.set(created.id, 'checked');
+          return next;
+        });
+        setTagSearch('');
+      }
+    } finally {
+      setIsCreatingTag(false);
+    }
+  }, [tagSearch, onCreateTag, isCreatingTag]);
 
   // Check if any changes were made
   const hasChanges = albumOverrides.size > 0 || tagOverrides.size > 0;
@@ -221,6 +327,7 @@ export function BulkManageSheet({
           {/* Albums section */}
           <SectionLabel label={t('manageAlbums')} colors={colors} typography={typography} spacing={spacing} />
           <SearchBar
+            testID="bulk-manage-album-search"
             value={albumSearch}
             onChangeText={setAlbumSearch}
             placeholder={t('gallerySearchAlbumsHint')}
@@ -230,7 +337,21 @@ export function BulkManageSheet({
             radius={radius}
           />
           <View style={{ marginBottom: spacing.lg }}>
-            {filteredAlbums.length === 0 ? (
+            {showCreateAlbumRow && (
+              <CreateRow
+                testID="bulk-manage-create-album"
+                query={albumSearch.trim()}
+                label={t('galleryCreateAlbumAs', { query: albumSearch.trim() })}
+                isCreating={isCreatingAlbum}
+                disabled={isProcessing}
+                onPress={handleCreateAlbum}
+                colors={colors}
+                typography={typography}
+                spacing={spacing}
+                radius={radius}
+              />
+            )}
+            {filteredAlbums.length === 0 && !showCreateAlbumRow ? (
               <Text
                 style={[
                   typography.bodySmall,
@@ -259,6 +380,7 @@ export function BulkManageSheet({
           {/* Tags section */}
           <SectionLabel label={t('manageTags')} colors={colors} typography={typography} spacing={spacing} />
           <SearchBar
+            testID="bulk-manage-tag-search"
             value={tagSearch}
             onChangeText={setTagSearch}
             placeholder={t('gallerySearchTagsHint')}
@@ -268,7 +390,21 @@ export function BulkManageSheet({
             radius={radius}
           />
           <View style={{ marginBottom: spacing.lg }}>
-            {filteredTags.length === 0 ? (
+            {showCreateTagRow && (
+              <CreateRow
+                testID="bulk-manage-create-tag"
+                query={tagSearch.trim()}
+                label={t('galleryCreateTagAs', { query: tagSearch.trim() })}
+                isCreating={isCreatingTag}
+                disabled={isProcessing}
+                onPress={handleCreateTag}
+                colors={colors}
+                typography={typography}
+                spacing={spacing}
+                radius={radius}
+              />
+            )}
+            {filteredTags.length === 0 && !showCreateTagRow ? (
               <Text
                 style={[
                   typography.bodySmall,
@@ -302,6 +438,7 @@ export function BulkManageSheet({
               size="lg"
               disabled={!hasChanges || isProcessing}
               loading={isProcessing}
+              testID="bulk-manage-confirm"
             />
           </View>
         </>
@@ -352,6 +489,7 @@ function SectionLabel({
 }
 
 function SearchBar({
+  testID,
   value,
   onChangeText,
   placeholder,
@@ -360,6 +498,7 @@ function SearchBar({
   spacing,
   radius,
 }: {
+  testID?: string;
   value: string;
   onChangeText: (text: string) => void;
   placeholder: string;
@@ -382,6 +521,7 @@ function SearchBar({
     >
       <Search size={16} color={colors.foregroundSecondary} />
       <TextInput
+        testID={testID}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
@@ -397,6 +537,71 @@ function SearchBar({
         autoCorrect={false}
       />
     </View>
+  );
+}
+
+function CreateRow({
+  testID,
+  query,
+  label,
+  isCreating,
+  disabled,
+  onPress,
+  colors,
+  typography,
+  spacing,
+  radius,
+}: {
+  testID?: string;
+  query: string;
+  label: string;
+  isCreating: boolean;
+  disabled: boolean;
+  onPress: () => void;
+  colors: any;
+  typography: any;
+  spacing: any;
+  radius: any;
+}) {
+  return (
+    <Pressable
+      testID={testID}
+      onPress={isCreating || disabled ? undefined : onPress}
+      disabled={isCreating || disabled}
+      style={({ pressed }) => [
+        styles.createRow,
+        {
+          paddingVertical: spacing.md,
+          paddingHorizontal: spacing.xs,
+          backgroundColor: withAlpha(colors.primary, 0.06),
+          borderRadius: radius.sm,
+          marginBottom: spacing.xs,
+          opacity: disabled ? 0.5 : pressed ? 0.7 : 1,
+        },
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      {isCreating ? (
+        <ActivityIndicator size="small" color={colors.primary} />
+      ) : (
+        <PlusCircle size={20} color={colors.primary} />
+      )}
+      <Text
+        style={[
+          typography.bodyMedium,
+          {
+            color: colors.primary,
+            fontWeight: '500',
+            marginStart: spacing.md,
+            flex: 1,
+          },
+        ]}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -512,6 +717,10 @@ const styles = StyleSheet.create({
     padding: 0,
   },
   triStateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  createRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },

@@ -1,3 +1,32 @@
+// jest-expo automocks react-native; component tests need it unmocked so
+// StyleSheet and other surface is real.
+jest.unmock('react-native');
+
+// Stub lucide-react-native to avoid react-native-svg native boot sequence.
+jest.mock('lucide-react-native', () => {
+  const stub = () => null;
+  return new Proxy(
+    {},
+    {
+      get: () => stub,
+    },
+  );
+});
+
+// Mock react-native-safe-area-context so SafeAreaView renders children.
+jest.mock('react-native-safe-area-context', () => {
+  const React = require('react');
+  const Passthrough = ({ children }: any) =>
+    React.createElement(React.Fragment, null, children);
+  return {
+    __esModule: true,
+    SafeAreaView: Passthrough,
+    SafeAreaProvider: Passthrough,
+    useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+    useSafeAreaFrame: () => ({ x: 0, y: 0, width: 0, height: 0 }),
+  };
+});
+
 import React from 'react';
 import { render, fireEvent, act, waitFor } from '@testing-library/react-native';
 import { SearchModal } from '../components/SearchModal';

@@ -1,3 +1,19 @@
+// jest-expo automocks react-native; hook tests need it unmocked.
+jest.unmock('react-native');
+
+// useReconciliationForm transitively imports ReceiptPickerSection which
+// imports lucide-react-native. Stub it to avoid the native react-native-svg
+// boot sequence.
+jest.mock('lucide-react-native', () => {
+  const stub = () => null;
+  return new Proxy(
+    {},
+    {
+      get: () => stub,
+    },
+  );
+});
+
 import { renderHook, act } from '@testing-library/react-native';
 import { useReconciliationForm } from '../hooks/useReconciliationForm';
 

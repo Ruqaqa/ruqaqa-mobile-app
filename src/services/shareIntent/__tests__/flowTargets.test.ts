@@ -2,6 +2,22 @@
  * Tests for flow targets — permission gating for each share flow target.
  */
 
+// jest-expo automocks react-native; flowTargets transitively imports
+// ReceiptPickerSection, which imports lucide-react-native.
+jest.unmock('react-native');
+
+// Stub lucide-react-native so the transitive load of ReceiptPickerSection
+// does not trigger the native react-native-svg boot sequence.
+jest.mock('lucide-react-native', () => {
+  const stub = () => null;
+  return new Proxy(
+    {},
+    {
+      get: () => stub,
+    },
+  );
+});
+
 import { SHARE_FLOW_TARGETS } from '../flowTargets';
 import type { UserPermissions } from '@/types/permissions';
 

@@ -1,3 +1,7 @@
+// jest-expo automocks react-native; StyleSheet.create will be undefined
+// unless we unmock. Component tests need the real native module surface.
+jest.unmock('react-native');
+
 import React from 'react';
 import { render, act } from '@testing-library/react-native';
 import { MediaThumbnail } from '../MediaThumbnail';

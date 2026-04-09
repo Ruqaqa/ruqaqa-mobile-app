@@ -12,11 +12,16 @@ import {
   MediaItemDetail,
   CheckState,
   DownloadFormat,
+  PickerItem,
 } from '../types';
 import { useAlbumMedia } from '../hooks/useAlbumMedia';
 import { useMediaSelection } from '../hooks/useMediaSelection';
 import { useMediaBulkActions } from '../hooks/useMediaBulkActions';
 import { useDownload } from '../hooks/useDownload';
+import {
+  createAlbum as createAlbumService,
+  createTag as createTagService,
+} from '../services/galleryService';
 import { MediaGrid } from './MediaGrid';
 import { FullScreenMediaViewer } from './FullScreenMediaViewer';
 import { SelectionHeader } from './SelectionHeader';
@@ -292,6 +297,30 @@ export function AlbumDetailScreen({ album, onBack }: AlbumDetailScreenProps) {
     setManageState(state);
   }, [selection, bulkActions]);
 
+  const handleBulkCreateAlbum = useCallback(
+    async (name: string): Promise<GalleryAlbum | null> => {
+      const locale = (i18n.language === 'ar' ? 'ar' : 'en') as 'ar' | 'en';
+      try {
+        return await createAlbumService(name, locale);
+      } catch {
+        return null;
+      }
+    },
+    [i18n.language],
+  );
+
+  const handleBulkCreateTag = useCallback(
+    async (name: string): Promise<PickerItem | null> => {
+      const locale = (i18n.language === 'ar' ? 'ar' : 'en') as 'ar' | 'en';
+      try {
+        return await createTagService(name, locale);
+      } catch {
+        return null;
+      }
+    },
+    [i18n.language],
+  );
+
   const handleManageClose = useCallback(() => {
     if (!bulkActions.isProcessing) {
       setShowManageSheet(false);
@@ -543,6 +572,9 @@ export function AlbumDetailScreen({ album, onBack }: AlbumDetailScreenProps) {
         isFetchingState={bulkActions.isFetchingState}
         isProcessing={bulkActions.isProcessing}
         progress={bulkActions.progress}
+        permissions={permissions}
+        onCreateAlbum={handleBulkCreateAlbum}
+        onCreateTag={handleBulkCreateTag}
         onConfirm={handleManageConfirm}
         onClose={handleManageClose}
       />

@@ -8,6 +8,7 @@ import {
   CheckHashResult, CheckHashItem, CheckHashRelation, CheckHashAlbum,
   AddToAlbumsResult, TAG_NAME_MAX_LENGTH,
   UploadItemResult, WatermarkDraft, MediaItem,
+  DeleteTagResult, RenameTagResult,
 } from '../types';
 import { parseAlbum, parseMediaItem, parseMediaItemDetail, extractLocalizedString } from '../utils/parsers';
 
@@ -112,6 +113,19 @@ export async function updateAlbumTitle(
 
   try {
     await apiClient.patch('/gallery/albums', { id: albumId, title, locale });
+    return true;
+  } catch (error) {
+    throw mapAxiosError(error);
+  }
+}
+
+export async function deleteAlbum(albumId: string): Promise<boolean> {
+  if (!isValidObjectId(albumId) || !albumId) {
+    throw new ApiError('UNKNOWN', 'Invalid album ID');
+  }
+
+  try {
+    await apiClient.delete(`/gallery/albums/${albumId}`);
     return true;
   } catch (error) {
     throw mapAxiosError(error);
@@ -260,6 +274,132 @@ export async function createTag(
     // swallow — return null
   }
   return null;
+}
+
+/**
+ * Rename an existing tag. Returns a discriminated union:
+ *   - success: the server-updated tag
+ *   - failure: { code: 'TAG_NAME_TAKEN' } — only 409 with that exact code
+ *
+ * All other errors throw via `mapAxiosError`. Empty sanitized name is a
+ * caller error and throws as well — the UI must validate first.
+ */
+export async function renameTag(
+  tagId: string,
+  name: string,
+  locale: 'ar' | 'en',
+): Promise<RenameTagResult> {
+  if (!isValidObjectId(tagId) || !tagId) {
+    throw new ApiError('UNKNOWN', 'Invalid tag ID');
+  }
+
+  const sanitized = sanitizeCreateName(name, TAG_NAME_MAX_LENGTH);
+  if (sanitized.length === 0) {
+    throw new ApiError('UNKNOWN', 'Empty tag name after sanitization');
+  }
+
+  try {
+    const response = await apiClient.patch(`/tags/${tagId}`, {
+      name: sanitized,
+      locale,
+    });
+    const data = response.data;
+    if (!data || !data.id) {
+      throw new ApiError('UNKNOWN', 'Server returned invalid rename response');
+    }
+    return {
+      success: true,
+      tag: { id: String(data.id), name: String(data.name ?? sanitized) },
+    };
+  } catch (error) {
+    const axiosErr = error as { response?: { status?: number; data?: any } };
+    if (
+      axiosErr?.response?.status === 409 &&
+      axiosErr.response.data?.code === 'TAG_NAME_TAKEN'
+    ) {
+      return { success: false, code: 'TAG_NAME_TAKEN' };
+    }
+    throw mapAxiosError(error);
+  }
+}
+
+/**
+ * Delete a tag. On success returns `{ success: true, detachedFromItemCount }`.
+ * Server may respond 409 with one of four whitelisted error codes — each is
+ * converted to a typed failure variant. Unknown/missing codes throw.
+ *
+ * Security: `itemIds` from the server are validated (ObjectId format) and
+ * capped at 50 before being passed to the hook layer.
+ */
+export async function deleteTag(tagId: string): Promise<DeleteTagResult> {
+  if (!isValidObjectId(tagId) || !tagId) {
+    throw new ApiError('UNKNOWN', 'Invalid tag ID');
+  }
+
+  try {
+    const response = await apiClient.delete(`/tags/${tagId}`);
+    return {
+      success: true,
+      detachedFromItemCount: Number(response.data?.detachedFromItemCount ?? 0),
+    };
+  } catch (error) {
+    const axiosErr = error as { response?: { status?: number; data?: any } };
+    if (axiosErr?.response?.status !== 409) {
+      throw mapAxiosError(error);
+    }
+
+    const data = axiosErr.response.data ?? {};
+    const code = String(data.code ?? '');
+
+    switch (code) {
+      case 'TAG_ONLY_ON_ITEMS': {
+        const rawIds = Array.isArray(data.itemIds) ? data.itemIds : [];
+        const validIds = rawIds
+          .filter(
+            (id: unknown): id is string =>
+              typeof id === 'string' && id.length > 0 && isValidObjectId(id),
+          )
+          .slice(0, 50);
+        const count =
+          typeof data.count === 'number' ? data.count : validIds.length;
+        return {
+          success: false,
+          code: 'TAG_ONLY_ON_ITEMS',
+          itemIds: validIds,
+          count,
+        };
+      }
+      case 'TAG_DETACH_CONFLICT': {
+        const itemId =
+          typeof data.itemId === 'string' &&
+          data.itemId.length > 0 &&
+          isValidObjectId(data.itemId)
+            ? data.itemId
+            : null;
+        if (!itemId) {
+          // Malformed server response — don't leak it to the UI.
+          throw mapAxiosError(error);
+        }
+        return { success: false, code: 'TAG_DETACH_CONFLICT', itemId };
+      }
+      case 'TAG_RACE_CONFLICT':
+        return { success: false, code: 'TAG_RACE_CONFLICT' };
+      case 'TAG_HAS_TOO_MANY_REFERENCES': {
+        const affectedItemCount =
+          typeof data.affectedItemCount === 'number'
+            ? data.affectedItemCount
+            : 0;
+        return {
+          success: false,
+          code: 'TAG_HAS_TOO_MANY_REFERENCES',
+          affectedItemCount,
+        };
+      }
+      default:
+        // Unknown 409 code — never pass through to UI.
+        throw mapAxiosError(error);
+    }
+  }
 }
 
 /**

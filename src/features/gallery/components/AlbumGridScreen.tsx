@@ -16,11 +16,13 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { SkeletonCard } from '@/components/ui/SkeletonCard';
 import { GalleryAlbum } from '../types';
 import { useAlbumList } from '../hooks/useAlbumList';
+import { useAlbumActions } from '../hooks/useAlbumActions';
 import { AlbumCard } from './AlbumCard';
 import { AlbumDetailScreen } from './AlbumDetailScreen';
 import { AlbumOptionsSheet } from './AlbumOptionsSheet';
 import { EditAlbumNameDialog } from './EditAlbumNameDialog';
 import { CreateAlbumSheet } from './CreateAlbumSheet';
+import { DeleteAlbumConfirmDialog } from './DeleteAlbumConfirmDialog';
 
 interface AlbumGridScreenProps {
   permissions: UserPermissions;
@@ -52,7 +54,10 @@ export function AlbumGridScreen({
     retry,
     updateAlbumLocally,
     addAlbumLocally,
+    removeAlbumLocally,
   } = useAlbumList();
+
+  const { deleteAlbum, isDeleting } = useAlbumActions();
 
   // Album detail state
   const [selectedAlbum, setSelectedAlbum] = useState<GalleryAlbum | null>(null);
@@ -66,6 +71,10 @@ export function AlbumGridScreen({
   const [editAlbum, setEditAlbum] = useState<GalleryAlbum | null>(null);
   const [editVisible, setEditVisible] = useState(false);
 
+  // Delete confirm dialog state
+  const [deleteAlbumTarget, setDeleteAlbumTarget] = useState<GalleryAlbum | null>(null);
+  const [deleteVisible, setDeleteVisible] = useState(false);
+
   const handleAlbumPress = useCallback((album: GalleryAlbum) => {
     setSelectedAlbum(album);
     setDetailVisible(true);
@@ -73,10 +82,13 @@ export function AlbumGridScreen({
   }, [onDetailVisibleChange]);
 
   const handleAlbumLongPress = useCallback((album: GalleryAlbum) => {
-    if (album.isDefault) return; // Default album cannot be renamed
+    const canEditThis = permissions.canUpdateGallery;
+    const canDeleteThis = permissions.canDeleteGallery && !album.isDefault;
+    // Short-circuit if neither action is available — don't open an empty sheet.
+    if (!canEditThis && !canDeleteThis) return;
     setOptionsAlbum(album);
     setOptionsVisible(true);
-  }, []);
+  }, [permissions.canUpdateGallery, permissions.canDeleteGallery]);
 
   const handleDetailBack = useCallback(() => {
     setDetailVisible(false);
@@ -97,6 +109,32 @@ export function AlbumGridScreen({
     setEditVisible(false);
     setEditAlbum(null);
   }, []);
+
+  const handleDeletePress = useCallback(() => {
+    setDeleteAlbumTarget(optionsAlbum);
+    setDeleteVisible(true);
+  }, [optionsAlbum]);
+
+  const handleDeleteCancel = useCallback(() => {
+    if (isDeleting) return;
+    setDeleteVisible(false);
+    setDeleteAlbumTarget(null);
+  }, [isDeleting]);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteAlbumTarget) return;
+    const targetId = deleteAlbumTarget.id;
+    const ok = await deleteAlbum(targetId);
+    if (ok) {
+      removeAlbumLocally(targetId);
+      setDeleteVisible(false);
+      setDeleteAlbumTarget(null);
+    }
+    // On failure, the dialog stays open and the hook's `error` state is set;
+    // the user can retry or cancel. Error toast/alert surfacing is owned by
+    // the hook's error state and handled by higher-level UX (same pattern as
+    // ManageTagsScreen).
+  }, [deleteAlbumTarget, deleteAlbum, removeAlbumLocally]);
 
   const handleSaved = useCallback(
     (albumId: string, newTitle: string) => {
@@ -255,8 +293,10 @@ export function AlbumGridScreen({
       <AlbumOptionsSheet
         visible={optionsVisible}
         album={optionsAlbum}
+        permissions={permissions}
         onClose={handleOptionsClose}
         onEditName={handleEditName}
+        onDelete={handleDeletePress}
       />
 
       <EditAlbumNameDialog
@@ -264,6 +304,14 @@ export function AlbumGridScreen({
         album={editAlbum}
         onClose={handleEditClose}
         onSaved={handleSaved}
+      />
+
+      <DeleteAlbumConfirmDialog
+        visible={deleteVisible}
+        album={deleteAlbumTarget}
+        isDeleting={isDeleting}
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
       />
     </View>
   );

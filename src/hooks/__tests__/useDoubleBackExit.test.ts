@@ -1,3 +1,7 @@
+// jest-expo automocks react-native; BackHandler/ToastAndroid are undefined
+// unless we unmock. This hook reads real RN primitives.
+jest.unmock('react-native');
+
 import { renderHook } from '@testing-library/react-native';
 import { BackHandler, Platform, ToastAndroid } from 'react-native';
 import { useDoubleBackExit, DOUBLE_BACK_THRESHOLD_MS } from '../useDoubleBackExit';
