@@ -334,6 +334,7 @@ const styles = StyleSheet.create({
   canvas: {
     flex: 1,
     backgroundColor: '#000000',
+    direction: 'ltr', // Force LTR so left/top always mean physical screen coordinates
   },
   disabledOverlay: {
     ...StyleSheet.absoluteFillObject,
