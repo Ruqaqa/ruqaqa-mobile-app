@@ -8,7 +8,7 @@ interface AppConfig {
 }
 
 const DEV_CONFIG: AppConfig = {
-  apiBaseUrl: 'http://192.168.100.53:3000',
+  apiBaseUrl: 'http://192.168.100.57:3000',
   keycloakUrl: 'https://auth.ruqaqa.sa',
   keycloakRealm: 'ruqaqa',
   keycloakClientId: 'ruqaqa-mobile-app',

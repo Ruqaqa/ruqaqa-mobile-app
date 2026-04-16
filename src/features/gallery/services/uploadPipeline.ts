@@ -622,17 +622,17 @@ export class UploadPipeline {
     const drafts = this.config.watermarkDrafts;
     if (!drafts) return undefined;
     const asset = this.config.images[imageIndex];
-    // Watermark drafts are keyed by asset URI (or asset ID if available)
-    const key = asset.assetId ?? asset.uri;
-    return drafts[key];
+    // Drafts are keyed by asset.uri in the watermark editor (EditorMediaItem.id = uri).
+    // Must use uri here — not assetId — to match the editor's key.
+    return drafts[asset.uri];
   }
 
   private getVideoWatermarkDraft(): WatermarkDraft | undefined {
     const drafts = this.config.watermarkDrafts;
     if (!drafts || !this.config.video) return undefined;
-    const video = this.config.video;
-    const key = video.assetId ?? video.uri;
-    return drafts[key];
+    // Drafts are keyed by video.uri in the watermark editor (EditorMediaItem.id = uri).
+    // Must use uri here — not assetId — to match the editor's key.
+    return drafts[this.config.video.uri];
   }
 
   // -----------------------------------------------------------------------

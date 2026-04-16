@@ -123,6 +123,7 @@ const styles = StyleSheet.create({
   container: {
     height: THUMB_SIZE + HIT_SLOP * 2,
     justifyContent: 'center',
+    direction: 'ltr', // Force LTR so left/start always mean physical left and pageX math works
   },
   track: {
     height: TRACK_HEIGHT,
