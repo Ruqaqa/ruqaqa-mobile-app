@@ -75,9 +75,10 @@ export function usePermissions(): UserPermissions | null {
 // Provider
 // ---------------------------------------------------------------------------
 
-// Redirect URI for expo-auth-session (uses scheme from app.json + path for Keycloak compatibility)
+// Redirect URI for expo-auth-session. Debug builds use ruqaqa-dev:// so the
+// OAuth callback routes to the dev app only (both apps coexist on device).
 const redirectUri = AuthSession.makeRedirectUri({
-  scheme: 'ruqaqa',
+  scheme: __DEV__ ? 'ruqaqa-dev' : 'ruqaqa',
   path: 'auth/callback',
 });
 
