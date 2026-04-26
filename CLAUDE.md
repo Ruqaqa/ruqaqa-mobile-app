@@ -267,7 +267,7 @@ Test files live next to source in `__tests__/` directories. Mock `expo-secure-st
 ## Conventions
 
 - Use **pnpm**, not npm
-- Do not run build/deploy commands directly — give the command for the user to run
+- Do not run build/deploy commands proactively — give the command for the user to run. Exception: if the user explicitly asks you to build, install, or deploy (e.g. "install production", "build the apk", "deploy this"), run the command directly.
 - TypeScript strict mode. Path alias: `@/` → `src/`
 - Design system follows ruqaqa-website (not Flutter's old design)
 - i18n keys in camelCase

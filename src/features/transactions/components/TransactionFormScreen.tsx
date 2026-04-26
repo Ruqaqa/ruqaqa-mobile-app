@@ -9,6 +9,7 @@ import {
   Platform,
   Alert,
   Keyboard,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -21,6 +22,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/theme';
 import { withAlpha } from '@/utils/colorUtils';
+import { isPositiveAmount } from '@/utils/sanitize';
 import { UserPermissions, Employee } from '@/types/permissions';
 import { Input } from '@/components/ui/Input';
 import { SelectField } from '@/components/ui/SelectField';
@@ -66,6 +68,8 @@ const CURRENCY_OPTIONS = [
   { label: 'ريال سعودي', value: 'ريال سعودي' },
   { label: 'دولار أمريكي', value: 'دولار أمريكي' },
 ];
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export function TransactionFormScreen({
   permissions,
@@ -129,7 +133,13 @@ export function TransactionFormScreen({
       const sharedFiles = consumeFiles();
       const { attachments } = convertSharedFilesToAttachments(sharedFiles, form.attachments.length);
       for (const att of attachments) {
-        addAttachment(att.uri, att.type, att.name, att.mimeType, att.fileSize);
+        addAttachment(
+          att.uri,
+          att.type,
+          att.name ?? `shared_${att.id}`,
+          att.mimeType ?? 'application/octet-stream',
+          att.fileSize,
+        );
       }
     }
   }, [shareState]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -156,6 +166,12 @@ export function TransactionFormScreen({
     if (form.partner === BALAD_CARD_PARTNER) return '__baladcard__';
     return form.partnerId;
   }, [form.partner, form.partnerId]);
+
+  // Show bankFeesCurrency only when bankFees is a positive number.
+  const showBankFeesCurrency = useMemo(
+    () => isPositiveAmount(form.bankFees),
+    [form.bankFees],
+  );
 
   const handlePartnerChange = useCallback(
     (value: string) => {
@@ -306,8 +322,8 @@ export function TransactionFormScreen({
     const data = buildPreviewPayload();
     return [
       { label: t('statement'), value: data['البيان'] },
-      { label: t('tax'), value: data['الضريبة'] === 'نعم' ? t('yes') : t('no'), highlight: 'error' as const },
       { label: t('currency'), value: data['العملة'] },
+      { label: t('tax'), value: data['الضريبة'] === 'نعم' ? t('yes') : t('no'), highlight: 'error' as const },
       ...(data['رسوم بنكية'] != null && data['رسوم بنكية'] !== 0
         ? [{ label: t('bankFees'), value: `${data['رسوم بنكية']} ${data['عملة الرسوم'] ?? ''}`, highlight: 'warning' as const }]
         : []),
@@ -318,8 +334,11 @@ export function TransactionFormScreen({
     ];
   }, [buildPreviewPayload, t]);
 
-  // Amount indicator
-  const amountIndicator = form.amount && !isNaN(Number(form.amount)) && Number(form.amount) > 0
+  // Amount indicator (only after a type is selected)
+  const amountIndicator = form.isExpense !== null
+    && form.amount
+    && !isNaN(Number(form.amount))
+    && Number(form.amount) > 0
     ? (
       <Text
         style={[
@@ -335,6 +354,41 @@ export function TransactionFormScreen({
       </Text>
     )
     : null;
+
+  // Pulsing border animation when transaction type is unselected.
+  // Stops as soon as the user picks expense/revenue.
+  const pulseAnim = useRef(new Animated.Value(0)).current;
+  const isTypeUnselected = form.isExpense === null;
+  const showTypeError = wasSubmitted && isTypeUnselected;
+
+  useEffect(() => {
+    if (!isTypeUnselected) {
+      pulseAnim.stopAnimation();
+      pulseAnim.setValue(0);
+      return;
+    }
+    // Slow blink: fade in → hold at warning ~2s → fade out → hold at idle ~1s → repeat.
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1, duration: 500, useNativeDriver: false }),
+        Animated.delay(2000),
+        Animated.timing(pulseAnim, { toValue: 0, duration: 500, useNativeDriver: false }),
+        Animated.delay(1000),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [isTypeUnselected, pulseAnim]);
+
+  const pulseColor = showTypeError ? colors.error : colors.warning;
+  const pulseBorderColor = pulseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [colors.border, pulseColor],
+  });
+  const pulseBackgroundColor = pulseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [colors.muted, withAlpha(pulseColor, 0.12)],
+  });
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
@@ -389,53 +443,101 @@ export function TransactionFormScreen({
               />
             </View>
             <View style={[styles.toggleGroup, { marginTop: spacing.xl }]}>
-              <Pressable
-                onPress={() => updateField('isExpense', true)}
-                style={[
-                  styles.toggleBtn,
-                  {
-                    backgroundColor: form.isExpense ? withAlpha(colors.error, 0.15) : colors.muted,
-                    borderColor: form.isExpense ? colors.error : colors.border,
-                    borderTopStartRadius: radius.md,
-                    borderBottomStartRadius: radius.md,
-                  },
-                ]}
-              >
-                <Minus size={20} color={form.isExpense ? colors.error : colors.foregroundSecondary} />
-              </Pressable>
-              <Pressable
-                onPress={() => updateField('isExpense', false)}
-                style={[
-                  styles.toggleBtn,
-                  {
-                    backgroundColor: !form.isExpense ? withAlpha(colors.success, 0.15) : colors.muted,
-                    borderColor: !form.isExpense ? colors.success : colors.border,
-                    borderTopEndRadius: radius.md,
-                    borderBottomEndRadius: radius.md,
-                  },
-                ]}
-              >
-                <Plus size={20} color={!form.isExpense ? colors.success : colors.foregroundSecondary} />
-              </Pressable>
+              {isTypeUnselected ? (
+                <>
+                  <AnimatedPressable
+                    onPress={() => updateField('isExpense', true)}
+                    style={[
+                      styles.toggleBtn,
+                      {
+                        backgroundColor: pulseBackgroundColor,
+                        borderColor: pulseBorderColor,
+                        borderTopStartRadius: radius.md,
+                        borderBottomStartRadius: radius.md,
+                      },
+                    ]}
+                  >
+                    <Minus size={20} color={showTypeError ? colors.error : colors.foregroundSecondary} />
+                  </AnimatedPressable>
+                  <AnimatedPressable
+                    onPress={() => updateField('isExpense', false)}
+                    style={[
+                      styles.toggleBtn,
+                      {
+                        backgroundColor: pulseBackgroundColor,
+                        borderColor: pulseBorderColor,
+                        borderTopEndRadius: radius.md,
+                        borderBottomEndRadius: radius.md,
+                      },
+                    ]}
+                  >
+                    <Plus size={20} color={showTypeError ? colors.error : colors.foregroundSecondary} />
+                  </AnimatedPressable>
+                </>
+              ) : (
+                <>
+                  <Pressable
+                    onPress={() => updateField('isExpense', true)}
+                    style={[
+                      styles.toggleBtn,
+                      {
+                        backgroundColor: form.isExpense ? withAlpha(colors.error, 0.15) : colors.muted,
+                        borderColor: form.isExpense ? colors.error : colors.border,
+                        borderTopStartRadius: radius.md,
+                        borderBottomStartRadius: radius.md,
+                      },
+                    ]}
+                  >
+                    <Minus size={20} color={form.isExpense ? colors.error : colors.foregroundSecondary} />
+                  </Pressable>
+                  <Pressable
+                    onPress={() => updateField('isExpense', false)}
+                    style={[
+                      styles.toggleBtn,
+                      {
+                        backgroundColor: !form.isExpense ? withAlpha(colors.success, 0.15) : colors.muted,
+                        borderColor: !form.isExpense ? colors.success : colors.border,
+                        borderTopEndRadius: radius.md,
+                        borderBottomEndRadius: radius.md,
+                      },
+                    ]}
+                  >
+                    <Plus size={20} color={!form.isExpense ? colors.success : colors.foregroundSecondary} />
+                  </Pressable>
+                </>
+              )}
             </View>
           </View>
-          {amountIndicator}
+          {isTypeUnselected ? (
+            <Text
+              style={[
+                typography.label,
+                {
+                  color: showTypeError ? colors.error : colors.warning,
+                  fontWeight: '600',
+                  marginTop: spacing.xs,
+                },
+              ]}
+            >
+              {t('selectTransactionTypeHint')}
+            </Text>
+          ) : amountIndicator}
 
           {/* === SECTION 2: Tax & Currency === */}
           <SectionTitle title={t('taxAndCurrency')} />
-
-          <SelectField
-            label={t('tax')}
-            value={form.tax}
-            options={TAX_OPTIONS}
-            onChange={(val) => updateField('tax', val)}
-          />
 
           <SelectField
             label={t('currency')}
             value={form.currency}
             options={CURRENCY_OPTIONS}
             onChange={(val) => updateField('currency', val)}
+          />
+
+          <SelectField
+            label={t('tax')}
+            value={form.tax}
+            options={TAX_OPTIONS}
+            onChange={(val) => updateField('tax', val)}
           />
 
           <Input
@@ -450,12 +552,14 @@ export function TransactionFormScreen({
             error={errors.bankFees}
           />
 
-          <SelectField
-            label={t('feesCurrency')}
-            value={form.bankFeesCurrency}
-            options={CURRENCY_OPTIONS}
-            onChange={(val) => updateField('bankFeesCurrency', val)}
-          />
+          {showBankFeesCurrency && (
+            <SelectField
+              label={t('feesCurrency')}
+              value={form.bankFeesCurrency}
+              options={CURRENCY_OPTIONS}
+              onChange={(val) => updateField('bankFeesCurrency', val)}
+            />
+          )}
 
           {/* === SECTION 3: Project Details === */}
           <SectionTitle title={t('projectDetails')} />
@@ -468,6 +572,8 @@ export function TransactionFormScreen({
               onSearch={handleClientSearch}
               onSelect={(item) => updateField('client', item)}
               onClear={() => updateField('client', null)}
+              onTextChange={(text) => updateField('client', text ? { id: '', label: text } : null)}
+              allowFreeText
               testID="client-autocomplete"
             />
           </View>
@@ -480,6 +586,8 @@ export function TransactionFormScreen({
               onSearch={handleProjectSearch}
               onSelect={(item) => updateField('project', item)}
               onClear={() => updateField('project', null)}
+              onTextChange={(text) => updateField('project', text ? { id: '', label: text } : null)}
+              allowFreeText
               testID="project-autocomplete"
             />
           </View>

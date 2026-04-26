@@ -39,8 +39,8 @@ jest.mock('../config', () => ({
 }));
 
 // Mock tokenStorage with controllable return values
-const mockGetAccessToken = jest.fn<Promise<string | null>, []>();
-const mockIsTokenExpiringSoon = jest.fn<Promise<boolean>, []>();
+const mockGetAccessToken = jest.fn<Promise<string | null>, [...any[]]>();
+const mockIsTokenExpiringSoon = jest.fn<Promise<boolean>, [...any[]]>();
 jest.mock('../tokenStorage', () => ({
   tokenStorage: {
     getAccessToken: (...args: any[]) => mockGetAccessToken(...args),
@@ -54,7 +54,7 @@ jest.mock('../tokenStorage', () => ({
 // Mock authService.refreshTokens
 const mockRefreshTokens = jest.fn<
   Promise<{ success: boolean; isNetworkError: boolean }>,
-  []
+  [...any[]]
 >();
 jest.mock('../authService', () => ({
   refreshTokens: (...args: any[]) => mockRefreshTokens(...args),

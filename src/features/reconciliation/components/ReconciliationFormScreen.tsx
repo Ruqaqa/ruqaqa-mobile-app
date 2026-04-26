@@ -31,6 +31,7 @@ import { convertSharedFilesToAttachments } from '@/utils/sharedFilesAdapter';
 import { FORM_TOTAL_STEPS, ENTITY_TYPES } from '../types';
 import { buildReconciliationPayload } from '../services/reconciliationSubmissionService';
 import { formatDate } from '@/utils/formatters';
+import { isPositiveAmount } from '@/utils/sanitize';
 
 interface ReconciliationFormScreenProps {
   onClose: () => void;
@@ -206,14 +207,12 @@ export function ReconciliationFormScreen({ onClose }: ReconciliationFormScreenPr
   );
 
   // Show bankFeesCurrency only when bankFees is a positive number.
-  // Empty, "0", "0.00", or non-numeric values hide the currency selector.
-  // Orphan currency state is also stripped at submission (see buildReconciliationPayload).
-  const showBankFeesCurrency = useMemo(() => {
-    const trimmed = form.bankFees.trim();
-    if (!trimmed) return false;
-    const parsed = parseFloat(trimmed);
-    return Number.isFinite(parsed) && parsed > 0;
-  }, [form.bankFees]);
+  // Orphan currency state is also stripped at submission
+  // (see buildReconciliationPayload).
+  const showBankFeesCurrency = useMemo(
+    () => isPositiveAmount(form.bankFees),
+    [form.bankFees],
+  );
 
   // Build preview data
   const previewFields = useMemo(() => {
@@ -222,7 +221,7 @@ export function ReconciliationFormScreen({ onClose }: ReconciliationFormScreenPr
       { label: t('statement'), value: payload['البيان'] },
       { label: t('currency'), value: payload['العملة'] },
       { label: t('reconciliationType'), value: t(form.type) },
-      { label: t('date'), value: payload['التاريخ'] },
+      { label: t('date'), value: form.date ? formatDate(form.date.toISOString()) : null },
     ];
     if (payload['رسوم بنكية'] != null) {
       fields.push({

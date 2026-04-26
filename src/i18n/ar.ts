@@ -99,6 +99,7 @@ export default {
   client: 'العميل',
   expenses: 'مصاريف',
   revenues: 'إيرادات',
+  selectTransactionTypeHint: 'اختر نوع العملية (مصروف أو إيراد)',
   tax: 'الضريبة',
   taxAndCurrency: 'الضريبة والعملة',
   currency: 'العملة',

@@ -1,6 +1,16 @@
-/** Format ISO date string to "DD/MM/YYYY". Returns em-dash for null/undefined/invalid. */
-export function formatDate(value: string | null | undefined): string {
+/** Format an ISO date string or Date object to "DD/MM/YYYY".
+ *  Strings are read as UTC (matches API ISO timestamps).
+ *  Date objects are read as local time (matches a user-picked date).
+ *  Returns em-dash for null/undefined/invalid. */
+export function formatDate(value: string | Date | null | undefined): string {
   if (!value) return '\u2014';
+  if (value instanceof Date) {
+    if (isNaN(value.getTime())) return '\u2014';
+    const day = String(value.getDate()).padStart(2, '0');
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const year = value.getFullYear();
+    return `${day}/${month}/${year}`;
+  }
   const d = new Date(value);
   if (isNaN(d.getTime())) return '\u2014';
   const day = String(d.getUTCDate()).padStart(2, '0');

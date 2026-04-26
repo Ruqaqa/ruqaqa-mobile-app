@@ -1,7 +1,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react-native';
 import { useAuthHeaders } from '../useAuthHeaders';
 
-const mockGetAccessToken = jest.fn<Promise<string | null>, []>();
+const mockGetAccessToken = jest.fn<Promise<string | null>, [...any[]]>();
 
 jest.mock('@/services/tokenStorage', () => ({
   tokenStorage: {

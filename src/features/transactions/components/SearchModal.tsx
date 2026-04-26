@@ -54,7 +54,7 @@ export function SearchModal({
   }, [visible]);
 
   const partnerOptions = useMemo(() => {
-    const opts = [
+    const opts: { label: string; value: string }[] = [
       { label: t('wallet'), value: WALLET_PARTNER },
       { label: t('baladCard'), value: BALAD_CARD_PARTNER },
     ];

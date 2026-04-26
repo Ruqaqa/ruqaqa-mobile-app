@@ -21,11 +21,12 @@ import {
 } from '../utils/sanitize';
 import { CURRENCIES } from '../types';
 import type { TransactionSubmissionData } from '../types';
+import { formatDate } from '@/utils/formatters';
 
 export interface TransactionFormData {
   statement: string;
   amount: string;
-  isExpense: boolean;
+  isExpense: boolean | null;
   tax: string; // 'نعم' | 'لا'
   currency: string; // 'ريال سعودي' | 'دولار أمريكي'
   bankFees: string;
@@ -45,7 +46,7 @@ export interface TransactionFormData {
 const INITIAL_FORM: TransactionFormData = {
   statement: '',
   amount: '',
-  isExpense: true,
+  isExpense: null,
   tax: 'لا',
   currency: 'ريال سعودي',
   bankFees: '',
@@ -91,10 +92,11 @@ export function useTransactionForm({ permissions, employee, onSuccess }: UseTran
 
       const cached = await getLastClientAndProject();
       if (cached.client || cached.project) {
+        // '__cached__' marks a chip-rendered cached value; never sent to API
         setForm((prev) => ({
           ...prev,
-          ...(cached.client ? { client: { id: '', label: cached.client! } } : {}),
-          ...(cached.project ? { project: { id: '', label: cached.project! } } : {}),
+          ...(cached.client ? { client: { id: '__cached__', label: cached.client! } } : {}),
+          ...(cached.project ? { project: { id: '__cached__', label: cached.project! } } : {}),
         }));
       }
 
@@ -118,13 +120,14 @@ export function useTransactionForm({ permissions, employee, onSuccess }: UseTran
     if (!form.statement.trim()) errors.statement = t('statementRequired');
     if (!form.amount.trim()) errors.amount = t('statementRequired');
     else if (!isValidSubmissionAmount(form.amount)) errors.amount = t('pleaseEnterValidNumber');
+    if (form.isExpense === null) errors.isExpense = t('statementRequired');
     if (!form.bankFees.trim()) errors.bankFees = t('statementRequired');
     else if (!isValidSubmissionAmount(form.bankFees)) errors.bankFees = t('pleaseEnterValidNumber');
     if (!form.date) errors.date = t('statementRequired');
     if (!form.otherParty.trim()) errors.otherParty = t('statementRequired');
     if (canSelectPartner && !form.partner) errors.partner = t('statementRequired');
     return errors;
-  }, [form, t]);
+  }, [form, t, canSelectPartner]);
 
   const getErrors = useCallback((): Partial<Record<keyof TransactionFormData, string>> => {
     if (!wasSubmitted) return {};
@@ -172,6 +175,7 @@ export function useTransactionForm({ permissions, employee, onSuccess }: UseTran
   const getActualAmount = (): string => {
     const amt = form.amount.trim();
     if (!amt || !isValidSubmissionAmount(amt)) return '';
+    if (form.isExpense === null) return '';
     return form.isExpense ? `-${amt}` : amt;
   };
 
@@ -194,7 +198,7 @@ export function useTransactionForm({ permissions, employee, onSuccess }: UseTran
       'عملة الرسوم': form.bankFeesCurrency,
       'رمز المشروع': form.project?.label ?? null,
       'اسم العميل': form.client?.label ?? null,
-      'التاريخ': formatDateForAPI(form.date),
+      'التاريخ': formatDate(form.date),
       'طرف الشريك': form.partner,
       'الطرف الآخر': form.otherParty || null,
       'ملاحظات': form.notes || null,
@@ -219,8 +223,8 @@ export function useTransactionForm({ permissions, employee, onSuccess }: UseTran
       otherParty: form.otherParty || null,
       otherPartyType: form.otherPartyType,
       otherPartyId: isValidObjectId(form.otherPartyId) ? form.otherPartyId : null,
-      client: form.client?.label ?? null,
-      project: form.project?.label ?? null,
+      client: form.client?.label?.trim() ? form.client.label.trim() : null,
+      project: form.project?.label?.trim() ? form.project.label.trim() : null,
       notes: form.notes || null,
       bankFees: form.bankFees || null,
       bankFeesCurrency: isValidCurrency(form.bankFeesCurrency) ? form.bankFeesCurrency : CURRENCIES[0],
@@ -335,6 +339,7 @@ export function useTransactionForm({ permissions, employee, onSuccess }: UseTran
     maxAttachments: MAX_ATTACHMENTS,
     getActualAmount,
     buildPreviewPayload,
+    buildSanitizedPayload,
     submit,
   };
 }

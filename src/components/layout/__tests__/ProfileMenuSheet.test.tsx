@@ -144,7 +144,7 @@ describe('ProfileMenuSheet', () => {
     const pressables = instance.findAllByType('Pressable' as any);
     // Sign out pressable is the one with onPress === onSignOut
     const signOutButton = pressables.find(
-      (p) => p.props.onPress === props.onSignOut,
+      (p: any) => p.props.onPress === props.onSignOut,
     );
     expect(signOutButton).toBeDefined();
     act(() => {
@@ -158,7 +158,7 @@ describe('ProfileMenuSheet', () => {
     const instance = root.root;
     const pressables = instance.findAllByType('Pressable' as any);
     // The sign out Pressable has disabled prop
-    const signOutButton = pressables.find((p) => p.props.disabled === true);
+    const signOutButton = pressables.find((p: any) => p.props.disabled === true);
     expect(signOutButton).toBeDefined();
   });
 
@@ -185,7 +185,7 @@ describe('ProfileMenuSheet', () => {
     const { root } = renderSheet({ isSigningOut: true });
     const instance = root.root;
     const pressables = instance.findAllByType('Pressable' as any);
-    const signOutButton = pressables.find((p) => p.props.disabled === true);
+    const signOutButton = pressables.find((p: any) => p.props.disabled === true);
     // The style array should contain an object with opacity: 0.6
     const styleArr = signOutButton!.props.style;
     const hasReducedOpacity = styleArr.some(
@@ -199,7 +199,7 @@ describe('ProfileMenuSheet', () => {
     const instance = root.root;
     const pressables = instance.findAllByType('Pressable' as any);
     // Backdrop pressable is the one with onPress === onClose
-    const backdrop = pressables.find((p) => p.props.onPress === props.onClose);
+    const backdrop = pressables.find((p: any) => p.props.onPress === props.onClose);
     expect(backdrop).toBeDefined();
   });
 });

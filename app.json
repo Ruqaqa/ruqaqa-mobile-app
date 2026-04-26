@@ -2,7 +2,7 @@
   "expo": {
     "name": "Ruqaqa",
     "slug": "ruqaqa-finance",
-    "version": "1.2.3",
+    "version": "1.2.5",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -61,7 +61,7 @@
       }]
     ],
     "extra": {
-      "releaseChannel": "development"
+      "releaseChannel": "production"
     }
   }
 }

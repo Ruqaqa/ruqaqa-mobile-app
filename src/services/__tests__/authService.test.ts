@@ -67,7 +67,7 @@ jest.mock('../../utils/retry', () => ({
   withRetry: jest.fn((fn: () => Promise<any>) => fn()),
   isRetryableError: jest.fn((err: unknown) => {
     const axios = jest.requireActual('axios');
-    return axios.isAxiosError(err) && !err.response;
+    return axios.isAxiosError(err) && !(err as any).response;
   }),
 }));
 

@@ -3,6 +3,7 @@ import {
   isValidAmount,
   isValidApprovalStatus,
   isValidObjectId,
+  isPositiveAmount,
 } from '../sanitize';
 import { FILTER_MAX_LENGTH } from '@/types/shared';
 
@@ -115,5 +116,41 @@ describe('isValidObjectId', () => {
 
   it('returns false for injection attempt', () => {
     expect(isValidObjectId("'; DROP TABLE users; --")).toBe(false);
+  });
+});
+
+describe('isPositiveAmount', () => {
+  it('returns true for a positive integer string', () => {
+    expect(isPositiveAmount('5')).toBe(true);
+  });
+
+  it('returns true for a positive decimal string', () => {
+    expect(isPositiveAmount('0.5')).toBe(true);
+  });
+
+  it('returns false for "0"', () => {
+    expect(isPositiveAmount('0')).toBe(false);
+  });
+
+  it('returns false for "0.00"', () => {
+    expect(isPositiveAmount('0.00')).toBe(false);
+  });
+
+  it('returns false for empty / whitespace', () => {
+    expect(isPositiveAmount('')).toBe(false);
+    expect(isPositiveAmount('   ')).toBe(false);
+  });
+
+  it('returns false for null/undefined', () => {
+    expect(isPositiveAmount(null)).toBe(false);
+    expect(isPositiveAmount(undefined)).toBe(false);
+  });
+
+  it('returns false for non-numeric input', () => {
+    expect(isPositiveAmount('abc')).toBe(false);
+  });
+
+  it('returns false for negative amounts', () => {
+    expect(isPositiveAmount('-5')).toBe(false);
   });
 });

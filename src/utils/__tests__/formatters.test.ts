@@ -24,6 +24,14 @@ describe('formatDate', () => {
   it('pads single-digit day and month', () => {
     expect(formatDate('2025-02-05')).toBe('05/02/2025');
   });
+
+  it('formats Date object using local components', () => {
+    expect(formatDate(new Date(2025, 2, 15))).toBe('15/03/2025');
+  });
+
+  it('returns em-dash for invalid Date object', () => {
+    expect(formatDate(new Date('invalid'))).toBe('—');
+  });
 });
 
 describe('formatAmount', () => {

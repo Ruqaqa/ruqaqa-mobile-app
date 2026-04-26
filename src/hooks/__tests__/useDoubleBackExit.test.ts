@@ -21,10 +21,10 @@ beforeEach(() => {
   (Platform as any).OS = 'android';
 
   jest.spyOn(BackHandler, 'addEventListener').mockImplementation(
-    (_event: string, handler: () => boolean) => {
+    ((_event: string, handler: () => boolean) => {
       backHandlerCallback = handler;
-      return { remove: mockRemove } as any;
-    },
+      return { remove: mockRemove };
+    }) as any,
   );
   jest.spyOn(BackHandler, 'exitApp').mockImplementation(() => {});
   jest.spyOn(ToastAndroid, 'show').mockImplementation(() => {});

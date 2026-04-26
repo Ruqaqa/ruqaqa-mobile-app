@@ -111,22 +111,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // -----------------------------------------------------------------------
-  // Schedule proactive token refresh (60s before expiry as safety net)
+  // Schedule proactive token refresh.
+  //
+  // Refresh `REFRESH_BUFFER_MS` before expiry, but never sooner than
+  // `MIN_DELAY_MS` from now — this avoids a tight refresh loop when the
+  // realm is configured with a very short access_token_lifespan (e.g. 60s),
+  // where `expiry - now - buffer` collapses to ~0 and the timer fires
+  // immediately, then immediately again after each refresh. Hammering
+  // Keycloak this way produces refresh-token-id collisions and the
+  // "Session doesn't have required client" rejection surfaced to users
+  // as the session-expired modal. The request interceptor still covers
+  // pre-expiry refresh on actual API calls.
   // -----------------------------------------------------------------------
+  const REFRESH_BUFFER_MS = 30_000; // refresh 30s before expiry
+  const MIN_DELAY_MS = 15_000; // never schedule sooner than 15s out
+
   const scheduleRefresh = useCallback(async () => {
     clearRefreshTimer();
     const expiry = await tokenStorage.getTokenExpiry();
     if (!expiry) return;
 
-    const msUntilRefresh = expiry - Date.now() - 60_000;
-    if (msUntilRefresh <= 0) {
-      // Already needs refresh
-      const result = await deduplicatedRefresh();
-      if (result.success) {
-        scheduleRefresh();
-      }
-      return;
-    }
+    const rawDelay = expiry - Date.now() - REFRESH_BUFFER_MS;
+    const msUntilRefresh = Math.max(rawDelay, MIN_DELAY_MS);
 
     refreshTimerRef.current = setTimeout(async () => {
       const result = await deduplicatedRefresh();

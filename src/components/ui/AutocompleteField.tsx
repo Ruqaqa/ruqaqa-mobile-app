@@ -65,6 +65,8 @@ export function AutocompleteField<T extends AutocompleteItem>({
       ? colors.primary
       : colors.input;
 
+  const isFreeText = allowFreeText && !!value && !value.id;
+
   useEffect(() => {
     return () => {
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
@@ -146,8 +148,8 @@ export function AutocompleteField<T extends AutocompleteItem>({
     }, 250);
   }, []);
 
-  // Selected chip view
-  if (value) {
+  // Selected chip view (only for picked items with a real id)
+  if (value && !isFreeText) {
     return (
       <View style={styles.wrapper}>
         {label && (
@@ -233,7 +235,7 @@ export function AutocompleteField<T extends AutocompleteItem>({
         <Search size={16} color={colors.foregroundSecondary} />
         <TextInput
           ref={inputRef}
-          value={query}
+          value={isFreeText ? value!.label : query}
           onChangeText={handleSearch}
           placeholder={placeholder}
           placeholderTextColor={colors.foregroundSecondary}

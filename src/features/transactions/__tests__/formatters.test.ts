@@ -5,6 +5,7 @@ import {
   getPartnerDisplay,
   getEmployeeDisplay,
 } from '../utils/formatters';
+import { WALLET_PARTNER, BALAD_CARD_PARTNER } from '../types';
 
 describe('formatDate', () => {
   it('formats ISO date string to DD/MM/YYYY', () => {
@@ -70,13 +71,22 @@ describe('getPartnerDisplay', () => {
     ).toBe('John Doe');
   });
 
-  it('returns wallet label when partnerType is wallet', () => {
+  it('returns the Arabic wallet label when partnerType is المحفظة', () => {
     expect(
       getPartnerDisplay({
-        partnerType: 'wallet',
+        partnerType: WALLET_PARTNER,
         partnerEmployee: undefined,
       }),
-    ).toBe('Wallet');
+    ).toBe(WALLET_PARTNER);
+  });
+
+  it('returns the Arabic balad card label when partnerType is بطاقة البلاد', () => {
+    expect(
+      getPartnerDisplay({
+        partnerType: BALAD_CARD_PARTNER,
+        partnerEmployee: undefined,
+      }),
+    ).toBe(BALAD_CARD_PARTNER);
   });
 
   it('returns null when no partner info', () => {

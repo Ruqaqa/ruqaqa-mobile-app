@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { ApiError } from '@/services/errors';
 
 interface UsePagedListOptions<TItem, TFilters> {
   fetchFn: (params: { page: number; showOwn: boolean; filters: TFilters }) => Promise<{
@@ -16,7 +17,7 @@ interface UsePagedListReturn<TItem, TFilters> {
   isLoading: boolean;
   isLoadingMore: boolean;
   isRefreshing: boolean;
-  error: { code: string } | null;
+  error: ApiError | null;
   hasMore: boolean;
   showOwn: boolean;
   filters: TFilters;
@@ -40,7 +41,7 @@ export function usePagedList<TItem extends { id: string }, TFilters>({
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [error, setError] = useState<{ code: string } | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [showOwn, setShowOwnState] = useState(true);
   const [filters, setFiltersState] = useState<TFilters>(emptyFilters);
@@ -77,10 +78,10 @@ export function usePagedList<TItem extends { id: string }, TFilters>({
         setError(null);
       } catch (err) {
         if (!isMountedRef.current) return;
-        if (err && typeof err === 'object' && 'code' in err) {
-          setError(err as { code: string });
+        if (err instanceof ApiError) {
+          setError(err);
         } else {
-          setError({ code: 'UNKNOWN' });
+          setError(new ApiError('UNKNOWN'));
         }
       }
     },

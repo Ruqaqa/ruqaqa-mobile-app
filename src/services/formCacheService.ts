@@ -25,10 +25,14 @@ export async function saveLastClientAndProject(
   project: string | null | undefined,
 ): Promise<void> {
   try {
-    const pairs: [string, string][] = [];
-    if (client) pairs.push([CLIENT_KEY, client]);
-    if (project) pairs.push([PROJECT_KEY, project]);
-    if (pairs.length > 0) await AsyncStorage.multiSet(pairs);
+    const toSet: [string, string][] = [];
+    const toRemove: string[] = [];
+    if (client) toSet.push([CLIENT_KEY, client]);
+    else toRemove.push(CLIENT_KEY);
+    if (project) toSet.push([PROJECT_KEY, project]);
+    else toRemove.push(PROJECT_KEY);
+    if (toSet.length > 0) await AsyncStorage.multiSet(toSet);
+    if (toRemove.length > 0) await AsyncStorage.multiRemove(toRemove);
   } catch {
     // ignore
   }

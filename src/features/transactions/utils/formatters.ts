@@ -1,4 +1,4 @@
-import { TransactionEmployee } from '../types';
+import { TransactionEmployee, WALLET_PARTNER, BALAD_CARD_PARTNER } from '../types';
 
 export { formatDate, formatAmount, formatDateParam } from '@/utils/formatters';
 
@@ -11,21 +11,24 @@ export function getAmountColor(
   return 'foregroundSecondary';
 }
 
-/** Get display string for a transaction's partner. */
+/** Get display string for a transaction's partner.
+ *  Backend `partnerType` is one of 'employee' | WALLET_PARTNER | BALAD_CARD_PARTNER
+ *  (the Arabic labels are the wire values for wallet/card). */
 export function getPartnerDisplay(params: {
-  partnerType?: 'employee' | 'wallet';
+  partnerType?: string;
   partnerEmployee?: TransactionEmployee | string;
 }): string | null {
   const { partnerType, partnerEmployee } = params;
 
-  if (partnerType === 'wallet') return 'Wallet';
+  if (partnerType === WALLET_PARTNER || partnerType === BALAD_CARD_PARTNER) {
+    return partnerType;
+  }
 
   if (partnerEmployee) {
     if (typeof partnerEmployee === 'string') return partnerEmployee;
     return getEmployeeDisplay(partnerEmployee);
   }
 
-  if (!partnerType) return null;
   return null;
 }
 

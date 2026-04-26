@@ -99,6 +99,7 @@ export default {
   client: 'Client',
   expenses: 'Expenses',
   revenues: 'Revenues',
+  selectTransactionTypeHint: 'Select transaction type (expense or revenue)',
   tax: 'Tax',
   taxAndCurrency: 'Tax and Currency',
   currency: 'Currency',

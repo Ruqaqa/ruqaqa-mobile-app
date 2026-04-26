@@ -45,6 +45,16 @@ export function isValidSubmissionAmount(value: string): boolean {
   return /^\d+(\.\d{1,2})?$/.test(value.trim());
 }
 
+/** True when the input parses to a finite number strictly greater than zero.
+ *  Used to gate UI that only makes sense when the user has entered a positive
+ *  amount (e.g. the bank-fees currency selector). */
+export function isPositiveAmount(value: string | null | undefined): boolean {
+  const trimmed = (value ?? '').trim();
+  if (!trimmed) return false;
+  const parsed = parseFloat(trimmed);
+  return Number.isFinite(parsed) && parsed > 0;
+}
+
 /** Validate currency against the allowed list */
 export function isValidCurrency(value: string | null): value is Currency {
   if (value === null) return false;

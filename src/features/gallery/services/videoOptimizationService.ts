@@ -224,7 +224,7 @@ function prepareLogoWithOpacity(logoUri: string, opacity: number): string | null
     }
 
     const canvas = surface.getCanvas();
-    canvas.clear(Skia.Color(0, 0, 0, 0)); // transparent background
+    canvas.clear(Skia.Color(0)); // transparent background (ARGB 0x00000000)
 
     const paint = Skia.Paint();
     paint.setAlphaf(opacity);

@@ -65,7 +65,7 @@ describe('canAddReceiptsAsPartner', () => {
 
   it('returns false when partnerType is not employee', () => {
     const result = canAddReceiptsAsPartner(
-      makeTransaction({ partnerType: 'wallet' }),
+      makeTransaction({ partnerType: 'المحفظة' }),
       { ...NO_PERMS, canAddReceiptsToSubmitted: true },
       'emp-1',
     );

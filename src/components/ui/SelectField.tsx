@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ActionSheetIOS, Platform, Modal, FlatList } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ActionSheetIOS, Platform, Modal, FlatList, Keyboard } from 'react-native';
 import { ChevronDown, X } from 'lucide-react-native';
 import { useTheme } from '@/theme';
 
@@ -33,6 +33,7 @@ export function SelectField({
   const selectedOption = options.find((o) => o.value === value);
 
   const handlePress = () => {
+    Keyboard.dismiss();
     if (Platform.OS === 'ios') {
       const labels = [...options.map((o) => o.label), 'Cancel'];
       ActionSheetIOS.showActionSheetWithOptions(

@@ -16,9 +16,11 @@ export function convertSharedFilesToAttachments(
   existingCount: number,
   maxAttachments: number,
 ): ConversionResult {
-  // Filter out video files and oversized files — only images/documents within 10 MB are valid
+  // Filter out video files and oversized files — only images/documents within 10 MB are valid.
+  // Type predicate narrows fileType from `'image' | 'video' | 'document'` to `'image' | 'document'`.
   const eligible = sharedFiles.filter(
-    (f) => f.fileType !== 'video' &&
+    (f): f is SharedFile & { fileType: 'image' | 'document' } =>
+      f.fileType !== 'video' &&
       (f.fileSize === null || f.fileSize <= RECEIPT_MAX_FILE_SIZE_BYTES),
   );
   const available = Math.max(0, maxAttachments - existingCount);

@@ -75,7 +75,7 @@ export interface Transaction {
   transactionDate?: string;
   createdAt: string;
   approvalStatus: ApprovalStatus;
-  partnerType?: 'employee' | 'wallet';
+  partnerType?: 'employee' | typeof WALLET_PARTNER | typeof BALAD_CARD_PARTNER;
   partnerEmployee?: TransactionEmployee | string;
   otherParty?: string;
   client?: TransactionClient;

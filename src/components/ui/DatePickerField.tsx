@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Platform, Keyboard } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Calendar, X } from 'lucide-react-native';
 import { useTheme } from '../../theme';
@@ -53,7 +53,10 @@ export function DatePickerField({
         {label}
       </Text>
       <Pressable
-        onPress={() => setShowPicker(true)}
+        onPress={() => {
+          Keyboard.dismiss();
+          setShowPicker(true);
+        }}
         style={[
           styles.field,
           {

@@ -88,11 +88,12 @@ async function executeDownload(
 
   onProgress(job.id, 0.05);
 
-  // Download file (pass signal so abort cancels the HTTP request)
+  // Download file (pass signal so abort cancels the HTTP request).
+  // `signal` is supported at runtime but missing from the typed `DownloadOptions`.
   const downloadedFile = await File.downloadFileAsync(
     job.sourceUrl,
     destFile,
-    { headers, idempotent: true, signal },
+    { headers, idempotent: true, signal } as any,
   );
 
   onProgress(job.id, 0.85);

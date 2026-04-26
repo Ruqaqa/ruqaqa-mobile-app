@@ -271,7 +271,7 @@ async function seed(client: MongoClient) {
 
   // Step 3: Albums (need gallery item IDs for relationship)
   console.log(`Seeding ${ALBUM_DEFS.length} albums...`);
-  const galleryItemIds = galleryItems.map((g) => g._id);
+  const galleryItemIds = galleryItems.map((g) => g._id as ObjectId);
   const albums = buildAlbums(galleryItemIds);
   await db.collection(ALBUMS_COLLECTION).insertMany(albums);
   console.log('  Done.');
