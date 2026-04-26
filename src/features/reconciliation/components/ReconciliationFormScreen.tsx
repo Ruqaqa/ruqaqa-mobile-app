@@ -205,8 +205,15 @@ export function ReconciliationFormScreen({ onClose }: ReconciliationFormScreenPr
     [t],
   );
 
-  // Show bankFeesCurrency only when bankFees has a value
-  const showBankFeesCurrency = form.bankFees.trim().length > 0;
+  // Show bankFeesCurrency only when bankFees is a positive number.
+  // Empty, "0", "0.00", or non-numeric values hide the currency selector.
+  // Orphan currency state is also stripped at submission (see buildReconciliationPayload).
+  const showBankFeesCurrency = useMemo(() => {
+    const trimmed = form.bankFees.trim();
+    if (!trimmed) return false;
+    const parsed = parseFloat(trimmed);
+    return Number.isFinite(parsed) && parsed > 0;
+  }, [form.bankFees]);
 
   // Build preview data
   const previewFields = useMemo(() => {
@@ -546,7 +553,7 @@ export function ReconciliationFormScreen({ onClose }: ReconciliationFormScreenPr
                 <DetailRow label={t('currency')} value={form.currency} />
                 <DetailRow label={t('reconciliationType')} value={t(form.type)} />
                 <DetailRow label={t('date')} value={form.date ? formatDate(form.date.toISOString()) : null} />
-                {form.bankFees.trim() && (
+                {showBankFeesCurrency && (
                   <DetailRow
                     label={t('bankFees')}
                     value={`${form.bankFees} ${form.bankFeesCurrency}`}

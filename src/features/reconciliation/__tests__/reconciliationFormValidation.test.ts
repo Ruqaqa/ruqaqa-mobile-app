@@ -114,6 +114,22 @@ describe('Step 0 — Basic Info', () => {
     expect(errors.bankFeesCurrency).toBeUndefined();
   });
 
+  it('does not require bankFeesCurrency when bankFees is "0"', () => {
+    const errors = validateStep(0, makeForm({
+      statement: 'X', totalAmount: '10', date: new Date(),
+      bankFees: '0', bankFeesCurrency: null as any,
+    }));
+    expect(errors.bankFeesCurrency).toBeUndefined();
+  });
+
+  it('does not require bankFeesCurrency when bankFees is "0.00"', () => {
+    const errors = validateStep(0, makeForm({
+      statement: 'X', totalAmount: '10', date: new Date(),
+      bankFees: '0.00', bankFeesCurrency: null as any,
+    }));
+    expect(errors.bankFeesCurrency).toBeUndefined();
+  });
+
   it('returns all basic info errors at once', () => {
     const errors = validateStep(0, makeForm());
     expect(Object.keys(errors).length).toBeGreaterThanOrEqual(3);
