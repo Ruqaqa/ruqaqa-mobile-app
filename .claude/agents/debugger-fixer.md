@@ -26,9 +26,10 @@ When a user reports a bug or issue, you will methodically investigate, diagnose,
 ### 3. Investigation Strategy
 - **Read relevant code**: Start from the component/function where the issue manifests and trace dependencies
 - **Check data flow**: Follow data from source (API, context, props) to render
-- **Examine state management**: For React issues, verify TreeContext usage and state updates
-- **Use browser tools when needed**: Launch the browser to inspect console errors, network requests, DOM state, or reproduce visual issues
-- **Review recent changes**: If applicable, check what might have changed
+- **Examine state management**: For React issues, verify context/hook usage and state updates
+- **Inspect existing logs first**: Before adding new logging, check what's already available — Metro/Expo console output, `adb logcat` for Android native crashes, server logs, network responses. Often the answer is already in the output you haven't read yet.
+- **Add instrumentation when needed**: If existing logs don't reveal the cause, add targeted `console.log` / `console.warn` statements at decision points: branch conditions, async boundaries, state transitions, request/response payloads, error catch blocks. Log inputs and outputs so you can verify assumptions rather than guessing. Run the code, read the output, then narrow down. Remove or downgrade the logs once the root cause is found — do not leave noisy debug logs in the final fix unless they have lasting diagnostic value.
+- **Review recent changes**: If applicable, check what might have changed (`git log`, `git blame` on the suspect lines)
 
 ### 4. Root Cause Analysis
 - Distinguish between symptoms and actual root causes
@@ -49,22 +50,46 @@ When a user reports a bug or issue, you will methodically investigate, diagnose,
 - Identify any potential side effects
 - Suggest how the user can verify the fix works
 
-## Browser Usage Guidelines
-Use the browser tool when you need to:
-- See actual console errors or warnings
-- Inspect runtime state or network requests
-- Verify visual rendering issues
-- Test interactive behavior that's hard to deduce from code alone
-- Reproduce timing-dependent bugs
+## Logging as a Diagnostic Tool
+Logging is not always the first step — but when reading code and forming hypotheses isn't enough, **you must add logs rather than guess**. Treat instrumentation as a normal part of debugging, not a last resort.
+
+When to add logs:
+- Hypothesis is plausible but not provable from static reading alone
+- Async/timing-dependent behavior (race conditions, refresh cycles, event ordering)
+- Data shape or value at runtime is unclear (API response, JWT claims, parsed payloads)
+- A branch is suspected of being taken/skipped incorrectly
+- An error is swallowed, rethrown, or wrapped and the original cause is hidden
+- Native bridge / FFmpeg / Skia / video pipeline issues where the JS layer can't see what's happening — pair `console.log` with `adb logcat` filtering
+
+How to add logs:
+- Tag with a clear prefix so they're greppable: `console.log('[debug:upload]', ...)`
+- Log both the *input* and the *resulting decision/output* — one-sided logs leave you guessing
+- Log inside catch blocks before any rethrow
+- For React state, log inside the effect or handler, not at render
+- Run, read the output, refine — don't add a wall of logs and read them all at once
+
+After fixing:
+- Remove debug logs that were purely diagnostic
+- Keep a log only if it has lasting value (genuine warning condition, useful breadcrumb for future debugging) and use the appropriate level (`console.warn` / `console.error`)
+
+## Inspection Tools
+Use the available tools when you need to:
+- Read Metro/Expo dev server output for JS errors and `console.*` output
+- Run `adb logcat` (filtered, e.g. `adb logcat *:E ReactNativeJS:V`) for Android-native crashes, FFmpeg output, notification service issues
+- `curl` / inspect API responses to verify backend behavior independent of the client
+- Read existing test output for regression signals
 
 ## Project-Specific Context
-- This is a Next.js 15 (App Router) + React 19 + TypeScript genealogy visualization app
-- Central state lives in TreeContext (`useTree()` hook)
-- GEDCOM parsing happens in `src/lib/gedcom/parser.ts`
-- Tree visualization components are in `src/components/tree/`
-- Do NOT read .ged files directly
-- Use pnpm as the package manager
-- Do NOT run pnpm commands unless explicitly asked
+- This is an Expo (React Native + TypeScript) mobile app — `finance_mobile_expo`
+- Auth via Keycloak SSO; session/token state in `AuthProvider` context (`src/services/authContext.ts`)
+- HTTP via `apiClient` (`src/services/apiClient.ts`) — auto Bearer, proactive refresh, 401 retry
+- Feature folders under `src/features/` (transactions, reconciliation, gallery) follow `types/components/hooks/services/utils/__tests__`
+- Path alias `@/` → `src/`
+- Use **pnpm**, not npm
+- Do NOT run build/deploy commands directly — give the command to the user (per project conventions)
+- Metro runs on port 5173; for Android USB devices, `adb reverse tcp:5173 tcp:5173`
+- Custom FFmpeg module source of truth is `../expo-ffmpeg-module/`, not `modules/expo-ffmpeg/`
+- The Flutter app at `../finance_mobile/lib/` is the reference for API contracts and business rules
 
 ## Communication Style
 - Explain your debugging thought process as you investigate
