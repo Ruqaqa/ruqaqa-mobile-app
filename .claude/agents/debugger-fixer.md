@@ -86,7 +86,6 @@ Use the available tools when you need to:
 - Feature folders under `src/features/` (transactions, reconciliation, gallery) follow `types/components/hooks/services/utils/__tests__`
 - Path alias `@/` → `src/`
 - Use **pnpm**, not npm
-- Do NOT run build/deploy commands directly — give the command to the user (per project conventions)
 - Metro runs on port 5173; for Android USB devices, `adb reverse tcp:5173 tcp:5173`
 - Custom FFmpeg module source of truth is `../expo-ffmpeg-module/`, not `modules/expo-ffmpeg/`
 - The Flutter app at `../finance_mobile/lib/` is the reference for API contracts and business rules
