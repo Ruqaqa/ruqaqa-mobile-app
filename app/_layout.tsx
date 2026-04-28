@@ -19,10 +19,15 @@ export default function RootLayout() {
     async function bootstrap() {
       await initI18n();
       setReady(true);
-      SplashScreen.hideAsync();
     }
     bootstrap();
   }, []);
+
+  useEffect(() => {
+    if (ready) {
+      SplashScreen.hideAsync();
+    }
+  }, [ready]);
 
   // Always render Slot — expo-router requires a navigator on the first render.
   // Splash screen covers the UI until i18n is ready.
