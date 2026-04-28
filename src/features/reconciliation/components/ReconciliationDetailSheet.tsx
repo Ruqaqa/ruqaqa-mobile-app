@@ -167,7 +167,7 @@ export function ReconciliationDetailSheet({
             value={formatAmount(reconciliation.totalAmount, reconciliation.currency)}
           />
 
-          {reconciliation.bankFees !== null && reconciliation.bankFees > 0 && (
+          {reconciliation.bankFees !== undefined && reconciliation.bankFees !== null && (
             <DetailRow
               label={t('bankFees')}
               value={formatAmount(
