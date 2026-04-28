@@ -23,6 +23,7 @@ import { useTheme } from '@/theme';
 import { withAlpha } from '@/utils/colorUtils';
 import { SaudiRiyalSymbol } from '@/components/ui/SaudiRiyalSymbol';
 import { TransactionFlowWidget } from './TransactionFlowWidget';
+import { formatHeadlineAmount } from '../utils/previewFields';
 
 interface PreviewField {
   label: string;
@@ -65,7 +66,7 @@ export function SubmissionPreviewDialog({
 
   // Amount display logic
   const amountStr = amount != null ? String(amount) : null;
-  const isExpense = amountStr?.startsWith('-');
+  const { display: amountDisplay, isExpense } = formatHeadlineAmount(amount);
   const amountColor = isExpense ? colors.error : colors.success;
   const isSAR = currency === 'SAR' || currency === 'ريال سعودي';
 
@@ -303,7 +304,7 @@ export function SubmissionPreviewDialog({
                       },
                     ]}
                   >
-                    {amountStr.replace('-', '')}
+                    {amountDisplay}
                   </Text>
                   {isSAR && (
                     <View style={{ marginStart: spacing.xs }}>

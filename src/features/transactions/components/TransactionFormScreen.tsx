@@ -42,6 +42,7 @@ import { useTransactionForm } from '../hooks/useTransactionForm';
 import { playSuccessSound } from '@/services/soundService';
 import { useShareIntent } from '@/hooks/useShareIntent';
 import { convertSharedFilesToAttachments } from '../utils/sharedFilesAdapter';
+import { buildTransactionPreviewFields, TransactionPreviewPayload } from '../utils/previewFields';
 
 interface TransactionFormScreenProps {
   permissions: UserPermissions;
@@ -319,19 +320,8 @@ export function TransactionFormScreen({
 
   // Build preview fields for the dialog (partner/otherParty shown via flow widget, not here)
   const previewFields = useMemo(() => {
-    const data = buildPreviewPayload();
-    return [
-      { label: t('statement'), value: data['البيان'] },
-      { label: t('currency'), value: data['العملة'] },
-      { label: t('tax'), value: data['الضريبة'] === 'نعم' ? t('yes') : t('no'), highlight: 'error' as const },
-      ...(data['رسوم بنكية'] != null && data['رسوم بنكية'] !== 0
-        ? [{ label: t('bankFees'), value: `${data['رسوم بنكية']} ${data['عملة الرسوم'] ?? ''}`, highlight: 'warning' as const }]
-        : []),
-      { label: t('date'), value: data['التاريخ'] },
-      { label: t('project'), value: data['رمز المشروع'] },
-      { label: t('clientName'), value: data['اسم العميل'] },
-      ...(data['ملاحظات'] ? [{ label: t('notes'), value: data['ملاحظات'] }] : []),
-    ];
+    const data = buildPreviewPayload() as TransactionPreviewPayload;
+    return buildTransactionPreviewFields(data, t);
   }, [buildPreviewPayload, t]);
 
   // Amount indicator (only after a type is selected)
@@ -540,25 +530,29 @@ export function TransactionFormScreen({
             onChange={(val) => updateField('tax', val)}
           />
 
-          <Input
-            label={`${t('bankFees')} *`}
-            value={form.bankFees}
-            onChangeText={(text) => {
-              const cleaned = text.replace(/[^0-9.]/g, '');
-              updateField('bankFees', cleaned);
-            }}
-            keyboardType="decimal-pad"
-            placeholder="0.00"
-            error={errors.bankFees}
-          />
+          {form.isExpense !== false && (
+            <>
+              <Input
+                label={`${t('bankFees')} *`}
+                value={form.bankFees}
+                onChangeText={(text) => {
+                  const cleaned = text.replace(/[^0-9.]/g, '');
+                  updateField('bankFees', cleaned);
+                }}
+                keyboardType="decimal-pad"
+                placeholder="0.00"
+                error={errors.bankFees}
+              />
 
-          {showBankFeesCurrency && (
-            <SelectField
-              label={t('feesCurrency')}
-              value={form.bankFeesCurrency}
-              options={CURRENCY_OPTIONS}
-              onChange={(val) => updateField('bankFeesCurrency', val)}
-            />
+              {showBankFeesCurrency && (
+                <SelectField
+                  label={t('feesCurrency')}
+                  value={form.bankFeesCurrency}
+                  options={CURRENCY_OPTIONS}
+                  onChange={(val) => updateField('bankFeesCurrency', val)}
+                />
+              )}
+            </>
           )}
 
           {/* === SECTION 3: Project Details === */}

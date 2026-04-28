@@ -31,6 +31,7 @@ import { convertSharedFilesToAttachments } from '@/utils/sharedFilesAdapter';
 import { FORM_TOTAL_STEPS, ENTITY_TYPES } from '../types';
 import { buildReconciliationPayload } from '../services/reconciliationSubmissionService';
 import { formatDate } from '@/utils/formatters';
+import { buildReconciliationPreviewFields, ReconciliationPreviewPayload } from '../utils/previewFields';
 import { isPositiveAmount } from '@/utils/sanitize';
 
 interface ReconciliationFormScreenProps {
@@ -216,23 +217,13 @@ export function ReconciliationFormScreen({ onClose }: ReconciliationFormScreenPr
 
   // Build preview data
   const previewFields = useMemo(() => {
-    const payload = buildReconciliationPayload(form);
-    const fields: { label: string; value: string | number | null }[] = [
-      { label: t('statement'), value: payload['البيان'] },
-      { label: t('currency'), value: payload['العملة'] },
-      { label: t('reconciliationType'), value: t(form.type) },
-      { label: t('date'), value: form.date ? formatDate(form.date.toISOString()) : null },
-    ];
-    if (payload['رسوم بنكية'] != null) {
-      fields.push({
-        label: t('bankFees'),
-        value: `${payload['رسوم بنكية']} ${payload['عملة الرسوم'] ?? ''}`,
-      });
-    }
-    if (payload['ملاحظات']) {
-      fields.push({ label: t('notes'), value: payload['ملاحظات'] });
-    }
-    return fields;
+    const payload = buildReconciliationPayload(form) as ReconciliationPreviewPayload;
+    return buildReconciliationPreviewFields({
+      payload,
+      typeKey: form.type,
+      formattedDate: form.date ? formatDate(form.date.toISOString()) : null,
+      t,
+    });
   }, [form, t]);
 
   // Submit flow

@@ -121,8 +121,11 @@ export function useTransactionForm({ permissions, employee, onSuccess }: UseTran
     if (!form.amount.trim()) errors.amount = t('statementRequired');
     else if (!isValidSubmissionAmount(form.amount)) errors.amount = t('pleaseEnterValidNumber');
     if (form.isExpense === null) errors.isExpense = t('statementRequired');
-    if (!form.bankFees.trim()) errors.bankFees = t('statementRequired');
-    else if (!isValidSubmissionAmount(form.bankFees)) errors.bankFees = t('pleaseEnterValidNumber');
+    // Bank fees only apply to expenses (minus). Revenue transactions (plus) don't have bank fees.
+    if (form.isExpense !== false) {
+      if (!form.bankFees.trim()) errors.bankFees = t('statementRequired');
+      else if (!isValidSubmissionAmount(form.bankFees)) errors.bankFees = t('pleaseEnterValidNumber');
+    }
     if (!form.date) errors.date = t('statementRequired');
     if (!form.otherParty.trim()) errors.otherParty = t('statementRequired');
     if (canSelectPartner && !form.partner) errors.partner = t('statementRequired');
@@ -194,8 +197,8 @@ export function useTransactionForm({ permissions, employee, onSuccess }: UseTran
       'المبلغ الإجمالي': getActualAmount(),
       'الضريبة': form.tax,
       'العملة': form.currency,
-      'رسوم بنكية': form.bankFees ? parseFloat(form.bankFees) : null,
-      'عملة الرسوم': form.bankFeesCurrency,
+      'رسوم بنكية': form.isExpense !== false && form.bankFees ? parseFloat(form.bankFees) : null,
+      'عملة الرسوم': form.isExpense !== false ? form.bankFeesCurrency : null,
       'رمز المشروع': form.project?.label ?? null,
       'اسم العميل': form.client?.label ?? null,
       'التاريخ': formatDate(form.date),
@@ -233,8 +236,11 @@ export function useTransactionForm({ permissions, employee, onSuccess }: UseTran
 
     const sanitized = sanitizeSubmissionData(submissionData);
 
-    // Build the Arabic-keyed API payload from sanitized data
-    const bankFees = sanitized.bankFees && isValidSubmissionAmount(sanitized.bankFees)
+    // Build the Arabic-keyed API payload from sanitized data.
+    // Revenue transactions (plus) never carry bank fees.
+    const bankFees = form.isExpense !== false
+      && sanitized.bankFees
+      && isValidSubmissionAmount(sanitized.bankFees)
       ? parseFloat(sanitized.bankFees)
       : null;
 

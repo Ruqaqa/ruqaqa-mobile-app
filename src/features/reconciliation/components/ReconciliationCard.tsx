@@ -6,6 +6,7 @@ import { StatusChip } from '@/components/ui/StatusChip';
 import { withAlpha } from '@/utils/colorUtils';
 import { Reconciliation } from '../types';
 import { formatDate, formatAmount, getPartyDisplay, getTypeBadgeConfig } from '../utils/formatters';
+import { PartyFlowInline } from './PartyFlowInline';
 
 interface ReconciliationCardProps {
   reconciliation: Reconciliation;
@@ -97,15 +98,7 @@ export const ReconciliationCard = React.memo(function ReconciliationCard({
 
       {/* Row 4: From -> To flow line */}
       <View style={[styles.row, { marginTop: spacing.sm }]}>
-        <Text
-          style={[
-            typography.bodySmall,
-            { color: colors.foregroundSecondary, flex: 1 },
-          ]}
-          numberOfLines={1}
-        >
-          {fromDisplay} → {toDisplay}
-        </Text>
+        <PartyFlowInline from={fromDisplay} to={toDisplay} />
       </View>
 
       {/* Row 5: Footer */}
