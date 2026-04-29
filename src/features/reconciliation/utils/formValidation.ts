@@ -1,5 +1,6 @@
 import { ReconciliationFormData, RECONCILIATION_TYPES, ENTITY_TYPES } from '../types';
 import { isValidSubmissionAmount, isValidCurrency, isValidObjectId } from '@/utils/sanitize';
+import { getMaxAllowedDateEndOfDay } from '@/utils/dateLimits';
 
 export type StepErrors = Partial<Record<keyof ReconciliationFormData, string>>;
 
@@ -60,9 +61,8 @@ function validateBasicInfo(form: ReconciliationFormData): StepErrors {
   if (!form.date) {
     errors.date = 'statementRequired';
   } else {
-    const today = new Date();
-    today.setHours(23, 59, 59, 999);
-    if (form.date > today) {
+    const maxAllowed = getMaxAllowedDateEndOfDay();
+    if (form.date > maxAllowed) {
       errors.date = 'statementRequired';
     }
   }

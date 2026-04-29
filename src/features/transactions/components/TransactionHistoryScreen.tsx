@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useTheme } from '@/theme';
 import { useAuth } from '@/services/authContext';
+import { useExposeRefresh } from '@/hooks/useExposeRefresh';
 import { UserPermissions } from '@/types/permissions';
 import { Transaction, ApprovalStatus } from '../types';
 import { useTransactionList } from '../hooks/useTransactionList';
@@ -19,10 +20,12 @@ import { ReceiptEditorScreen, ReceiptEditorMode } from './ReceiptEditorScreen';
 
 interface TransactionHistoryScreenProps {
   permissions: UserPermissions;
+  onReady?: (api: { refresh: () => void }) => void;
 }
 
 export function TransactionHistoryScreen({
   permissions,
+  onReady,
 }: TransactionHistoryScreenProps) {
   const { colors } = useTheme();
 
@@ -46,6 +49,8 @@ export function TransactionHistoryScreen({
   } = useTransactionList({
     canViewAll: permissions.canViewAllTransactions,
   });
+
+  useExposeRefresh(onReady, refresh);
 
   const [searchVisible, setSearchVisible] = useState(false);
 

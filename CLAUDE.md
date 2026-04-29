@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Expo (React Native + TypeScript) mobile app for Ruqaqa employees. It's a migration from the Flutter app at `../finance_mobile/lib/` — that codebase is the source of truth for business logic, API contracts, validation rules, and edge cases.
 
-App ID: `sa.ruqaqa.app` | Version: 1.2.2 | Scheme: `ruqaqa://`
+App ID: `sa.ruqaqa.app` | Version: 1.2.8 | Scheme: `ruqaqa://`
 
 **Migration status:** Phases 0–6D complete (auth, permissions, transactions, reconciliation, gallery browsing/viewing/multi-select/download, upload pipeline, image optimization, watermark editor, image watermarking, FFmpeg dual-variant video processing, video watermark download, share intent with gallery album flow, profile avatar initials, profile menu with signout). See `EXPO_MIGRATION_PLAN.md` for details.
 
@@ -196,6 +196,7 @@ Cross-cutting concern — receives files from other apps and routes them to the 
 | `tokenStorage.ts` | `expo-secure-store` wrapper with chunking for large JWTs (1800-byte chunks), crash-safe write order (chunks first, count last) |
 | `permissionService.ts` | Extracts 15 permission flags from JWT roles using `keycloakConfig.clientId`. `getAvailableModules()`, `getAvailableFinanceTabs()` |
 | `versionCheckService.ts` | `/api/mobile/version-check` → forced update, optional update, maintenance mode. Download URL validated against trusted domains |
+| `apkUpdateService.ts` | Android APK download with progress + `IntentLauncher` install trigger. Falls back to opening URL in browser on iOS or failure |
 | `soundService.ts` | Success sound playback via `expo-audio` |
 | `appLifecycle.ts` | First-launch tracking via AsyncStorage |
 | `config.ts` | Dev/prod URLs keyed on `releaseChannel` from `app.json` |
@@ -238,6 +239,7 @@ Cross-cutting concern — receives files from other apps and routes them to the 
 | `usePagedList.ts` | Generic pagination hook — used by both `useTransactionList` and `useReconciliationList` |
 | `useShareIntent.ts` | Consume shared files from the share intent store |
 | `useAuthHeaders.ts` | Provides auth headers for authenticated media requests with 30s auto-refresh and stable reference |
+| `useDoubleBackExit.ts` | Android double-back-to-exit behavior — toast on first press, `BackHandler.exitApp()` on second within 2s |
 
 ### Testing
 

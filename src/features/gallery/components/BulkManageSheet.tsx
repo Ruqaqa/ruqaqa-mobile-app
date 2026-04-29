@@ -1,17 +1,15 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   Pressable,
   TextInput,
-  ScrollView,
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
 import {
   Check,
   Minus,
-  Square,
   Search,
   PlusCircle,
 } from 'lucide-react-native';
@@ -33,18 +31,34 @@ interface BulkManageSheetProps {
   visible: boolean;
   selectedCount: number;
   currentAlbumId: string;
+  /**
+   * Initial tri-state for albums/tags currently attached to the selected items.
+   * Used as a lookup map (id → CheckState) — items not present here start as 'unchecked'.
+   */
   manageState: ManageSheetState | null;
   isFetchingState: boolean;
   isProcessing: boolean;
   progress: BulkActionProgress | null;
   permissions: UserPermissions;
+  /** Search the full album inventory. Empty query returns the full list. */
+  searchAlbums: (query: string) => Promise<GalleryAlbum[]>;
+  /** Search the full tag inventory. Empty query returns the full list. */
+  searchTags: (query: string) => Promise<PickerItem[]>;
   /** Create a new album from free text. Return null on failure. */
   onCreateAlbum: (name: string) => Promise<GalleryAlbum | null>;
   /** Create a new tag from free text. Return null on failure. */
   onCreateTag: (name: string) => Promise<PickerItem | null>;
+  /** Inline error message shown above the apply button. Cleared by the host. */
+  errorMessage?: string | null;
   onConfirm: (changes: ManageSheetChanges) => void;
   onClose: () => void;
 }
+
+const STATE_RANK: Record<CheckState, number> = {
+  checked: 0,
+  mixed: 1,
+  unchecked: 2,
+};
 
 /** The changes the user has made in the manage sheet. */
 export interface ManageSheetChanges {
@@ -52,11 +66,14 @@ export interface ManageSheetChanges {
   tags: { id: string; state: CheckState }[];
 }
 
+const SEARCH_DEBOUNCE_MS = 300;
+
 /**
  * Bottom sheet for bulk-managing selected media items.
- * Three sections: Albums (tri-state checkboxes), Tags (tri-state checkboxes), Project (future).
- * Shows loading state while fetching current item states.
- * Shows progress during processing.
+ * Two sections: Albums and Tags, each search-driven against the full inventory
+ * (mirrors the Upload screen's picker). Tri-state checkboxes seeded from the
+ * per-item attached state (`manageState`); items not currently attached start
+ * unchecked and can be cycled to checked.
  */
 export function BulkManageSheet({
   visible,
@@ -67,6 +84,9 @@ export function BulkManageSheet({
   isProcessing,
   progress,
   permissions,
+  searchAlbums,
+  searchTags,
+  errorMessage,
   onCreateAlbum,
   onCreateTag,
   onConfirm,
@@ -75,99 +95,156 @@ export function BulkManageSheet({
   const { t } = useTranslation();
   const { colors, typography, spacing, radius } = useTheme();
 
-  // Local edits on top of the fetched state
-  const [albumOverrides, setAlbumOverrides] = useState<
-    Map<string, CheckState>
-  >(new Map());
+  // Local edits on top of the seeded state
+  const [albumOverrides, setAlbumOverrides] = useState<Map<string, CheckState>>(
+    new Map(),
+  );
   const [tagOverrides, setTagOverrides] = useState<Map<string, CheckState>>(
     new Map(),
   );
   const [albumSearch, setAlbumSearch] = useState('');
   const [tagSearch, setTagSearch] = useState('');
-  // Locally-created rows (appended on top of manageState after inline create)
-  const [extraAlbums, setExtraAlbums] = useState<
-    { id: string; title: string }[]
-  >([]);
-  const [extraTags, setExtraTags] = useState<{ id: string; name: string }[]>(
-    [],
-  );
+
+  // Async search results
+  const [albumResults, setAlbumResults] = useState<GalleryAlbum[]>([]);
+  const [tagResults, setTagResults] = useState<PickerItem[]>([]);
+  const [isLoadingAlbums, setIsLoadingAlbums] = useState(false);
+  const [isLoadingTags, setIsLoadingTags] = useState(false);
+
   const [isCreatingAlbum, setIsCreatingAlbum] = useState(false);
   const [isCreatingTag, setIsCreatingTag] = useState(false);
 
-  // Reset local state when the sheet opens with fresh data
-  React.useEffect(() => {
-    if (visible && manageState) {
-      setAlbumOverrides(new Map());
-      setTagOverrides(new Map());
-      setAlbumSearch('');
-      setTagSearch('');
-      setExtraAlbums([]);
-      setExtraTags([]);
-      setIsCreatingAlbum(false);
-      setIsCreatingTag(false);
-    }
-  }, [visible, manageState]);
+  const albumDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tagDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Merge fetched state + locally-created rows with local overrides
+  // Lookup maps (id → CheckState) for albums/tags currently attached.
+  const albumSeedStates = useMemo(() => {
+    const map = new Map<string, CheckState>();
+    if (manageState) {
+      for (const a of manageState.albums) map.set(a.id, a.state);
+    }
+    return map;
+  }, [manageState]);
+
+  const tagSeedStates = useMemo(() => {
+    const map = new Map<string, CheckState>();
+    if (manageState) {
+      for (const tg of manageState.tags) map.set(tg.id, tg.state);
+    }
+    return map;
+  }, [manageState]);
+
+  const doSearchAlbums = useCallback(
+    async (q: string) => {
+      setIsLoadingAlbums(true);
+      try {
+        const items = await searchAlbums(q);
+        setAlbumResults(items);
+      } catch {
+        setAlbumResults([]);
+      } finally {
+        setIsLoadingAlbums(false);
+      }
+    },
+    [searchAlbums],
+  );
+
+  const doSearchTags = useCallback(
+    async (q: string) => {
+      setIsLoadingTags(true);
+      try {
+        const items = await searchTags(q);
+        setTagResults(items);
+      } catch {
+        setTagResults([]);
+      } finally {
+        setIsLoadingTags(false);
+      }
+    },
+    [searchTags],
+  );
+
+  // Reset local state and fetch full lists when the sheet opens with fresh data.
+  useEffect(() => {
+    if (!visible || !manageState) return;
+    setAlbumOverrides(new Map());
+    setTagOverrides(new Map());
+    setAlbumSearch('');
+    setTagSearch('');
+    setIsCreatingAlbum(false);
+    setIsCreatingTag(false);
+    doSearchAlbums('');
+    doSearchTags('');
+  }, [visible, manageState, doSearchAlbums, doSearchTags]);
+
+  const handleAlbumSearchChange = useCallback(
+    (text: string) => {
+      setAlbumSearch(text);
+      if (albumDebounceRef.current) clearTimeout(albumDebounceRef.current);
+      albumDebounceRef.current = setTimeout(() => {
+        doSearchAlbums(text);
+      }, SEARCH_DEBOUNCE_MS);
+    },
+    [doSearchAlbums],
+  );
+
+  const handleTagSearchChange = useCallback(
+    (text: string) => {
+      setTagSearch(text);
+      if (tagDebounceRef.current) clearTimeout(tagDebounceRef.current);
+      tagDebounceRef.current = setTimeout(() => {
+        doSearchTags(text);
+      }, SEARCH_DEBOUNCE_MS);
+    },
+    [doSearchTags],
+  );
+
+  // Resolve tri-state for a row: override > seed > unchecked.
+  // Sorted: checked → mixed → unchecked, stable within group (preserves API order).
   const albumRows = useMemo(() => {
-    if (!manageState) return [];
-    const base = manageState.albums.map((a) => ({
-      ...a,
-      state: albumOverrides.get(a.id) ?? a.state,
-    }));
-    const extras = extraAlbums.map((a) => ({
+    const rows = albumResults.map((a, index) => ({
       id: a.id,
       title: a.title,
-      state: (albumOverrides.get(a.id) ?? 'unchecked') as CheckState,
+      state:
+        albumOverrides.get(a.id) ??
+        albumSeedStates.get(a.id) ??
+        ('unchecked' as CheckState),
+      _index: index,
     }));
-    return [...extras, ...base];
-  }, [manageState, albumOverrides, extraAlbums]);
+    rows.sort((a, b) => STATE_RANK[a.state] - STATE_RANK[b.state] || a._index - b._index);
+    return rows;
+  }, [albumResults, albumOverrides, albumSeedStates]);
 
   const tagRows = useMemo(() => {
-    if (!manageState) return [];
-    const base = manageState.tags.map((tg) => ({
-      ...tg,
-      state: tagOverrides.get(tg.id) ?? tg.state,
-    }));
-    const extras = extraTags.map((tg) => ({
+    const rows = tagResults.map((tg, index) => ({
       id: tg.id,
       name: tg.name,
-      state: (tagOverrides.get(tg.id) ?? 'unchecked') as CheckState,
+      state:
+        tagOverrides.get(tg.id) ??
+        tagSeedStates.get(tg.id) ??
+        ('unchecked' as CheckState),
+      _index: index,
     }));
-    return [...extras, ...base];
-  }, [manageState, tagOverrides, extraTags]);
-
-  // Filter by search
-  const filteredAlbums = useMemo(() => {
-    if (!albumSearch.trim()) return albumRows;
-    const q = albumSearch.trim().toLowerCase();
-    return albumRows.filter((a) => a.title.toLowerCase().includes(q));
-  }, [albumRows, albumSearch]);
-
-  const filteredTags = useMemo(() => {
-    if (!tagSearch.trim()) return tagRows;
-    const q = tagSearch.trim().toLowerCase();
-    return tagRows.filter((tg) => tg.name.toLowerCase().includes(q));
-  }, [tagRows, tagSearch]);
+    rows.sort((a, b) => STATE_RANK[a.state] - STATE_RANK[b.state] || a._index - b._index);
+    return rows;
+  }, [tagResults, tagOverrides, tagSeedStates]);
 
   // --- Inline create visibility ---
-  // Show the create-album row when: user can create, search is non-empty,
-  // and no existing album matches the query exactly (case-insensitive).
   const showCreateAlbumRow = useMemo(() => {
     if (!permissions.canCreateGallery) return false;
     const trimmed = albumSearch.trim();
     if (trimmed.length === 0) return false;
     const q = trimmed.toLowerCase();
-    return !albumRows.some((a) => a.title.toLowerCase() === q);
-  }, [permissions.canCreateGallery, albumSearch, albumRows]);
+    return !albumResults.some((a) => a.title.toLowerCase() === q);
+  }, [permissions.canCreateGallery, albumSearch, albumResults]);
 
   const showCreateTagRow = useMemo(() => {
     if (!permissions.canCreateGallery) return false;
     const trimmed = tagSearch.trim();
     if (trimmed.length === 0) return false;
     const q = trimmed.toLowerCase();
-    return !tagRows.some((tg) => tg.name.toLowerCase() === q);
-  }, [permissions.canCreateGallery, tagSearch, tagRows]);
+    return !tagResults.some((tg) => tg.name.toLowerCase() === q);
+  }, [permissions.canCreateGallery, tagSearch, tagResults]);
 
   const handleCreateAlbum = useCallback(async () => {
     if (isCreatingAlbum) return;
@@ -178,21 +255,22 @@ export function BulkManageSheet({
     try {
       const created = await onCreateAlbum(trimmed);
       if (created) {
-        setExtraAlbums((prev) => [
-          ...prev,
-          { id: created.id, title: created.title },
-        ]);
+        setAlbumResults((prev) => {
+          if (prev.some((a) => a.id === created.id)) return prev;
+          return [created, ...prev];
+        });
         setAlbumOverrides((prev) => {
           const next = new Map(prev);
           next.set(created.id, 'checked');
           return next;
         });
         setAlbumSearch('');
+        doSearchAlbums('');
       }
     } finally {
       setIsCreatingAlbum(false);
     }
-  }, [albumSearch, onCreateAlbum, isCreatingAlbum]);
+  }, [albumSearch, onCreateAlbum, isCreatingAlbum, doSearchAlbums]);
 
   const handleCreateTag = useCallback(async () => {
     if (isCreatingTag) return;
@@ -203,31 +281,30 @@ export function BulkManageSheet({
     try {
       const created = await onCreateTag(trimmed);
       if (created) {
-        setExtraTags((prev) => [
-          ...prev,
-          { id: created.id, name: created.name },
-        ]);
+        setTagResults((prev) => {
+          if (prev.some((tg) => tg.id === created.id)) return prev;
+          return [created, ...prev];
+        });
         setTagOverrides((prev) => {
           const next = new Map(prev);
           next.set(created.id, 'checked');
           return next;
         });
         setTagSearch('');
+        doSearchTags('');
       }
     } finally {
       setIsCreatingTag(false);
     }
-  }, [tagSearch, onCreateTag, isCreatingTag]);
+  }, [tagSearch, onCreateTag, isCreatingTag, doSearchTags]);
 
-  // Check if any changes were made
   const hasChanges = albumOverrides.size > 0 || tagOverrides.size > 0;
 
   const toggleAlbum = useCallback(
     (id: string) => {
       setAlbumOverrides((prev) => {
         const next = new Map(prev);
-        const original =
-          manageState?.albums.find((a) => a.id === id)?.state ?? 'unchecked';
+        const original = albumSeedStates.get(id) ?? 'unchecked';
         const current = next.get(id) ?? original;
         const newState = cycleCheckState(current);
         if (newState === original) {
@@ -238,15 +315,14 @@ export function BulkManageSheet({
         return next;
       });
     },
-    [manageState],
+    [albumSeedStates],
   );
 
   const toggleTag = useCallback(
     (id: string) => {
       setTagOverrides((prev) => {
         const next = new Map(prev);
-        const original =
-          manageState?.tags.find((tg) => tg.id === id)?.state ?? 'unchecked';
+        const original = tagSeedStates.get(id) ?? 'unchecked';
         const current = next.get(id) ?? original;
         const newState = cycleCheckState(current);
         if (newState === original) {
@@ -257,7 +333,7 @@ export function BulkManageSheet({
         return next;
       });
     },
-    [manageState],
+    [tagSeedStates],
   );
 
   const handleConfirm = useCallback(() => {
@@ -284,7 +360,6 @@ export function BulkManageSheet({
       heightRatio={0.75}
     >
       {isFetchingState ? (
-        // Loading state
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text
@@ -301,7 +376,6 @@ export function BulkManageSheet({
           </Text>
         </View>
       ) : isProcessing ? (
-        // Processing state
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text
@@ -329,7 +403,7 @@ export function BulkManageSheet({
           <SearchBar
             testID="bulk-manage-album-search"
             value={albumSearch}
-            onChangeText={setAlbumSearch}
+            onChangeText={handleAlbumSearchChange}
             placeholder={t('gallerySearchAlbumsHint')}
             colors={colors}
             typography={typography}
@@ -351,7 +425,13 @@ export function BulkManageSheet({
                 radius={radius}
               />
             )}
-            {filteredAlbums.length === 0 && !showCreateAlbumRow ? (
+            {isLoadingAlbums ? (
+              <ActivityIndicator
+                size="small"
+                color={colors.primary}
+                style={{ marginVertical: spacing.md }}
+              />
+            ) : albumRows.length === 0 && !showCreateAlbumRow ? (
               <Text
                 style={[
                   typography.bodySmall,
@@ -361,7 +441,7 @@ export function BulkManageSheet({
                 {t('galleryNoAlbumsFound')}
               </Text>
             ) : (
-              filteredAlbums.map((album) => (
+              albumRows.map((album) => (
                 <TriStateRow
                   key={album.id}
                   label={album.title}
@@ -378,11 +458,11 @@ export function BulkManageSheet({
           </View>
 
           {/* Tags section */}
-          <SectionLabel label={t('manageTags')} colors={colors} typography={typography} spacing={spacing} />
+          <SectionLabel label={t('manageTagsRequired')} colors={colors} typography={typography} spacing={spacing} />
           <SearchBar
             testID="bulk-manage-tag-search"
             value={tagSearch}
-            onChangeText={setTagSearch}
+            onChangeText={handleTagSearchChange}
             placeholder={t('gallerySearchTagsHint')}
             colors={colors}
             typography={typography}
@@ -404,7 +484,13 @@ export function BulkManageSheet({
                 radius={radius}
               />
             )}
-            {filteredTags.length === 0 && !showCreateTagRow ? (
+            {isLoadingTags ? (
+              <ActivityIndicator
+                size="small"
+                color={colors.primary}
+                style={{ marginVertical: spacing.md }}
+              />
+            ) : tagRows.length === 0 && !showCreateTagRow ? (
               <Text
                 style={[
                   typography.bodySmall,
@@ -414,7 +500,7 @@ export function BulkManageSheet({
                 {t('galleryNoTagsFound')}
               </Text>
             ) : (
-              filteredTags.map((tag) => (
+              tagRows.map((tag) => (
                 <TriStateRow
                   key={tag.id}
                   label={tag.name}
@@ -429,7 +515,32 @@ export function BulkManageSheet({
             )}
           </View>
 
-          {/* Confirm button */}
+          {errorMessage ? (
+            <View
+              testID="bulk-manage-error"
+              style={[
+                styles.errorBanner,
+                {
+                  backgroundColor: withAlpha(colors.error, 0.1),
+                  borderColor: withAlpha(colors.error, 0.3),
+                  paddingVertical: spacing.sm,
+                  paddingHorizontal: spacing.md,
+                  borderRadius: radius.sm,
+                  marginBottom: spacing.sm,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  typography.bodySmall,
+                  { color: colors.error },
+                ]}
+              >
+                {errorMessage}
+              </Text>
+            </View>
+          ) : null}
+
           <View style={{ marginTop: spacing.sm }}>
             <Button
               title={t('applyChanges', { count: selectedCount })}
@@ -447,8 +558,6 @@ export function BulkManageSheet({
   );
 }
 
-// --- Helper: cycle tri-state ---
-
 function cycleCheckState(current: CheckState): CheckState {
   switch (current) {
     case 'unchecked':
@@ -459,8 +568,6 @@ function cycleCheckState(current: CheckState): CheckState {
       return 'checked';
   }
 }
-
-// --- Sub-components (internal, not exported) ---
 
 function SectionLabel({
   label,
@@ -661,7 +768,7 @@ function TriStateRow({
             { color: colors.foregroundSecondary },
           ]}
         >
-          {'\u2022'}
+          {'•'}
         </Text>
       )}
     </Pressable>
@@ -731,5 +838,8 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  errorBanner: {
+    borderWidth: 1,
   },
 });

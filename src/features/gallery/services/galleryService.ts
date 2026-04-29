@@ -212,14 +212,10 @@ export async function manageMediaItem(
 
   const body: Record<string, any> = {};
   if (payload.tagIds !== undefined) body.tags = payload.tagIds;
-  if (payload.albumIds !== undefined) body.albums = payload.albumIds;
-  if (payload.noWatermarkNeeded !== undefined) {
-    body.noWatermarkNeeded = payload.noWatermarkNeeded;
-    body.alreadyWatermarked = payload.noWatermarkNeeded;
-  }
+  if (payload.albumIds !== undefined) body.albumIds = payload.albumIds;
 
   try {
-    await apiClient.patch(`/gallery/${itemId}`, body);
+    await apiClient.put(`/gallery/${itemId}/manage`, body);
     return true;
   } catch (error) {
     throw mapAxiosError(error);

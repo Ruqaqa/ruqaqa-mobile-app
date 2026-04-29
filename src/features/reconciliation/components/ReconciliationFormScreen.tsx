@@ -33,9 +33,11 @@ import { buildReconciliationPayload } from '../services/reconciliationSubmission
 import { formatDate } from '@/utils/formatters';
 import { buildReconciliationPreviewFields, ReconciliationPreviewPayload } from '../utils/previewFields';
 import { isPositiveAmount } from '@/utils/sanitize';
+import { getMaxAllowedDate } from '@/utils/dateLimits';
 
 interface ReconciliationFormScreenProps {
   onClose: () => void;
+  onSubmitted?: () => void;
 }
 
 const CURRENCY_OPTIONS = [
@@ -49,7 +51,7 @@ const TYPE_OPTIONS_KEYS = [
   { labelKey: 'normal', value: 'normal' },
 ];
 
-export function ReconciliationFormScreen({ onClose }: ReconciliationFormScreenProps) {
+export function ReconciliationFormScreen({ onClose, onSubmitted }: ReconciliationFormScreenProps) {
   const { t } = useTranslation();
   const { colors, typography, spacing, radius, shadows } = useTheme();
   const [previewVisible, setPreviewVisible] = useState(false);
@@ -73,7 +75,12 @@ export function ReconciliationFormScreen({ onClose }: ReconciliationFormScreenPr
     removeAttachment,
     canAddMore,
     maxAttachments,
-  } = useReconciliationForm({ onSuccess: onClose });
+  } = useReconciliationForm({
+    onSuccess: () => {
+      onSubmitted?.();
+      onClose();
+    },
+  });
 
   // Consume shared files targeted at reconciliation on mount
   const { state: shareState, consumeFiles } = useShareIntent();
@@ -375,7 +382,7 @@ export function ReconciliationFormScreen({ onClose }: ReconciliationFormScreenPr
                 label={`${t('date')} *`}
                 value={form.date}
                 onChange={(date) => updateField('date', date ?? null)}
-                maxDate={new Date()}
+                maxDate={getMaxAllowedDate()}
                 minDate={new Date(2024, 0, 1)}
                 placeholder={t('selectDate')}
                 error={errors.date ? t(errors.date) : undefined}

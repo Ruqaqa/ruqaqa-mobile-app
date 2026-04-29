@@ -96,7 +96,6 @@ export interface ManageSheetState {
 export interface ManageItemPayload {
   tagIds?: string[];
   albumIds?: string[];
-  noWatermarkNeeded?: boolean;
 }
 
 /** Extended media item detail (for manage sheet pre-fetch). */

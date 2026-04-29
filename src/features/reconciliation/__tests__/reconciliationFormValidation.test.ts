@@ -65,11 +65,29 @@ describe('Step 0 — Basic Info', () => {
     expect(errors.date).toBeDefined();
   });
 
-  it('rejects future date', () => {
+  it('rejects date more than 3 days in the future', () => {
+    const fourDaysAhead = new Date();
+    fourDaysAhead.setDate(fourDaysAhead.getDate() + 4);
+    const errors = validateStep(0, makeForm({ date: fourDaysAhead }));
+    expect(errors.date).toBeDefined();
+  });
+
+  it('accepts date 3 days in the future', () => {
+    const threeDaysAhead = new Date();
+    threeDaysAhead.setDate(threeDaysAhead.getDate() + 3);
+    const errors = validateStep(0, makeForm({
+      statement: 'X', totalAmount: '10', date: threeDaysAhead,
+    }));
+    expect(errors.date).toBeUndefined();
+  });
+
+  it('accepts date 1 day in the future', () => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const errors = validateStep(0, makeForm({ date: tomorrow }));
-    expect(errors.date).toBeDefined();
+    const errors = validateStep(0, makeForm({
+      statement: 'X', totalAmount: '10', date: tomorrow,
+    }));
+    expect(errors.date).toBeUndefined();
   });
 
   it('accepts today as date', () => {

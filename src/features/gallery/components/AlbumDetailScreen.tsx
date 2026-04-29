@@ -21,6 +21,8 @@ import { useDownload } from '../hooks/useDownload';
 import {
   createAlbum as createAlbumService,
   createTag as createTagService,
+  fetchAlbums,
+  fetchTags,
 } from '../services/galleryService';
 import { MediaGrid } from './MediaGrid';
 import { FullScreenMediaViewer } from './FullScreenMediaViewer';
@@ -170,6 +172,7 @@ export function AlbumDetailScreen({ album, onBack }: AlbumDetailScreenProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showManageSheet, setShowManageSheet] = useState(false);
   const [manageState, setManageState] = useState<ManageSheetState | null>(null);
+  const [manageError, setManageError] = useState<string | null>(null);
 
   // Download format sheet state
   const [showFormatSheet, setShowFormatSheet] = useState(false);
@@ -288,6 +291,7 @@ export function AlbumDetailScreen({ album, onBack }: AlbumDetailScreenProps) {
   const handleManagePress = useCallback(async () => {
     setShowManageSheet(true);
     setManageState(null);
+    setManageError(null);
 
     const ids = [...selection.selectedIds];
     const details = await bulkActions.fetchBulkState(ids);
@@ -321,10 +325,26 @@ export function AlbumDetailScreen({ album, onBack }: AlbumDetailScreenProps) {
     [i18n.language],
   );
 
+  const handleBulkSearchAlbums = useCallback(
+    async (query: string): Promise<GalleryAlbum[]> => {
+      const result = await fetchAlbums({ search: query });
+      return result.albums;
+    },
+    [],
+  );
+
+  const handleBulkSearchTags = useCallback(
+    async (query: string): Promise<PickerItem[]> => {
+      return fetchTags(query);
+    },
+    [],
+  );
+
   const handleManageClose = useCallback(() => {
     if (!bulkActions.isProcessing) {
       setShowManageSheet(false);
       setManageState(null);
+      setManageError(null);
     }
   }, [bulkActions.isProcessing]);
 
@@ -333,7 +353,6 @@ export function AlbumDetailScreen({ album, onBack }: AlbumDetailScreenProps) {
       const details = itemDetailsRef.current;
       if (details.length === 0) return;
 
-      // Build per-item payloads from the user's changes
       const ids: string[] = [];
       const payloads: ManageItemPayload[] = [];
 
@@ -343,28 +362,37 @@ export function AlbumDetailScreen({ album, onBack }: AlbumDetailScreenProps) {
         payloads.push(payload);
       }
 
-      // Process sequentially — each item may have different resolved payload
-      let succeededCount = 0;
-      let failedCount = 0;
+      // Pre-validate: gallery.tags is server-side required. If any item would
+      // end up with no tags, block the submit with an inline message instead
+      // of letting the server reject with a generic 500.
+      const violatesTagsRequired = payloads.some(
+        (p) => Array.isArray(p.tagIds) && p.tagIds.length === 0,
+      );
+      if (violatesTagsRequired) {
+        setManageError(t('manageTagsRequiredError'));
+        return;
+      }
 
+      setManageError(null);
+
+      let failedCount = 0;
       for (let i = 0; i < ids.length; i++) {
         const result = await bulkActions.bulkManage([ids[i]], payloads[i]);
-        if (result && result.outcome === 'allSucceeded') {
-          succeededCount++;
-        } else {
+        if (!result || result.outcome !== 'allSucceeded') {
           failedCount++;
         }
       }
 
-      setShowManageSheet(false);
-      setManageState(null);
-
       if (failedCount === 0) {
+        setShowManageSheet(false);
+        setManageState(null);
         selection.exitSelectionMode();
         refresh();
+      } else {
+        setManageError(t('manageApplyFailed'));
       }
     },
-    [bulkActions, selection, refresh],
+    [bulkActions, selection, refresh, t],
   );
 
   // --- Download handlers ---
@@ -573,8 +601,11 @@ export function AlbumDetailScreen({ album, onBack }: AlbumDetailScreenProps) {
         isProcessing={bulkActions.isProcessing}
         progress={bulkActions.progress}
         permissions={permissions}
+        searchAlbums={handleBulkSearchAlbums}
+        searchTags={handleBulkSearchTags}
         onCreateAlbum={handleBulkCreateAlbum}
         onCreateTag={handleBulkCreateTag}
+        errorMessage={manageError}
         onConfirm={handleManageConfirm}
         onClose={handleManageClose}
       />

@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useTheme } from '@/theme';
 import { useTranslation } from 'react-i18next';
+import { useExposeRefresh } from '@/hooks/useExposeRefresh';
 import { UserPermissions } from '@/types/permissions';
 import { FilterBar } from '@/components/finance/FilterBar';
 import { Reconciliation, ApprovalStatus } from '../types';
@@ -13,10 +14,12 @@ import { ReconciliationDetailSheet } from './ReconciliationDetailSheet';
 
 interface ReconciliationHistoryScreenProps {
   permissions: UserPermissions;
+  onReady?: (api: { refresh: () => void }) => void;
 }
 
 export function ReconciliationHistoryScreen({
   permissions,
+  onReady,
 }: ReconciliationHistoryScreenProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
@@ -41,6 +44,8 @@ export function ReconciliationHistoryScreen({
   } = useReconciliationList({
     canViewAll: permissions.canViewAllReconciliations,
   });
+
+  useExposeRefresh(onReady, refresh);
 
   const [searchVisible, setSearchVisible] = useState(false);
 

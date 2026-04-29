@@ -91,16 +91,66 @@ const DEFAULT_STATE: ManageSheetState = {
   ],
 };
 
+const ALL_ALBUMS: GalleryAlbum[] = [
+  {
+    id: '507f1f77bcf86cd799439011',
+    title: 'Nature',
+    titleEn: 'Nature',
+    titleAr: 'طبيعة',
+    isDefault: false,
+    itemCount: 0,
+    coverThumbnails: [],
+    createdAt: '2026-04-09T00:00:00Z',
+  },
+  {
+    id: '507f1f77bcf86cd799439012',
+    title: 'Portrait',
+    titleEn: 'Portrait',
+    titleAr: 'بورتريه',
+    isDefault: false,
+    itemCount: 0,
+    coverThumbnails: [],
+    createdAt: '2026-04-09T00:00:00Z',
+  },
+];
+
+const ALL_TAGS: PickerItem[] = [
+  { id: '507f1f77bcf86cd799439021', name: 'landscape' },
+  { id: '507f1f77bcf86cd799439022', name: 'sunset' },
+];
+
+function makeSearchAlbums(items: GalleryAlbum[] = ALL_ALBUMS) {
+  return jest.fn(async (query: string) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((a) => a.title.toLowerCase().includes(q));
+  });
+}
+
+function makeSearchTags(items: PickerItem[] = ALL_TAGS) {
+  return jest.fn(async (query: string) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((t) => t.name.toLowerCase().includes(q));
+  });
+}
+
 function renderSheet({
   permsOverrides = {},
   manageState = DEFAULT_STATE,
   onCreateAlbum = jest.fn(),
   onCreateTag = jest.fn(),
+  searchAlbums = makeSearchAlbums(),
+  searchTags = makeSearchTags(),
+  errorMessage = null,
 }: {
   permsOverrides?: Partial<UserPermissions>;
   manageState?: ManageSheetState | null;
   onCreateAlbum?: jest.Mock;
   onCreateTag?: jest.Mock;
+  searchAlbums?: jest.Mock;
+  searchTags?: jest.Mock;
+  errorMessage?: string | null;
 } = {}) {
   const permissions = { ...ALL_PERMS, ...permsOverrides };
   const onConfirm = jest.fn();
@@ -117,46 +167,123 @@ function renderSheet({
         isProcessing={false}
         progress={null}
         permissions={permissions}
+        searchAlbums={searchAlbums}
+        searchTags={searchTags}
         onCreateAlbum={onCreateAlbum}
         onCreateTag={onCreateTag}
+        errorMessage={errorMessage}
         onConfirm={onConfirm}
         onClose={onClose}
       />
     </ThemeProvider>,
   );
 
-  return { ...utils, onConfirm, onClose, onCreateAlbum, onCreateTag };
+  return {
+    ...utils,
+    onConfirm,
+    onClose,
+    onCreateAlbum,
+    onCreateTag,
+    searchAlbums,
+    searchTags,
+  };
 }
+
+/**
+ * Wait until the initial searchAlbums('') / searchTags('') calls have resolved
+ * and the resulting setState calls have flushed.
+ */
+async function waitForInitialFetch(
+  searchAlbums: jest.Mock,
+  searchTags: jest.Mock,
+) {
+  await waitFor(() => {
+    expect(searchAlbums).toHaveBeenCalledWith('');
+    expect(searchTags).toHaveBeenCalledWith('');
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Initial list display (the bug this refactor fixes)
+// ---------------------------------------------------------------------------
+
+describe('BulkManageSheet — initial album/tag list', () => {
+  it('fetches the full album and tag inventory on open', async () => {
+    const searchAlbums = makeSearchAlbums();
+    const searchTags = makeSearchTags();
+    renderSheet({ searchAlbums, searchTags });
+
+    await waitForInitialFetch(searchAlbums, searchTags);
+  });
+
+  it('shows the full list of albums even when none of them are attached to the selected items', async () => {
+    // manageState contains no attached albums — but full inventory has two.
+    const emptyState: ManageSheetState = { albums: [], tags: [] };
+    const searchAlbums = makeSearchAlbums();
+    const searchTags = makeSearchTags();
+
+    const { findByText } = renderSheet({
+      manageState: emptyState,
+      searchAlbums,
+      searchTags,
+    });
+
+    expect(await findByText('Nature')).toBeTruthy();
+    expect(await findByText('Portrait')).toBeTruthy();
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Album inline create
 // ---------------------------------------------------------------------------
 
 describe('BulkManageSheet — inline album create', () => {
-  it('does not show album create row when search is empty', () => {
-    const { queryByTestId, getByTestId } = renderSheet();
-    // Search must be non-empty for create row to appear
+  it('does not show album create row when search is empty', async () => {
+    const searchAlbums = makeSearchAlbums();
+    const searchTags = makeSearchTags();
+    const { queryByTestId, getByTestId } = renderSheet({
+      searchAlbums,
+      searchTags,
+    });
+    await waitForInitialFetch(searchAlbums, searchTags);
+
     expect(queryByTestId('bulk-manage-create-album')).toBeNull();
-    // The search input itself should still exist
     expect(getByTestId('bulk-manage-album-search')).toBeTruthy();
   });
 
-  it('shows album create row when search has no exact match', () => {
-    const { getByTestId } = renderSheet();
+  it('shows album create row when search has no exact match', async () => {
+    const searchAlbums = makeSearchAlbums();
+    const searchTags = makeSearchTags();
+    const { getByTestId } = renderSheet({ searchAlbums, searchTags });
+    await waitForInitialFetch(searchAlbums, searchTags);
+
     fireEvent.changeText(getByTestId('bulk-manage-album-search'), 'Wildlife');
     expect(getByTestId('bulk-manage-create-album')).toBeTruthy();
   });
 
-  it('does not show album create row when search matches an existing album (case-insensitive)', () => {
-    const { getByTestId, queryByTestId } = renderSheet();
+  it('does not show album create row when search matches an existing album (case-insensitive)', async () => {
+    const searchAlbums = makeSearchAlbums();
+    const searchTags = makeSearchTags();
+    const { getByTestId, queryByTestId } = renderSheet({
+      searchAlbums,
+      searchTags,
+    });
+    await waitForInitialFetch(searchAlbums, searchTags);
+
     fireEvent.changeText(getByTestId('bulk-manage-album-search'), 'nature');
     expect(queryByTestId('bulk-manage-create-album')).toBeNull();
   });
 
-  it('does not show album create row when user lacks canCreateGallery', () => {
+  it('does not show album create row when user lacks canCreateGallery', async () => {
+    const searchAlbums = makeSearchAlbums();
+    const searchTags = makeSearchTags();
     const { getByTestId, queryByTestId } = renderSheet({
       permsOverrides: { canCreateGallery: false },
+      searchAlbums,
+      searchTags,
     });
+    await waitForInitialFetch(searchAlbums, searchTags);
+
     fireEvent.changeText(getByTestId('bulk-manage-album-search'), 'Wildlife');
     expect(queryByTestId('bulk-manage-create-album')).toBeNull();
   });
@@ -173,7 +300,14 @@ describe('BulkManageSheet — inline album create', () => {
       createdAt: '2026-04-09T00:00:00Z',
     };
     const onCreateAlbum = jest.fn().mockResolvedValue(newAlbum);
-    const { getByTestId } = renderSheet({ onCreateAlbum });
+    const searchAlbums = makeSearchAlbums();
+    const searchTags = makeSearchTags();
+    const { getByTestId } = renderSheet({
+      onCreateAlbum,
+      searchAlbums,
+      searchTags,
+    });
+    await waitForInitialFetch(searchAlbums, searchTags);
 
     fireEvent.changeText(getByTestId('bulk-manage-album-search'), '  Wildlife  ');
     fireEvent.press(getByTestId('bulk-manage-create-album'));
@@ -195,7 +329,14 @@ describe('BulkManageSheet — inline album create', () => {
       createdAt: '2026-04-09T00:00:00Z',
     };
     const onCreateAlbum = jest.fn().mockResolvedValue(newAlbum);
-    const { getByTestId } = renderSheet({ onCreateAlbum });
+    const searchAlbums = makeSearchAlbums();
+    const searchTags = makeSearchTags();
+    const { getByTestId } = renderSheet({
+      onCreateAlbum,
+      searchAlbums,
+      searchTags,
+    });
+    await waitForInitialFetch(searchAlbums, searchTags);
 
     const input = getByTestId('bulk-manage-album-search');
     fireEvent.changeText(input, 'Wildlife');
@@ -218,20 +359,23 @@ describe('BulkManageSheet — inline album create', () => {
       createdAt: '2026-04-09T00:00:00Z',
     };
     const onCreateAlbum = jest.fn().mockResolvedValue(newAlbum);
-    const { getByTestId, onConfirm } = renderSheet({ onCreateAlbum });
+    const searchAlbums = makeSearchAlbums();
+    const searchTags = makeSearchTags();
+    const { getByTestId, onConfirm } = renderSheet({
+      onCreateAlbum,
+      searchAlbums,
+      searchTags,
+    });
+    await waitForInitialFetch(searchAlbums, searchTags);
 
     const input = getByTestId('bulk-manage-album-search');
     fireEvent.changeText(input, 'Wildlife');
     fireEvent.press(getByTestId('bulk-manage-create-album'));
 
-    // Wait for the state updates triggered by the awaited service call.
-    // Clearing the search is the last thing the handler does on success, so
-    // once it's empty we know `extraAlbums` + the override have been set.
     await waitFor(() => {
       expect(input.props.value).toBe('');
     });
 
-    // Tap confirm to inspect the payload
     fireEvent.press(getByTestId('bulk-manage-confirm'));
 
     expect(onConfirm).toHaveBeenCalledTimes(1);
@@ -244,7 +388,14 @@ describe('BulkManageSheet — inline album create', () => {
 
   it('does not add album or clear search when onCreateAlbum returns null', async () => {
     const onCreateAlbum = jest.fn().mockResolvedValue(null);
-    const { getByTestId, onConfirm } = renderSheet({ onCreateAlbum });
+    const searchAlbums = makeSearchAlbums();
+    const searchTags = makeSearchTags();
+    const { getByTestId, onConfirm } = renderSheet({
+      onCreateAlbum,
+      searchAlbums,
+      searchTags,
+    });
+    await waitForInitialFetch(searchAlbums, searchTags);
 
     const input = getByTestId('bulk-manage-album-search');
     fireEvent.changeText(input, 'Wildlife');
@@ -254,17 +405,37 @@ describe('BulkManageSheet — inline album create', () => {
       expect(onCreateAlbum).toHaveBeenCalled();
     });
 
-    // Search should remain populated
     expect(input.props.value).toBe('Wildlife');
 
-    // Confirm payload should not include any album changes
     fireEvent.press(getByTestId('bulk-manage-confirm'));
-    // Confirm is only enabled when there are changes — if this was disabled,
-    // onConfirm might not fire. Either way, the album must not be in the payload.
     if (onConfirm.mock.calls.length > 0) {
       const payload = onConfirm.mock.calls[0][0];
       expect(payload.albums).toEqual([]);
     }
+  });
+
+  it('toggles a previously-unattached album from unchecked to checked and includes it in confirm payload', async () => {
+    // manageState has no attached albums — but the inventory does.
+    const emptyState: ManageSheetState = { albums: [], tags: [] };
+    const searchAlbums = makeSearchAlbums();
+    const searchTags = makeSearchTags();
+    const { findByLabelText, getByTestId, onConfirm } = renderSheet({
+      manageState: emptyState,
+      searchAlbums,
+      searchTags,
+    });
+
+    const natureRow = await findByLabelText('Nature');
+    fireEvent.press(natureRow);
+
+    fireEvent.press(getByTestId('bulk-manage-confirm'));
+
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    const payload = onConfirm.mock.calls[0][0];
+    expect(payload.albums).toContainEqual({
+      id: '507f1f77bcf86cd799439011',
+      state: 'checked',
+    });
   });
 });
 
@@ -273,22 +444,39 @@ describe('BulkManageSheet — inline album create', () => {
 // ---------------------------------------------------------------------------
 
 describe('BulkManageSheet — inline tag create', () => {
-  it('shows tag create row when search has no exact match', () => {
-    const { getByTestId } = renderSheet();
+  it('shows tag create row when search has no exact match', async () => {
+    const searchAlbums = makeSearchAlbums();
+    const searchTags = makeSearchTags();
+    const { getByTestId } = renderSheet({ searchAlbums, searchTags });
+    await waitForInitialFetch(searchAlbums, searchTags);
+
     fireEvent.changeText(getByTestId('bulk-manage-tag-search'), 'wildlife');
     expect(getByTestId('bulk-manage-create-tag')).toBeTruthy();
   });
 
-  it('does not show tag create row when search matches an existing tag', () => {
-    const { getByTestId, queryByTestId } = renderSheet();
+  it('does not show tag create row when search matches an existing tag', async () => {
+    const searchAlbums = makeSearchAlbums();
+    const searchTags = makeSearchTags();
+    const { getByTestId, queryByTestId } = renderSheet({
+      searchAlbums,
+      searchTags,
+    });
+    await waitForInitialFetch(searchAlbums, searchTags);
+
     fireEvent.changeText(getByTestId('bulk-manage-tag-search'), 'landscape');
     expect(queryByTestId('bulk-manage-create-tag')).toBeNull();
   });
 
-  it('does not show tag create row when user lacks canCreateGallery', () => {
+  it('does not show tag create row when user lacks canCreateGallery', async () => {
+    const searchAlbums = makeSearchAlbums();
+    const searchTags = makeSearchTags();
     const { getByTestId, queryByTestId } = renderSheet({
       permsOverrides: { canCreateGallery: false },
+      searchAlbums,
+      searchTags,
     });
+    await waitForInitialFetch(searchAlbums, searchTags);
+
     fireEvent.changeText(getByTestId('bulk-manage-tag-search'), 'wildlife');
     expect(queryByTestId('bulk-manage-create-tag')).toBeNull();
   });
@@ -296,7 +484,14 @@ describe('BulkManageSheet — inline tag create', () => {
   it('calls onCreateTag with trimmed query when create row is tapped', async () => {
     const newTag: PickerItem = { id: '507f1f77bcf86cd799439099', name: 'wildlife' };
     const onCreateTag = jest.fn().mockResolvedValue(newTag);
-    const { getByTestId } = renderSheet({ onCreateTag });
+    const searchAlbums = makeSearchAlbums();
+    const searchTags = makeSearchTags();
+    const { getByTestId } = renderSheet({
+      onCreateTag,
+      searchAlbums,
+      searchTags,
+    });
+    await waitForInitialFetch(searchAlbums, searchTags);
 
     fireEvent.changeText(getByTestId('bulk-manage-tag-search'), '  wildlife  ');
     fireEvent.press(getByTestId('bulk-manage-create-tag'));
@@ -309,7 +504,14 @@ describe('BulkManageSheet — inline tag create', () => {
   it('clears tag search and adds tag to selection on success', async () => {
     const newTag: PickerItem = { id: '507f1f77bcf86cd799439099', name: 'wildlife' };
     const onCreateTag = jest.fn().mockResolvedValue(newTag);
-    const { getByTestId, onConfirm } = renderSheet({ onCreateTag });
+    const searchAlbums = makeSearchAlbums();
+    const searchTags = makeSearchTags();
+    const { getByTestId, onConfirm } = renderSheet({
+      onCreateTag,
+      searchAlbums,
+      searchTags,
+    });
+    await waitForInitialFetch(searchAlbums, searchTags);
 
     const input = getByTestId('bulk-manage-tag-search');
     fireEvent.changeText(input, 'wildlife');
@@ -331,7 +533,14 @@ describe('BulkManageSheet — inline tag create', () => {
 
   it('does not add tag when onCreateTag returns null', async () => {
     const onCreateTag = jest.fn().mockResolvedValue(null);
-    const { getByTestId, onConfirm } = renderSheet({ onCreateTag });
+    const searchAlbums = makeSearchAlbums();
+    const searchTags = makeSearchTags();
+    const { getByTestId, onConfirm } = renderSheet({
+      onCreateTag,
+      searchAlbums,
+      searchTags,
+    });
+    await waitForInitialFetch(searchAlbums, searchTags);
 
     const input = getByTestId('bulk-manage-tag-search');
     fireEvent.changeText(input, 'wildlife');
@@ -342,7 +551,6 @@ describe('BulkManageSheet — inline tag create', () => {
     });
 
     expect(input.props.value).toBe('wildlife');
-    // No tag override → confirm button is disabled / payload is empty
     fireEvent.press(getByTestId('bulk-manage-confirm'));
     if (onConfirm.mock.calls.length > 0) {
       const payload = onConfirm.mock.calls[0][0];

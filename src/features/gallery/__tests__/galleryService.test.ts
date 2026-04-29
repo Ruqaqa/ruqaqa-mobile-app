@@ -370,24 +370,27 @@ describe('fetchMediaItemDetail', () => {
 });
 
 describe('manageMediaItem', () => {
-  it('sends PATCH to /gallery/{id} with payload and returns true', async () => {
-    mock.onPatch(`/gallery/${ITEM_ID}`).reply(200);
+  it('sends PUT to /gallery/{id}/manage with mapped payload and returns true', async () => {
+    mock.onPut(`/gallery/${ITEM_ID}/manage`).reply(200);
 
-    const result = await manageMediaItem(ITEM_ID, { tagIds: ['tag-1', 'tag-2'] });
+    const result = await manageMediaItem(ITEM_ID, {
+      tagIds: ['tag-1', 'tag-2'],
+      albumIds: ['album-1'],
+    });
 
     expect(result).toBe(true);
-    const body = JSON.parse(mock.history.patch[0].data);
+    const body = JSON.parse(mock.history.put[0].data);
     expect(body.tags).toEqual(['tag-1', 'tag-2']);
+    expect(body.albumIds).toEqual(['album-1']);
   });
 
-  it('sends noWatermarkNeeded and alreadyWatermarked together', async () => {
-    mock.onPatch(`/gallery/${ITEM_ID}`).reply(200);
+  it('omits unset fields from the body', async () => {
+    mock.onPut(`/gallery/${ITEM_ID}/manage`).reply(200);
 
-    await manageMediaItem(ITEM_ID, { noWatermarkNeeded: true });
+    await manageMediaItem(ITEM_ID, { albumIds: ['album-1'] });
 
-    const body = JSON.parse(mock.history.patch[0].data);
-    expect(body.noWatermarkNeeded).toBe(true);
-    expect(body.alreadyWatermarked).toBe(true);
+    const body = JSON.parse(mock.history.put[0].data);
+    expect(body).toEqual({ albumIds: ['album-1'] });
   });
 
   it('rejects invalid itemId before making API call', async () => {
@@ -395,11 +398,11 @@ describe('manageMediaItem', () => {
       manageMediaItem('bad-id!', { tagIds: ['tag-1'] }),
     ).rejects.toThrow(expect.objectContaining({ code: 'UNKNOWN' }));
 
-    expect(mock.history.patch).toHaveLength(0);
+    expect(mock.history.put).toHaveLength(0);
   });
 
   it('throws FORBIDDEN on 403', async () => {
-    mock.onPatch(`/gallery/${ITEM_ID}`).reply(403);
+    mock.onPut(`/gallery/${ITEM_ID}/manage`).reply(403);
 
     await expect(
       manageMediaItem(ITEM_ID, { tagIds: ['tag-1'] }),
@@ -407,7 +410,7 @@ describe('manageMediaItem', () => {
   });
 
   it('throws SERVER on 500', async () => {
-    mock.onPatch(`/gallery/${ITEM_ID}`).reply(500);
+    mock.onPut(`/gallery/${ITEM_ID}/manage`).reply(500);
 
     await expect(
       manageMediaItem(ITEM_ID, { tagIds: ['tag-1'] }),

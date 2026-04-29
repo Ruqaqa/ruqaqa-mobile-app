@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { View, StyleSheet, Pressable, Text, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus } from 'lucide-react-native';
@@ -65,6 +65,29 @@ export function FinanceShell() {
   const openReconciliationForm = useCallback(() => setReconciliationFormVisible(true), []);
   const closeReconciliationForm = useCallback(() => setReconciliationFormVisible(false), []);
 
+  const transactionListRef = useRef<{ refresh: () => void } | null>(null);
+  const reconciliationListRef = useRef<{ refresh: () => void } | null>(null);
+
+  const handleTransactionListReady = useCallback(
+    (api: { refresh: () => void }) => {
+      transactionListRef.current = api;
+    },
+    [],
+  );
+  const handleReconciliationListReady = useCallback(
+    (api: { refresh: () => void }) => {
+      reconciliationListRef.current = api;
+    },
+    [],
+  );
+
+  const handleTransactionSubmitted = useCallback(() => {
+    transactionListRef.current?.refresh();
+  }, []);
+  const handleReconciliationSubmitted = useCallback(() => {
+    reconciliationListRef.current?.refresh();
+  }, []);
+
   const showTransactionFab = activeTab === 'operations' && permissions.canCreateTransactions;
   const showReconciliationFab = activeTab === 'reconciliation' && permissions.canCreateReconciliation;
 
@@ -93,9 +116,15 @@ export function FinanceShell() {
             ]}
           >
             {tab === 'operations' ? (
-              <TransactionHistoryScreen permissions={permissions} />
+              <TransactionHistoryScreen
+                permissions={permissions}
+                onReady={handleTransactionListReady}
+              />
             ) : (
-              <ReconciliationHistoryScreen permissions={permissions} />
+              <ReconciliationHistoryScreen
+                permissions={permissions}
+                onReady={handleReconciliationListReady}
+              />
             )}
           </View>
         ))}
@@ -154,6 +183,7 @@ export function FinanceShell() {
           permissions={permissions}
           employee={employee}
           onClose={closeForm}
+          onSubmitted={handleTransactionSubmitted}
         />
       </Modal>
 
@@ -164,7 +194,10 @@ export function FinanceShell() {
         presentationStyle="fullScreen"
         onRequestClose={closeReconciliationForm}
       >
-        <ReconciliationFormScreen onClose={closeReconciliationForm} />
+        <ReconciliationFormScreen
+          onClose={closeReconciliationForm}
+          onSubmitted={handleReconciliationSubmitted}
+        />
       </Modal>
 
       {/* Bottom tab bar — only show if more than one tab */}

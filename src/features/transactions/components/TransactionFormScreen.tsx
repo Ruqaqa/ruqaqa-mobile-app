@@ -23,6 +23,7 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/theme';
 import { withAlpha } from '@/utils/colorUtils';
 import { isPositiveAmount } from '@/utils/sanitize';
+import { getMaxAllowedDate } from '@/utils/dateLimits';
 import { UserPermissions, Employee } from '@/types/permissions';
 import { Input } from '@/components/ui/Input';
 import { SelectField } from '@/components/ui/SelectField';
@@ -48,6 +49,7 @@ interface TransactionFormScreenProps {
   permissions: UserPermissions;
   employee: Employee | null;
   onClose: () => void;
+  onSubmitted?: () => void;
 }
 
 // Adapters: map server shape { id, name } to AutocompleteItem { id, label }
@@ -76,6 +78,7 @@ export function TransactionFormScreen({
   permissions,
   employee,
   onClose,
+  onSubmitted,
 }: TransactionFormScreenProps) {
   const { t } = useTranslation();
   const { colors, typography, spacing, radius, shadows } = useTheme();
@@ -118,7 +121,10 @@ export function TransactionFormScreen({
   } = useTransactionForm({
     permissions,
     employee,
-    onSuccess: onClose,
+    onSuccess: () => {
+      onSubmitted?.();
+      onClose();
+    },
   });
 
   // Consume shared files targeted at transactions on mount
@@ -590,7 +596,7 @@ export function TransactionFormScreen({
             label={t('date')}
             value={form.date}
             onChange={(date) => updateField('date', date ?? null)}
-            maxDate={new Date()}
+            maxDate={getMaxAllowedDate()}
             minDate={new Date(2024, 0, 1)}
             placeholder={t('selectDate')}
             error={errors.date}
